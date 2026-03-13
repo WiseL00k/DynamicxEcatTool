@@ -1,0 +1,14 @@
+ethercat_master:
+  time_step: 0.001
+
+ethercat_devices:
+  - type: Mit
+    name: Chassis
+    configuration_file: device_configurations/legged_balance2_chassis.yaml
+    ethercat_bus: enp114s0
+    ethercat_address: 2
+  - type: Rm
+    name: Gimbal
+    configuration_file: device_configurations/legged_balance2_gimbal.yaml
+    ethercat_bus: enp114s0
+    ethercat_address: 1

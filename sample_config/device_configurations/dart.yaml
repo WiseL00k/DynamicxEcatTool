@@ -1,0 +1,41 @@
+can_motors:
+  - can_id: 1
+    can_bus: 0
+    name: "left_friction_wheel_joint_motor"
+    type: "M3508"
+  - can_id: 4
+    can_bus: 0
+    name: "right_friction_wheel_joint_motor"
+    type: "M3508"
+  - can_id: 3
+    can_bus: 0
+    name: "trigger_joint_motor"
+    type: "M2006"
+    need_calibration: true
+  - can_id: 5
+    can_bus: 0
+    name: "right_pitch_joint_motor"
+    type: "GM6020"
+    need_calibration: true
+  - can_id: 6
+    can_bus: 0
+    name: "left_pitch_joint_motor"
+    type: "GM6020"
+    need_calibration: true
+  - can_id: 7
+    can_bus: 0
+    name: "yaw_joint_motor"
+    type: "GM6020"
+    need_calibration: true
+
+gpios:
+  - name: "calibration_left"
+    pin: 1
+    mode: 0
+  - name: "calibration_yaw"
+    pin: 2
+    mode: 0
+  - name: "calibration_right"
+    pin: 0
+    mode: 0
+

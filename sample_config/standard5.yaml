@@ -1,0 +1,9 @@
+ethercat_master:
+  time_step: 0.001
+
+ethercat_devices:
+  - type: Rm
+    name: RmSlave1
+    configuration_file: device_configurations/standard5.yaml
+    ethercat_bus: enp86s0
+    ethercat_address: 1

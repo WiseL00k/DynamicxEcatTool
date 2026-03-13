@@ -1,0 +1,14 @@
+ethercat_master:
+  time_step: 0.001
+
+ethercat_devices:
+  - type: Rm
+    name: Chassis
+    configuration_file: device_configurations/engineer2_chassis.yaml
+    ethercat_bus: enp2s0
+    ethercat_address: 2
+  - type: Mit
+    name: Arm
+    configuration_file: device_configurations/engineer2_arm.yaml
+    ethercat_bus: enp2s0
+    ethercat_address: 1

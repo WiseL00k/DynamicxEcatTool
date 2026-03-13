@@ -1,0 +1,24 @@
+can_motors:
+  - can_id: 1
+    can_bus: 1
+    name: "left_friction_wheel_joint_motor"
+    type: "M3508"
+  - can_id: 2
+    can_bus: 1
+    name: "right_friction_wheel_joint_motor"
+    type: "M3508"
+  - can_id: 3
+    can_bus: 1
+    name: "pitch_joint_motor"
+    type: "M3508"
+    need_calibration: true
+  - can_id: 5
+    can_bus: 1
+    name: "barrel_joint_motor"
+    type: "M2006"
+    need_calibration: true
+
+can_imus:
+  - can_bus: 0
+    name: "gimbal_imu"
+    bias: [ -0.000544, 0.003081, 0.000715 ]

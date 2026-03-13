@@ -1,0 +1,46 @@
+can_motors:
+  - can_id: 3
+    can_bus: 1
+    name: "right_front_wheel_motor"
+    type: "M3508"
+  - can_id: 2
+    can_bus: 1
+    name: "right_back_wheel_motor"
+    type: "M3508"
+  - can_id: 6
+    can_bus: 1
+    name: "right_front_pivot_motor"
+    type: "GM6020"
+  - can_id: 7
+    can_bus: 1
+    name: "right_back_pivot_motor"
+    type: "GM6020"
+
+  - can_id: 6
+    can_bus: 0
+    name: "left_front_pivot_motor"
+    type: "GM6020"
+  - can_id: 8
+    can_bus: 0
+    name: "left_back_pivot_motor"
+    type: "GM6020"
+  - can_id: 2
+    can_bus: 0
+    name: "left_front_wheel_motor"
+    type: "M3508"
+  - can_id: 1
+    can_bus: 0
+    name: "left_back_wheel_motor"
+    type: "M3508"
+  - can_id: 4
+    can_bus: 0
+    name: "trigger_joint_motor"
+    type: "M2006"
+    need_calibration: true
+  - can_id: 5
+    can_bus: 0
+    name: "yaw_joint_motor"
+    type: "GM6020"
+
+dbus:
+  - name: "dbus"

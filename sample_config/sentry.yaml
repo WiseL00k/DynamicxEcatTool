@@ -1,0 +1,14 @@
+ethercat_master:
+  time_step: 0.001
+
+ethercat_devices:
+  - type: Rm
+    name: gimbal
+    configuration_file: device_configurations/sentry_gimbal.yaml
+    ethercat_bus: enp86s0
+    ethercat_address: 1
+  - type: Rm
+    name: chassis
+    configuration_file: device_configurations/sentry_chassis.yaml
+    ethercat_bus: enp86s0
+    ethercat_address: 2

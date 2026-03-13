@@ -1,0 +1,39 @@
+can_motors:
+  ################### ore bin ###################
+  - can_id: 5
+    can_bus: 0
+    name: "ore_bin_rotate_joint_motor"
+    type: "GM6020"
+    need_calibration: false
+  - can_id: 1
+    can_bus: 0
+    name: "ore_bin_lifter_joint_motor"
+    type: "M3508"
+    need_calibration: true
+
+  ################### chassis ###################
+  - can_id: 7
+    can_bus: 0
+    name: "left_front_wheel_motor"
+    type: "M3508"
+    need_calibration: false
+  - can_id: 2
+    can_bus: 0
+    name: "left_back_wheel_motor"
+    type: "M3508"
+    need_calibration: false
+  - can_id: 3
+    can_bus: 0
+    name: "right_back_wheel_motor"
+    type: "M3508"
+    need_calibration: false
+  - can_id: 4
+    can_bus: 0
+    name: "right_front_wheel_motor"
+    type: "M3508"
+    need_calibration: false
+    ################### gpio ###################
+gpios:
+   - name: "gripper"
+     pin: 0
+     mode: 1

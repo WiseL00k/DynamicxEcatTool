@@ -1,0 +1,28 @@
+can_motors:
+  - can_id: 2
+    can_bus: 0
+    name: "左摩擦轮电机"
+    type: "M3508"
+  - can_id: 6
+    can_bus: 0
+    name: "右摩擦轮电机"
+    type: "M3508"
+  - can_id: 7
+    can_bus: 0
+    name: "pitch电机"
+    type: "GM6020"
+  - can_id: 5
+    can_bus: 1
+    name: "barrel_joint_motor"
+    type: "M2006"
+    need_calibration: true
+  - can_id: 5
+    can_bus: 0
+    name: "yaw电机"
+    type: "GM6020"
+
+can_imus:
+  - can_bus: 1
+    name: "gimbal_imu"
+    bias: [ 0.003105, 0.00523, 0.00138 ]
+    #[ -0.001, 0.000, 0.000 ]

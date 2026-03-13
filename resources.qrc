@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file>dynamicx_ecat_tool_logo.ico</file>
+    </qresource>
+</RCC>

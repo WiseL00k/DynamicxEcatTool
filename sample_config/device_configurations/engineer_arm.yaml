@@ -1,0 +1,73 @@
+can_motors:
+  ################### arm ###################
+  ####### can0 ######
+  - can_id: 3
+    can_bus: 0
+    name: "joint1_motor"
+    type: "M3508"
+    need_calibration: true
+  - can_id: 5
+    can_bus: 0
+    name: "mimic_joint1_motor"
+    type: "M3508"
+    need_calibration: true
+  ####### can1 ######
+  - can_id: 2
+    can_bus: 1
+    name: "joint2_motor"
+    type: "M3508"
+    need_calibration: true
+  - can_id: 3
+    can_bus: 1
+    name: "joint3_motor"
+    type: "M3508"
+    need_calibration: true
+  - can_id: 4
+    can_bus: 1
+    name: "joint4_motor"
+    type: "M3508"
+    need_calibration: true
+  - can_id: 5
+    can_bus: 1
+    name: "joint5_motor"
+    type: "M3508"
+    need_calibration: true
+  - can_id: 6
+    can_bus: 1
+    name: "joint6_motor"
+    type: "M3508"
+    need_calibration: true
+  - can_id: 1
+    can_bus: 1
+    name: "joint7_motor"
+    type: "M2006"
+    need_calibration: true
+
+  ################### gimbal ###################
+  - can_id: 8
+    can_bus: 0
+    name: "yaw_joint_motor"
+    type: "GM6020"
+    need_calibration: false
+  - can_id: 7
+    can_bus: 0
+    name: "pitch_joint_motor"
+    type: "GM6020"
+    need_calibration: false
+  - can_id: 1
+    can_bus: 0
+    name: "gimbal_lifter_joint_motor"
+    type: "M2006"
+    need_calibration: true
+
+  ################# extend arm ##################
+  - can_id: 2
+    can_bus: 0
+    name: "extend_arm_front_joint_motor"
+    type: "M2006"
+    need_calibration: true
+  - can_id: 4
+    can_bus: 0
+    name: "extend_arm_back_joint_motor"
+    type: "M2006"
+    need_calibration: true
