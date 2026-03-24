@@ -54,7 +54,7 @@ Dialog {
             }
 
             Label {
-                text: "系统错误"
+                text: "系统提示"
                 font.pixelSize: 18
                 font.bold: true
                 color: "#111827"

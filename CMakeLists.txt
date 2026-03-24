@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTORCC ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2)
-find_package(Qt6 REQUIRED COMPONENTS Core)
+find_package(Qt6 REQUIRED COMPONENTS Core Concurrent)
 find_package(yaml-cpp CONFIG REQUIRED)
 
 add_subdirectory(SOEM)
@@ -40,6 +40,11 @@ qt_add_qml_module(DynamicxEcatTool
         QML_FILES ErrorPopup.qml
         SOURCES Backend/MotorStatusModel.h
         RESOURCES resources.qrc
+        QML_FILES
+        QML_FILES
+        QML_FILES ParamsConfigPage.qml
+        QML_FILES panels/MITConfigPanel.qml
+        QML_FILES
     )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
@@ -54,7 +59,7 @@ set_target_properties(DynamicxEcatTool PROPERTIES
 )
 
 target_link_libraries(DynamicxEcatTool
-    PRIVATE Qt6::Quick Qt6::QuickControls2
+    PRIVATE Qt6::Quick Qt6::QuickControls2 Qt6::Concurrent
 )
 target_link_libraries(DynamicxEcatTool PRIVATE Qt6::Core)
 target_link_libraries(DynamicxEcatTool PRIVATE yaml-cpp)

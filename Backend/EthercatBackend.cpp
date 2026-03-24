@@ -465,4 +465,111 @@ void EthercatWorker::pdoLogRefresh()
     emit logUpdated(line);
 }
 
+void EthercatBackend::enterPreOpAll()
+{
+    if (master_) {
+        return;
+    }
+
+    master_ = std::make_shared<soem_interface::EcatMasterBus>(nicName_);
+
+    SoemInterfaceErrorCode errorCode = master_->initMaster();
+    bool ok = (errorCode == NoError);
+    connected_ = ok;
+    emit connectedChanged();
+    emit connectedUpdated(ok);
+    if(ok)
+    {
+        master_->requestPreOp();
+    }
+    else
+    {
+        master_.reset();
+        emit soemErrorOccurred(errorString(errorCode));
+    }
+}
+
+void EthercatBackend::exitPreOpAll()
+{
+    if (!master_ || !connected_)
+        return;
+
+    if(worker_ || testWorker_)
+        return;
+
+    master_->closeMaster();
+    master_.reset();
+
+    connected_ = false;
+
+    emit connectedChanged();
+    emit connectedUpdated(0);
+}
+
+bool EthercatBackend::applySDOConfigsQml(const QVariantList& list)
+{
+    if (!master_ || !connected_)
+        return false;
+    auto configs = parseSDOConfigs(list);
+
+    bool ret = master_->applySDOConfigs(configs);
+    if(ret)
+    {
+        emit soemErrorOccurred("CAN ID配置成功!");
+    }
+    else
+    {
+        emit soemErrorOccurred("CAN ID配置失败!请检查参数或从站状态");
+    }
+    return ret;
+}
+
+std::vector<soem_interface::SDOConfig> EthercatBackend::parseSDOConfigs(const QVariantList& list)
+{
+    std::vector<soem_interface::SDOConfig> result;
+    result.reserve(list.size());
+
+    for (const auto& item : list)
+    {
+        QVariantMap m = item.toMap();
+
+        soem_interface::SDOConfig cfg;
+        cfg.slave    = static_cast<uint16_t>(m["slave"].toUInt());
+        cfg.index    = static_cast<uint16_t>(m["index"].toUInt());
+        cfg.subindex = static_cast<uint8_t>(m["subindex"].toUInt());
+
+        // ---------- type ----------
+        QString typeStr = m["type"].toString().toLower();
+        if (typeStr == "write")
+            cfg.type = soem_interface::SDOType::WRITE;
+        else
+            cfg.type = soem_interface::SDOType::READ;
+
+        // ---------- data ----------
+        if (cfg.type == soem_interface::SDOType::WRITE)
+        {
+            QVariantList dataList = m["data"].toList();
+            cfg.data.reserve(dataList.size());
+
+            for (const auto& v : dataList)
+                cfg.data.push_back(static_cast<uint8_t>(v.toUInt()));
+        }
+        else
+        {
+            cfg.expected_size = m["expected_size"].toInt();
+        }
+
+        result.push_back(std::move(cfg));
+    }
+
+    return result;
+}
+
+void EthercatBackend::refreshNicsAsync()
+{
+    QtConcurrent::run([this]() {
+        this->refreshNics();  // 原来的耗时函数
+    });
+}
+
 }

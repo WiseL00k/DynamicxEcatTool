@@ -72,6 +72,19 @@ Window {
                                 border.color: tabBar.currentIndex === 1 ? "#90caf9" : "transparent"
                             }
                         }
+
+                        TabButton {
+                            id: tabParamsBtn
+                            text: qsTr("参数界面")
+
+                            font.pixelSize: Math.max(12, Math.min(16, height * 0.4))
+                            background: Rectangle {
+                                implicitHeight: 36
+                                radius: 6
+                                color: tabBar.currentIndex === 2 ? "#e3f2fd" : "transparent"
+                                border.color: tabBar.currentIndex === 2 ? "#90caf9" : "transparent"
+                            }
+                        }
                     }
 
                     Rectangle {
@@ -114,6 +127,12 @@ Window {
                         isConnected: root.isConnected
                         onConnectionChanged: root.isConnected = connected
                     }
+
+                    ParamsConfigPage {
+                        isConnected: root.isConnected
+                        onConnectionChanged: root.isConnected = connected
+                    }
+
                 }
             }
 
@@ -174,7 +193,7 @@ Window {
     }
 
     Component.onCompleted: {
-        EthercatBackend.refreshNics()
+        EthercatBackend.refreshNicsAsync()
     }
 
     Connections {

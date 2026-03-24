@@ -43,7 +43,7 @@ Item {
 
                             Button {
                                 text: qsTr("刷新网卡")
-                                onClicked: EthercatBackend.refreshNics()
+                                onClicked: EthercatBackend.refreshNicsAsync()
                             }
 
                             Label {

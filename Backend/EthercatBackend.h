@@ -10,6 +10,7 @@
 #include <QVariant>
 #include <QVariantList>
 #include <QVariantMap>
+#include <QtConcurrent>
 #include <memory>
 
 namespace soem_interface {
@@ -118,7 +119,6 @@ public:
     }
 
 public slots:
-    void refreshNics();
     void changedSelectedNic(const int& nicIndex);
     QString changeConfigFilePath(const QString &config_file_path);
     void startTest();
@@ -126,6 +126,10 @@ public slots:
     void startCommunication();
     void stopCommunication();
     bool setMotorOnlineStatus(const QString& motorName, const bool& status);
+    void enterPreOpAll();
+    void exitPreOpAll();
+    bool applySDOConfigsQml(const QVariantList& list);
+    void refreshNicsAsync();
 
 signals:
     void nicListChanged();
@@ -138,9 +142,11 @@ signals:
     void soemErrorOccurred(QString message);
 
 private:
+    void refreshNics();
     void testLogRefresh();
     bool parseSlaveInfo();
     void clearMotorStatusList();
+    std::vector<soem_interface::SDOConfig> parseSDOConfigs(const QVariantList& list);
 
     QStringList nicList_;
     // QVariantList motorStatusList_;

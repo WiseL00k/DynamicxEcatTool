@@ -18,6 +18,7 @@ int main(int argc, char *argv[])
     // 创建后端对象
     Backend::EthercatBackend ethercatBackend;
 
+    engine.addImportPath("qrc:/qml");
     // 注入到 QML
     engine.rootContext()->setContextProperty(
         "EthercatBackend",
