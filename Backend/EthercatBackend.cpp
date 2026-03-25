@@ -46,30 +46,6 @@ int EthercatBackend::slaveCount() const
     return slaveCount_;
 }
 
-// QVariantList EthercatBackend::motorStatusList() const
-// {
-//     return motorStatusList_;
-// }
-
-// bool EthercatBackend::setMotorOnlineStatus(const QString& motorName, const bool& status)
-// {
-//     for(auto &m : motorStatusList_)
-//     {
-//         QVariantMap map = m.toMap();
-//         if(map.value("name").toString() == motorName)
-//         {
-//             if(map["online"] != status)
-//             {
-//                 map["online"] = status;
-//                 m = map;
-//                 emit motorStatusListChanged();
-//             }
-//             return true;
-//         }
-//     }
-//     return false;
-// }
-
 bool EthercatBackend::setMotorOnlineStatus(const QString& motorName, const bool& status)
 {
     return motorModel_.setMotorOnline(motorName, status);
@@ -218,31 +194,6 @@ bool EthercatBackend::parseSlaveInfo(){
                 master_->addSlave(mitSlavePtr);
             }
 
-            // QVariantMap m_slave;
-            // m_slave["type"] = "slaveHeader";
-            // m_slave["slaveName"] = QString::fromStdString("从站%1:" + it.name + " (%2 电机)").arg(address).arg(dxDeviceConfiguration.motorCount_);
-            // motorStatusList_.append(m_slave);
-            // for(auto& [id, motorConfig] : dxDeviceConfiguration.can0MotorConfigurations_)
-            // {
-            //     QVariantMap m;
-            //     m["type"] = "motor";
-            //     m["name"] = QString::fromStdString(motorConfig.name_);
-            //     m["online"] = false;
-            //     m["canBus"] = 0;
-            //     m["canId"] = id;
-            //     motorStatusList_.append(m);
-            // }
-            // for(auto& [id, motorConfig] : dxDeviceConfiguration.can1MotorConfigurations_)
-            // {
-            //     QVariantMap m;
-            //     m["type"] = "motor";
-            //     m["name"] = QString::fromStdString(motorConfig.name_);
-            //     m["online"] = false;
-            //     m["canBus"] = 1;
-            //     m["canId"] = id;
-            //     motorStatusList_.append(m);
-            // }
-
             motorModel_.addSlaveHeader(
                 QString("从站%1: %2 (%3 电机)")
                     .arg(address)
@@ -371,16 +322,6 @@ void EthercatBackend::stopCommunication()
 
 void EthercatBackend::clearMotorStatusList()
 {
-    // for(auto& m : motorStatusList_)
-    // {
-    //     QVariantMap map = m.toMap();
-    //     map["online"] = false;
-    //     m = map;
-    // }
-    // emit motorStatusListChanged();
-    // QString line = QString::fromStdString("");
-    // emit logUpdated(line);
-
     motorModel_.clearAllOnline();
 
     emit logUpdated("");
