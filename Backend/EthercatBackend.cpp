@@ -21,6 +21,7 @@ static QString errorString(SoemInterfaceErrorCode code)
     case RxPdoSizeMismatch: return "RxPDO大小不匹配";
     case TxPdoSizeMismatch: return "TxPDO大小不匹配";
     case EthercatNotOperational: return "EtherCAT未运行";
+    case InvaidEEpromHexFile: return "无效HEX文件";
     default: return "未知错误";
     }
 }
@@ -510,6 +511,65 @@ void EthercatBackend::refreshNicsAsync()
 {
     QtConcurrent::run([this]() {
         this->refreshNics();  // 原来的耗时函数
+    });
+}
+
+void EthercatBackend::flashEEprom(int slaveId, const QString &filePath)
+{
+    if(filePath.isEmpty())
+    {
+        emit logUpdated("请选择HEX文件!");
+        return;
+    }
+    QUrl url(filePath);
+    QString localPath = url.toLocalFile();
+    std::string hexFilePath_ = localPath.toStdString();
+
+    auto progress = std::make_shared<std::atomic<int>>(0);
+    auto finished = std::make_shared<std::atomic<bool>>(false);
+
+    // 计时器
+    auto timer = std::make_shared<QElapsedTimer>();
+    timer->start();
+
+    // 伪进度线程
+    QtConcurrent::run([=]() {
+        while (!(*finished)) {
+            int p = progress->load();
+            if (p < 98) {
+                int delta = std::max(1, int((98 - p) * (0.03 + (rand() % 5) * 0.01)));
+                p += delta;
+                progress->store(p);
+                emit flashProgress(p);
+            }
+            QThread::msleep(100);
+        }
+    });
+
+    // 真正烧录线程
+    QtConcurrent::run([=]() {
+        soem_interface::EEpromTool eepromTool(
+            nicName_, slaveId, MODE_WRITEINTEL, hexFilePath_.c_str());
+
+        emit logUpdated("开始烧录 EEPROM...");
+        SoemInterfaceErrorCode errorCode =
+            eepromTool.work(nicName_, slaveId, MODE_WRITEINTEL, hexFilePath_.c_str());
+
+        *finished = true;
+
+        if (errorCode != soem_interface::error::NoError) {
+            emit soemErrorOccurred(errorString(errorCode));
+            return;
+        }
+
+        // 计算耗时（毫秒）
+        qint64 elapsed_ms = timer->elapsed();
+
+        progress->store(100);
+        emit flashProgress(100);
+
+        emit logUpdated(QString("烧录完成，用时 %1 ms").arg(elapsed_ms));
+        emit flashFinished(true, QString("OK (%1 ms)").arg(elapsed_ms));
     });
 }
 

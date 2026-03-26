@@ -130,6 +130,7 @@ public slots:
     void exitPreOpAll();
     bool applySDOConfigsQml(const QVariantList& list);
     void refreshNicsAsync();
+    void flashEEprom(int slaveId, const QString& filePath);
 
 signals:
     void nicListChanged();
@@ -140,6 +141,8 @@ signals:
     void connectedUpdated(const int connected_status);
     void motorStatusListChanged();
     void soemErrorOccurred(QString message);
+    void flashProgress(int percent);          // 进度更新 0~100
+    void flashFinished(bool success, QString msg);  // 烧录完成
 
 private:
     void refreshNics();

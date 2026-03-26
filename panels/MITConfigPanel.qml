@@ -53,7 +53,7 @@ Item {
                         Label { text: "CAN 总线"; font.pixelSize: 12 }
                         ComboBox {
                             id: canBus
-                            model: ["CAN1", "CAN2"]
+                            model: ["CAN0", "CAN1"]
                             Layout.preferredWidth: 100
                         }
                     }
