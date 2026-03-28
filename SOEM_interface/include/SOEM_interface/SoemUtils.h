@@ -2,6 +2,7 @@
 #define SOEMUTILS_H
 
 #include <string>
+#include <cstring>
 #include <vector>
 #include <stdio.h>
 #include <stdlib.h>
