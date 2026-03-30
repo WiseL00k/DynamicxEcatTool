@@ -11,7 +11,16 @@ struct MotorItem
     QString slaveName;
 };
 
-class MotorStatusModel : public QAbstractListModel
+struct ImuItem
+{
+    QString type;
+    QString name;
+    bool online;
+    int canBus;
+    QString slaveName;
+};
+
+class DeviceStatusModel : public QAbstractListModel
 {
     Q_OBJECT
 
@@ -25,7 +34,7 @@ public:
         SlaveNameRole
     };
 
-    explicit MotorStatusModel(QObject *parent = nullptr)
+    explicit DeviceStatusModel(QObject *parent = nullptr)
         : QAbstractListModel(parent) {}
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override
@@ -78,6 +87,21 @@ public:
         endInsertRows();
     }
 
+    void addImu(const QString &name, int bus)
+    {
+        beginInsertRows(QModelIndex(), items_.size(), items_.size());
+
+        MotorItem m;
+        m.type = "imu";
+        m.name = name;
+        m.online = false;
+        m.canBus = bus;
+
+        items_.push_back(m);
+
+        endInsertRows();
+    }
+
     void addMotor(const QString &name, int bus, int id)
     {
         beginInsertRows(QModelIndex(), items_.size(), items_.size());
@@ -94,7 +118,7 @@ public:
         endInsertRows();
     }
 
-    bool setMotorOnline(const QString &name, bool status)
+    bool setDeviceOnline(const QString &name, bool status)
     {
         for(int i = 0; i < items_.size(); ++i)
         {

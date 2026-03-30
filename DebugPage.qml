@@ -246,21 +246,21 @@ Item {
                             spacing: 10
 
                             Label {
-                                text: qsTr("电机在线状态")
+                                text: qsTr("设备在线状态")
                                 font.bold: true
                                 font.pixelSize: 14
                             }
 
                             ListView {
 
-                                id: motorStatusList
+                                id: deviceStatusList
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
 
                                 clip: true
                                 spacing: 6
 
-                                model: EthercatBackend ? EthercatBackend.motorStatusList : []
+                                model: EthercatBackend ? EthercatBackend.deviceStatusList : []
 
                                 ScrollBar.vertical: ScrollBar { id: vbar }
 
@@ -287,7 +287,9 @@ Item {
                                             anchors.fill: parent
                                             anchors.margins: 10
                                             spacing: 10
-                                            visible: type === "motor"
+
+                                            // motor 或 imu 共用布局
+                                            visible: type === "motor" || type === "imu"
 
                                             Column {
 
@@ -300,13 +302,22 @@ Item {
                                                     color: "#333"
                                                 }
 
+                                                // 根据类型动态显示信息
                                                 Label {
-                                                    text: "CAN Bus: " + canBus + "   ID: " + canId
+                                                    text: {
+                                                        if (type === "motor")
+                                                            return "CAN Bus: " + canBus + "   ID: " + canId
+                                                        else if (type === "imu")
+                                                            return "IMU | CAN Bus: " + canBus
+                                                        else
+                                                            return ""
+                                                    }
                                                     font.pixelSize: 12
                                                     color: "#666"
                                                 }
                                             }
 
+                                            // 在线状态圆点
                                             Rectangle {
                                                 width: 14
                                                 height: 14
@@ -314,6 +325,7 @@ Item {
                                                 color: online ? "#4CAF50" : "#E53935"
                                             }
 
+                                            // 在线状态文字
                                             Label {
                                                 text: online ? qsTr("在线") : qsTr("离线")
                                                 color: online ? "#4CAF50" : "#E53935"
@@ -321,6 +333,7 @@ Item {
                                             }
                                         }
 
+                                        // Header
                                         Label {
 
                                             visible: type === "slaveHeader"

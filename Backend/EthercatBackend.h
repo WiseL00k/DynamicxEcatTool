@@ -3,7 +3,7 @@
 
 #include "SOEM_interface/EcatSlaveBase.h"
 #include "SOEM_interface/SoemUtils.h"
-#include "MotorStatusModel.h"
+#include "DeviceStatusModel.h"
 #include <QObject>
 #include <QThread>
 #include <QStringList>
@@ -86,7 +86,7 @@ public slots:
     }
 
 signals:
-    void setMotorOnlineStatus(const QString& motorName, const bool& status);
+    void setDeviceOnlineStatus(const QString& name, const bool& status);
     void logUpdated(const QString&);
     void finished();
 
@@ -105,7 +105,7 @@ class EthercatBackend : public QObject
     Q_PROPERTY(QStringList nicList READ nicList NOTIFY nicListChanged)
     Q_PROPERTY(bool connected READ connected NOTIFY connectedChanged)
     Q_PROPERTY(int slaveCount READ slaveCount NOTIFY slaveCountChanged)
-    Q_PROPERTY(MotorStatusModel* motorStatusList READ motorStatusList CONSTANT)
+    Q_PROPERTY(DeviceStatusModel* deviceStatusList READ motorStatusList CONSTANT)
 
 public:
     explicit EthercatBackend(QObject* parent = nullptr);
@@ -113,9 +113,9 @@ public:
     QStringList nicList() const;
     bool connected() const;
     int slaveCount() const;
-    MotorStatusModel* motorStatusList()
+    DeviceStatusModel* motorStatusList()
     {
-        return &motorModel_;
+        return &deviceModel_;
     }
 
 public slots:
@@ -125,7 +125,7 @@ public slots:
     void stopTest();
     void startCommunication();
     void stopCommunication();
-    bool setMotorOnlineStatus(const QString& motorName, const bool& status);
+    bool setDeviceOnlineStatus(const QString& name, const bool& status);
     void enterPreOpAll();
     void exitPreOpAll();
     bool applySDOConfigsQml(const QVariantList& list);
@@ -152,8 +152,7 @@ private:
     std::vector<soem_interface::SDOConfig> parseSDOConfigs(const QVariantList& list);
 
     QStringList nicList_;
-    // QVariantList motorStatusList_;
-    MotorStatusModel motorModel_;
+    DeviceStatusModel deviceModel_;
     bool connected_{false};
     int slaveCount_{0};
 

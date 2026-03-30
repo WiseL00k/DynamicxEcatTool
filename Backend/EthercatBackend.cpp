@@ -47,9 +47,9 @@ int EthercatBackend::slaveCount() const
     return slaveCount_;
 }
 
-bool EthercatBackend::setMotorOnlineStatus(const QString& motorName, const bool& status)
+bool EthercatBackend::setDeviceOnlineStatus(const QString& motorName, const bool& status)
 {
-    return motorModel_.setMotorOnline(motorName, status);
+    return deviceModel_.setDeviceOnline(motorName, status);
 }
 
 void EthercatBackend::refreshNics()
@@ -163,7 +163,7 @@ bool EthercatBackend::parseSlaveInfo(){
         EcatDeviceConfiguration ecatDeviceConfiguration = parser.getConfiguration();
         std::cout << ecatDeviceConfiguration.slaveConfigurations_.size() << std::endl;
         slaveCount_ = ecatDeviceConfiguration.slaveConfigurations_.size();
-        motorModel_.clear();
+        deviceModel_.clear();
         for(int address = 1; address <= slaveCount_; ++address){
             auto it = ecatDeviceConfiguration.slaveConfigurations_.at(address);
             DxSlave::DxSlaveConfigurationParser dxParser(it.configuration_file_path);
@@ -195,7 +195,7 @@ bool EthercatBackend::parseSlaveInfo(){
                 master_->addSlave(mitSlavePtr);
             }
 
-            motorModel_.addSlaveHeader(
+            deviceModel_.addSlaveHeader(
                 QString("从站%1: %2 (%3 电机)")
                     .arg(address)
                     .arg(QString::fromStdString(it.name))
@@ -204,7 +204,7 @@ bool EthercatBackend::parseSlaveInfo(){
 
             for(auto& [id, motorConfig] : dxDeviceConfiguration.can0MotorConfigurations_)
             {
-                motorModel_.addMotor(
+                deviceModel_.addMotor(
                     QString::fromStdString(motorConfig.name_),
                     0,
                     id
@@ -213,10 +213,27 @@ bool EthercatBackend::parseSlaveInfo(){
 
             for(auto& [id, motorConfig] : dxDeviceConfiguration.can1MotorConfigurations_)
             {
-                motorModel_.addMotor(
+                deviceModel_.addMotor(
                     QString::fromStdString(motorConfig.name_),
                     1,
                     id
+                    );
+            }
+
+            if(dxDeviceConfiguration.can0ImuConfiguration_ != nullptr)
+            {
+                std::string imuName = dxDeviceConfiguration.can0ImuConfiguration_->name_;
+                deviceModel_.addImu(
+                    QString::fromStdString(imuName),
+                    static_cast<int>(DxSlave::CanBus::CAN0)
+                    );
+            }
+            if(dxDeviceConfiguration.can1ImuConfiguration_ != nullptr)
+            {
+                std::string imuName = dxDeviceConfiguration.can1ImuConfiguration_->name_;
+                deviceModel_.addImu(
+                    QString::fromStdString(imuName),
+                    static_cast<int>(DxSlave::CanBus::CAN1)
                     );
             }
 
@@ -263,8 +280,8 @@ void EthercatBackend::startCommunication(){
 
         worker_->moveToThread(workerThread_);
 
-        connect(worker_, &EthercatWorker::setMotorOnlineStatus,
-                this, &EthercatBackend::setMotorOnlineStatus);
+        connect(worker_, &EthercatWorker::setDeviceOnlineStatus,
+                this, &EthercatBackend::setDeviceOnlineStatus);
 
         connect(workerThread_, &QThread::started,
                 worker_, &EthercatWorker::run);
@@ -323,7 +340,7 @@ void EthercatBackend::stopCommunication()
 
 void EthercatBackend::clearMotorStatusList()
 {
-    motorModel_.clearAllOnline();
+    deviceModel_.clearAllOnline();
 
     emit logUpdated("");
 }
@@ -375,11 +392,21 @@ void EthercatWorker::pdoLogRefresh()
                         .arg(QString::fromStdString(bits.to_string()));
             for(auto& [id, motorConfig] : rmSlave->getConfiguration().can0MotorConfigurations_)
             {
-                emit setMotorOnlineStatus(QString::fromStdString(motorConfig.name_), reading.getStatusword().isOnline(DxSlave::CanBus::CAN0, id));
+                emit setDeviceOnlineStatus(QString::fromStdString(motorConfig.name_), reading.getStatusword().isOnline(DxSlave::CanBus::CAN0, id));
             }
             for(auto& [id, motorConfig] : rmSlave->getConfiguration().can1MotorConfigurations_)
             {
-                emit setMotorOnlineStatus(QString::fromStdString(motorConfig.name_), reading.getStatusword().isOnline(DxSlave::CanBus::CAN1, id));
+                emit setDeviceOnlineStatus(QString::fromStdString(motorConfig.name_), reading.getStatusword().isOnline(DxSlave::CanBus::CAN1, id));
+            }
+            if(rmSlave->getConfiguration().can0ImuConfiguration_ != nullptr)
+            {
+                std::string imuName = rmSlave->getConfiguration().can0ImuConfiguration_->name_;
+                emit setDeviceOnlineStatus(QString::fromStdString(imuName), reading.getStatusword().isImuOnline(DxSlave::CanBus::CAN0));
+            }
+            if(rmSlave->getConfiguration().can1ImuConfiguration_ != nullptr)
+            {
+                std::string imuName = rmSlave->getConfiguration().can1ImuConfiguration_->name_;
+                emit setDeviceOnlineStatus(QString::fromStdString(imuName), reading.getStatusword().isImuOnline(DxSlave::CanBus::CAN1));
             }
         }
         else if(slave->getType() == "Mit")
@@ -395,11 +422,11 @@ void EthercatWorker::pdoLogRefresh()
                         .arg(QString::fromStdString(bits.to_string()));
             for(auto& [id, motorConfig] : mitSlave->getConfiguration().can0MotorConfigurations_)
             {
-                emit setMotorOnlineStatus(QString::fromStdString(motorConfig.name_), reading.getStatusword().isOnline(DxSlave::CanBus::CAN0, id));
+                emit setDeviceOnlineStatus(QString::fromStdString(motorConfig.name_), reading.getStatusword().isOnline(DxSlave::CanBus::CAN0, id));
             }
             for(auto& [id, motorConfig] : mitSlave->getConfiguration().can1MotorConfigurations_)
             {
-                emit setMotorOnlineStatus(QString::fromStdString(motorConfig.name_), reading.getStatusword().isOnline(DxSlave::CanBus::CAN1, id));
+                emit setDeviceOnlineStatus(QString::fromStdString(motorConfig.name_), reading.getStatusword().isOnline(DxSlave::CanBus::CAN1, id));
             }
         }
     }

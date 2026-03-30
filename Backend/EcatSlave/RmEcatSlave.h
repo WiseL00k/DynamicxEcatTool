@@ -57,6 +57,7 @@ public:
         return (statusword_ & (1 << i)) > 0; };
 
     // Imu
+    bool isImuOnline(CanBus bus) const;
     bool isAngularVelocityUpdated(CanBus bus) const;
     bool isLinearAccelerationUpdated(CanBus bus) const;
     bool isTriggered(CanBus bus) const;

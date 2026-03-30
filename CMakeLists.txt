@@ -38,7 +38,7 @@ qt_add_qml_module(DynamicxEcatTool
         SOURCES Backend/EcatSlave/RmEcatSlave.h
         SOURCES Backend/EcatSlave/RmEcatSlave.cpp
         QML_FILES ErrorPopup.qml
-        SOURCES Backend/MotorStatusModel.h
+        SOURCES Backend/DeviceStatusModel.h
         RESOURCES resources.qrc
         QML_FILES
         QML_FILES
