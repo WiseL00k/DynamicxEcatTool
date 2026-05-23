@@ -5,17 +5,24 @@ namespace standard {
 
 bool Statusword::isImuOnline(CanBus bus) const
 {
-    static bool angular_velocity_updated_flag{false}, linear_acceleration_updated_flag{false};
-    if(angular_velocity_updated_flag && linear_acceleration_updated_flag)
+    static bool imus_online_flag[2]{};
+    static uint32_t imus_timeout[2]{};
+
+    if(!isAngularVelocityUpdated(bus) || !isLinearAccelerationUpdated(bus))
     {
-        angular_velocity_updated_flag = linear_acceleration_updated_flag = false;
-        return true;
+        imus_timeout[static_cast<int>(bus)]++;
     }
-    if(!angular_velocity_updated_flag)
-        angular_velocity_updated_flag = isAngularVelocityUpdated(bus);
-    if(!linear_acceleration_updated_flag)
-        linear_acceleration_updated_flag = isLinearAccelerationUpdated(bus);
-    return false;
+    else
+    {
+        imus_online_flag[static_cast<int>(bus)] = true;
+        imus_timeout[static_cast<int>(bus)] = 0;
+    }
+    if(imus_timeout[static_cast<int>(bus)] > 20)
+    {
+        imus_timeout[static_cast<int>(bus)] = 20;
+        imus_online_flag[static_cast<int>(bus)] = false;
+    }
+    return imus_online_flag[static_cast<int>(bus)];
 }
 
 bool Statusword::isAngularVelocityUpdated(CanBus bus) const {
