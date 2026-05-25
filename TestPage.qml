@@ -295,6 +295,10 @@ Item {
     Connections {
         target: EthercatBackend
 
+        function onLogUpdated(line) {
+            logArea.text = line
+        }
+
         function onLogAppend(line) {
             logArea.append(line)
         }
