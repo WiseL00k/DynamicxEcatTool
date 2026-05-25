@@ -166,16 +166,16 @@ inline size_t getIndex(CanBus bus, size_t id) {
 #pragma pack(push,1)
 struct RxPdo {
     uint32_t controlword_;
-    uint64_t can0Commnads_[4];
-    uint64_t can1Commnads_[4];
+    uint64_t can0Commnads_[8];
+    uint64_t can1Commnads_[8];
     uint8_t digitalOutputs_;
 } ;
 #pragma pack(pop)
 
 #pragma pack(push,1)
 struct TxPdo {
-    uint64_t can0Measurement_[4];
-    uint64_t can1Measurement_[4];
+    uint64_t can0Measurement_[8];
+    uint64_t can1Measurement_[8];
     uint8_t digitalInputs_;
     uint32_t statusword_;
 } ;
