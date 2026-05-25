@@ -1,0 +1,9 @@
+ethercat_master:
+  time_step: 0.001
+
+ethercat_devices:
+  - type: Mit
+    name: Test_mit
+    configuration_file: device_configurations/mit_device_test.yaml
+    ethercat_bus: enp114s0
+    ethercat_address: 1
