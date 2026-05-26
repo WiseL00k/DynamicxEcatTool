@@ -157,7 +157,7 @@ private:
 namespace mit
 {
 
-static constexpr size_t motorNumEachBus = 4;
+static constexpr size_t motorNumEachBus = 8;
 
 inline size_t getIndex(CanBus bus, size_t id) {
     return static_cast<uint16_t>(bus) * motorNumEachBus + id - 1;
