@@ -131,6 +131,15 @@ public slots:
     bool applySDOConfigsQml(const QVariantList& list);
     void refreshNicsAsync();
     void flashEEprom(int slaveId, const QString& filePath);
+    void enterMitSlaveDebugMode();
+    void exitMitSlaveDebugMode();
+    void enableMitSlaveMotors();
+    void disableMitSlaveMotors();
+    void sendMitFrameQml(
+        int canBus,
+        int canId,
+        const QVariantList &data);
+    void clearMitFrameQml(int canBus, int canId);
 
 signals:
     void nicListChanged();

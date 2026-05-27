@@ -97,6 +97,7 @@ void MitEcatSlave::updateRead()
 void MitEcatSlave::updateWrite()
 {
     std::lock_guard<std::mutex> lock(commandMutex_);
+    command_.toRxPdo(rxPdo);
     bus_->writeRxPdo(address_, sizeof(rxPdo), &rxPdo);
 }
 
@@ -106,6 +107,12 @@ void MitEcatSlave::updateWrite()
 void MitEcatSlave::shutdown()
 {
 
+}
+
+void MitEcatSlave::clearCommand()
+{
+    std::lock_guard<std::mutex> lock(commandMutex_);
+    command_.clear();
 }
 }
 }

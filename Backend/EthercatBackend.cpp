@@ -475,6 +475,114 @@ void EthercatBackend::exitPreOpAll()
     emit connectedUpdated(0);
 }
 
+void EthercatBackend::enterMitSlaveDebugMode()
+{
+    if (master_) {
+        return;
+    }
+
+    master_ = std::make_shared<soem_interface::EcatMasterBus>(nicName_);
+
+    std::shared_ptr<rm_ecat_slave::mit::MitEcatSlave> mitSlavePtr = std::make_shared<rm_ecat_slave::mit::MitEcatSlave>(
+        "mit",
+        master_.get(),
+        1
+        );
+    master_->addSlave(mitSlavePtr);
+    slaveCount_ = 1;
+
+    SoemInterfaceErrorCode errorCode = master_->start();
+    bool ok = (errorCode == NoError);
+    connected_ = ok;
+    emit connectedChanged();
+
+    if(slaveCount_ != master_->slaveCount())
+    {
+        emit logUpdated(QString("初始化失败，从站数量不一致！\n实际从站数量:%1 配置从站数量:%2").arg(master_->slaveCount())
+                            .arg(slaveCount_));
+        errorCode = InvalidSlave;
+        emit soemErrorOccurred(errorString(errorCode));
+        master_.reset();
+    }
+    else if (ok) {
+        emit slaveCountChanged();
+        workerThread_ = new QThread(this);
+        worker_ = new EthercatWorker(master_.get());
+
+        worker_->moveToThread(workerThread_);
+
+        connect(worker_, &EthercatWorker::setDeviceOnlineStatus,
+                this, &EthercatBackend::setDeviceOnlineStatus);
+
+        connect(workerThread_, &QThread::started,
+                worker_, &EthercatWorker::run);
+
+        connect(worker_, &EthercatWorker::logUpdated,
+                this, &EthercatBackend::logUpdated);
+
+        connect(worker_, &EthercatWorker::finished,
+                workerThread_, &QThread::quit);
+
+        connect(worker_, &EthercatWorker::finished,
+                this, &EthercatBackend::clearMotorStatusList);
+
+        connect(workerThread_, &QThread::finished,
+                workerThread_, &QObject::deleteLater);
+
+        workerThread_->start();
+    }
+    else {
+        master_.reset();
+        emit logUpdated(QString("初始化失败，无法连接到网卡 %1").arg(QString::fromStdString(nicName_)));
+        emit soemErrorOccurred(errorString(errorCode));
+    }
+    emit connectedUpdated(ok);
+}
+
+void EthercatBackend::exitMitSlaveDebugMode()
+{
+    if (!master_ || !connected_)
+        return;
+
+    if (worker_) {
+        worker_->stop();
+        worker_ = nullptr;
+    }
+    else
+    {
+        return;
+    }
+    // 等待工作线程结束
+    if (workerThread_ && workerThread_->isRunning()) {
+        workerThread_->quit();
+        workerThread_->wait(500); // 最多等 0.5 秒
+    }
+
+    master_->stop();
+    master_.reset();
+
+    connected_ = false;
+    slaveCount_ = 0;
+
+    emit connectedChanged();
+    emit slaveCountChanged();
+    emit connectedUpdated(0);
+}
+
+void EthercatBackend::enableMitSlaveMotors()
+{
+    auto slavePtr = master_->getSlave(1);
+    rm_ecat_slave::mit::MitEcatSlave* mitSlave = dynamic_cast<rm_ecat_slave::mit::MitEcatSlave*>(slavePtr.get());
+    mitSlave->getCommandHandle().enableMotors();
+}
+
+void EthercatBackend::disableMitSlaveMotors()
+{
+    auto slavePtr = master_->getSlave(1);
+    rm_ecat_slave::mit::MitEcatSlave* mitSlave = dynamic_cast<rm_ecat_slave::mit::MitEcatSlave*>(slavePtr.get());
+    mitSlave->getCommandHandle().disableMotors();
+}
+
 bool EthercatBackend::applySDOConfigsQml(const QVariantList& list)
 {
     if (!master_ || !connected_)
@@ -484,11 +592,11 @@ bool EthercatBackend::applySDOConfigsQml(const QVariantList& list)
     bool ret = master_->applySDOConfigs(configs);
     if(ret)
     {
-        emit soemErrorOccurred("CAN ID配置成功!");
+        emit soemErrorOccurred("SDO配置成功!");
     }
     else
     {
-        emit soemErrorOccurred("CAN ID配置失败!请检查参数或从站状态");
+        emit soemErrorOccurred("SDO配置失败!请检查参数或从站状态");
     }
     return ret;
 }
@@ -598,6 +706,36 @@ void EthercatBackend::flashEEprom(int slaveId, const QString &filePath)
         emit logUpdated(QString("烧录完成，用时 %1 ms").arg(elapsed_ms));
         emit flashFinished(true, QString("OK (%1 ms)").arg(elapsed_ms));
     });
+}
+
+void EthercatBackend::sendMitFrameQml(int canBus, int canId, const QVariantList &data)
+{
+    if (data.size() != 8)
+    {
+        qDebug() << "MIT帧长度错误";
+        return;
+    }
+
+    uint8_t frame[8]{};
+
+    for (int i = 0; i < 8; ++i)
+    {
+        frame[i] = static_cast<uint8_t>(data[i].toUInt());
+    }
+
+    uint64_t mit_frame{};
+    memcpy(&mit_frame, frame, 8);
+    auto slavePtr = master_->getSlave(1);
+    rm_ecat_slave::mit::MitEcatSlave* mitSlave = dynamic_cast<rm_ecat_slave::mit::MitEcatSlave*>(slavePtr.get());
+    mitSlave->getCommandHandle().setCanCommand(static_cast<DxSlave::CanBus>(canBus), canId, mit_frame);
+}
+
+void EthercatBackend::clearMitFrameQml(int canBus, int canId)
+{
+    uint64_t mit_frame = 0xFF070000F07FFF7FULL;
+    auto slavePtr = master_->getSlave(1);
+    rm_ecat_slave::mit::MitEcatSlave* mitSlave = dynamic_cast<rm_ecat_slave::mit::MitEcatSlave*>(slavePtr.get());
+    mitSlave->getCommandHandle().setCanCommand(static_cast<DxSlave::CanBus>(canBus), canId, mit_frame);
 }
 
 }

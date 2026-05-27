@@ -45,6 +45,7 @@ qt_add_qml_module(DynamicxEcatTool
         QML_FILES ParamsConfigPage.qml
         QML_FILES panels/MITConfigPanel.qml
         QML_FILES
+        SOURCES Backend/MitMotorCommand.h Backend/MitMotorCommand.cpp
     )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.

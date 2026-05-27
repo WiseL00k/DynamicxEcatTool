@@ -17,6 +17,11 @@ Window {
         id: errorPopup
     }
 
+    QtObject {
+        id: errorManager
+        signal show(string msg)
+    }
+
     Rectangle {
         anchors.fill: parent
         color: "transparent"
@@ -200,6 +205,14 @@ Window {
         target: EthercatBackend
 
         function onSoemErrorOccurred(msg) {
+            errorPopup.show(msg)
+        }
+    }
+
+    Connections {
+        target: errorManager
+
+        function onShow(msg) {
             errorPopup.show(msg)
         }
     }
