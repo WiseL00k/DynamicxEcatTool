@@ -1,21 +1,61 @@
 can_motors:
   - can_id: 1
     can_bus: 0
-    name: "left_knee_motor"
-    type: "DM8009"
+    name: "motor0-1"
+    type: "DM4310"
     need_calibration: false
   - can_id: 2
     can_bus: 0
-    name: "left_hip_motor"
-    type: "DM8009"
+    name: "motor0-2"
+    type: "DM4310"
+    need_calibration: false
+  - can_id: 3
+    can_bus: 0
+    name: "motor0-3"
+    type: "DM4310"
+    need_calibration: false
+  - can_id: 4
+    can_bus: 0
+    name: "motor0-4"
+    type: "DM4310"
+    need_calibration: false
+  - can_id: 5
+    can_bus: 0
+    name: "motor0-5"
+    type: "DM4310"
+    need_calibration: false
+  - can_id: 6
+    can_bus: 0
+    name: "motor0-6"
+    type: "DM4310"
     need_calibration: false
   - can_id: 1
     can_bus: 1
-    name: "right_knee_motor"
-    type: "DM8009"
+    name: "motor1-1"
+    type: "DM4310"
     need_calibration: false
   - can_id: 2
+    can_bus: 1  
+    name: "motor1-2"
+    type: "DM4310"
+    need_calibration: false
+  - can_id: 3
     can_bus: 1
-    name: "right_hip_motor"
-    type: "DM8009"
+    name: "motor1-3"
+    type: "DM4310"
+    need_calibration: false
+  - can_id: 4
+    can_bus: 1
+    name: "motor1-4"
+    type: "DM4310"
+    need_calibration: false
+  - can_id: 5
+    can_bus: 1
+    name: "motor1-5"
+    type: "DM4310"
+    need_calibration: false
+  - can_id: 6
+    can_bus: 1
+    name: "motor1-6"
+    type: "DM4310"
     need_calibration: false
