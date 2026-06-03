@@ -17,7 +17,7 @@ DynamicxEcatTool 是一个基于 **Qt6 + QML + C++** 的 EtherCAT 调试与测�
 
 ## 目录结构
 
-- `tutorial/`：**软件使用简单教程**
+- `tutorial/`：**软件使用简单教程  <==**
 - `Backend/`：后端业务逻辑与配置解析
 - `Frontend/`：前端数据适配层
 - `SOEM_interface/`：对 SOEM 的封装接口
