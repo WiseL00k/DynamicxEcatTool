@@ -5,7 +5,7 @@ import QtQuick.Layouts
 Window {
     id: root
     width: 1200
-    height: 800
+    height: 900
     visible: true
     title: qsTr("Dynamicx EtherCAT Tool")
 
