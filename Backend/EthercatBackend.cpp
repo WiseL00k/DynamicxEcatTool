@@ -22,6 +22,7 @@ static QString errorString(SoemInterfaceErrorCode code)
     case TxPdoSizeMismatch: return "TxPDO大小不匹配";
     case EthercatNotOperational: return "EtherCAT未运行";
     case InvaidEEpromHexFile: return "无效HEX文件";
+    case InvaidEEpromBinFile: return "无效Bin文件";
     default: return "未知错误";
     }
 }
@@ -654,6 +655,7 @@ void EthercatBackend::flashEEprom(int slaveId, const QString &filePath)
     if(filePath.isEmpty())
     {
         emit logUpdated("请选择HEX文件!");
+        emit soemErrorOccurred("请选择Hex文件!");
         return;
     }
     QUrl url(filePath);
@@ -667,7 +669,7 @@ void EthercatBackend::flashEEprom(int slaveId, const QString &filePath)
     auto timer = std::make_shared<QElapsedTimer>();
     timer->start();
 
-    // 伪进度线程
+    // 进度线程
     QtConcurrent::run([=]() {
         while (!(*finished)) {
             int p = progress->load();
@@ -675,13 +677,13 @@ void EthercatBackend::flashEEprom(int slaveId, const QString &filePath)
                 int delta = std::max(1, int((98 - p) * (0.03 + (rand() % 5) * 0.01)));
                 p += delta;
                 progress->store(p);
-                emit flashProgress(p);
+                emit flashProgress("eeprom", p);
             }
             QThread::msleep(100);
         }
     });
 
-    // 真正烧录线程
+    // 烧录线程
     QtConcurrent::run([=]() {
         soem_interface::EEpromTool eepromTool(
             nicName_, slaveId, MODE_WRITEINTEL, hexFilePath_.c_str());
@@ -701,10 +703,80 @@ void EthercatBackend::flashEEprom(int slaveId, const QString &filePath)
         qint64 elapsed_ms = timer->elapsed();
 
         progress->store(100);
-        emit flashProgress(100);
+        emit flashProgress("eeprom", 100);
 
         emit logUpdated(QString("烧录完成，用时 %1 ms").arg(elapsed_ms));
-        emit flashFinished(true, QString("OK (%1 ms)").arg(elapsed_ms));
+        emit flashFinished("eeprom", true, QString("OK (%1 ms)").arg(elapsed_ms));
+    });
+}
+
+void EthercatBackend::flashFirmware(int slaveId, const QString& filePath)
+{
+    if(filePath.isEmpty())
+    {
+        emit logUpdated("请选择Bin文件!");
+        emit soemErrorOccurred("请选择Bin文件!");
+        return;
+    }
+    QUrl url(filePath);
+    QString localPath = url.toLocalFile();
+    std::string binFilePath  = localPath.toStdString();
+
+    auto progress = std::make_shared<std::atomic<int>>(0);
+    auto finished = std::make_shared<std::atomic<bool>>(false);
+
+    // 计时器
+    auto timer = std::make_shared<QElapsedTimer>();
+    timer->start();
+
+    // 进度线程
+    QtConcurrent::run([=]() {
+        while (!(*finished)) {
+            int p = progress->load();
+            if (p < 99) {
+                int delta = std::max(1, int((99 - p) * (0.03 + (rand() % 5) * 0.01)));
+                p += delta;
+                progress->store(p);
+                emit flashProgress("firmware", p);
+            }
+            QThread::msleep(50);
+        }
+    });
+
+    // 烧录线程
+    QtConcurrent::run([=]() {
+        bool ok = false;
+        soem_interface::FirmwareTool tool(nicName_);
+        try
+        {
+            emit logUpdated("开始固件烧录...");
+            tool.init();
+            ok = tool.flashFirmware(
+                static_cast<uint16_t>(slaveId),
+                binFilePath);
+
+            if (ok)
+            {
+                emit logUpdated("固件烧录成功");
+            }
+            else
+            {
+                emit soemErrorOccurred("固件烧录失败, 请检查固件文件名是否正确!");
+            }
+            tool.close();
+        }
+        catch (...)
+        {
+            emit soemErrorOccurred("固件烧录异常");
+        }
+        progress->store(100);
+        emit flashProgress("firmware", 100);
+
+        finished->store(true);
+
+        auto elapsed_ms = timer->elapsed();
+        emit logUpdated(QString("烧录结束，耗时 %1 ms").arg(elapsed_ms));
+        emit flashFinished("firmware", true, QString("OK (%1 ms)").arg(elapsed_ms));
     });
 }
 

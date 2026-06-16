@@ -131,6 +131,7 @@ public slots:
     bool applySDOConfigsQml(const QVariantList& list);
     void refreshNicsAsync();
     void flashEEprom(int slaveId, const QString& filePath);
+    void flashFirmware(int slaveId, const QString& filePath);
     void enterMitSlaveDebugMode();
     void exitMitSlaveDebugMode();
     void enableMitSlaveMotors();
@@ -150,8 +151,8 @@ signals:
     void connectedUpdated(const int connected_status);
     void motorStatusListChanged();
     void soemErrorOccurred(QString message);
-    void flashProgress(int percent);          // 进度更新 0~100
-    void flashFinished(bool success, QString msg);  // 烧录完成
+    void flashProgress(QString type, int percent);
+    void flashFinished(QString type, bool success, QString msg);
 
 private:
     void refreshNics();

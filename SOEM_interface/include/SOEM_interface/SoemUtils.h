@@ -1,6 +1,9 @@
 #ifndef SOEMUTILS_H
 #define SOEMUTILS_H
 
+#include <functional>
+#include <filesystem>
+#include <fstream>
 #include <string>
 #include <cstring>
 #include <vector>
@@ -64,7 +67,8 @@ namespace error {
         RxPdoSizeMismatch,
         TxPdoSizeMismatch,
         EthercatNotOperational,
-        InvaidEEpromHexFile
+        InvaidEEpromHexFile,
+        InvaidEEpromBinFile
     };
 }
 
@@ -350,6 +354,41 @@ private:
     char sline[MAXSLENGTH];
     ecx_contextt ctx;
     std::string ifname_, fname_;
+};
+
+class SOEM_INTERFACE_EXPORT FirmwareTool
+{
+public:
+    using ProgressCallback = std::function<void(int)>;
+
+    explicit FirmwareTool(const std::string& ifname);
+    ~FirmwareTool();
+
+    // 初始化 / 关闭
+    bool init();
+    void close();
+
+    // 固件烧录（FoE + BOOT）
+    bool flashFirmware(
+        uint16_t slave,
+        const std::filesystem::path& binFile);
+
+
+private:
+    // 文件加载
+    bool loadFile(
+        const std::filesystem::path& file,
+        std::vector<uint8_t>& buffer);
+
+    // BOOT流程
+    bool enterBootMode(uint16_t slave);
+    bool leaveBootMode(uint16_t slave);
+    bool configBootMailbox(uint16_t slave);
+
+private:
+    ecx_contextt ctx_;
+    std::string ifname_;
+    bool inited_{false};
 };
 }
 #endif // SOEMUTILS_H

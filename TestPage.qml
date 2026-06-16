@@ -84,7 +84,8 @@ Item {
                                         anchors.fill: parent
                                         onClicked: {
                                             nicList.currentIndex = index
-                                            EthercatBackend.changedSelectedNic(index)
+                                            EthercatBackend.changedSelectedNic(
+                                                        index)
                                         }
                                     }
                                 }
@@ -97,7 +98,9 @@ Item {
                         }
                     }
 
-                    Item { Layout.fillWidth: true }
+                    Item {
+                        Layout.fillWidth: true
+                    }
 
                     // ===== 操作区 =====
                     ColumnLayout {
@@ -137,7 +140,8 @@ Item {
 
                                     Text {
                                         id: connectionStatus
-                                        text: isConnected ? qsTr("已连接") : qsTr("未连接")
+                                        text: isConnected ? qsTr("已连接") : qsTr(
+                                                                "未连接")
                                         font.bold: true
                                         color: "#333"
 
@@ -182,7 +186,10 @@ Item {
                         anchors.fill: parent
                         anchors.margins: 12
 
-                        Label { text: "运行日志"; font.bold: true }
+                        Label {
+                            text: "运行日志"
+                            font.bold: true
+                        }
 
                         ScrollView {
                             Layout.fillWidth: true
@@ -197,84 +204,175 @@ Item {
                     }
                 }
 
-                // ===== EEPROM 烧录 =====
-                Rectangle {
-                    Layout.preferredWidth: 320
-                    Layout.fillHeight: true
-                    radius: 10
-                    color: "white"
-                    border.color: "#e6e6e6"
+                ColumnLayout {
+                    //====================================================
+                    // 固件烧录
+                    //====================================================
+                    Rectangle {
+                        Layout.preferredWidth: 320
+                        Layout.fillHeight: true
+                        radius: 10
+                        color: "white"
+                        border.color: "#e6e6e6"
 
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: 16
-                        spacing: 12
-
-                        Label {
-                            text: "EEPROM 烧录"
-                            font.bold: true
-                        }
-
-                        // 从站地址
-                        RowLayout {
-                            Label { text: "从站地址:" }
-
-                            SpinBox {
-                                id: slaveIdBox
-                                from: 1
-                                to: 255
-                                value: 1
-                            }
-                        }
-
-                        // 文件选择
-                        RowLayout {
-                            Button {
-                                text: "选择 HEX"
-                                onClicked: fileDialog.open()
-                            }
-
-                            Label {
-                                id: fileLabel
-                                text: "未选择"
-                                elide: Label.ElideRight
-                                Layout.fillWidth: true
-                            }
-                        }
-
-                        // 进度条
                         ColumnLayout {
-                            spacing: 4
-
-                            ProgressBar {
-                                id: progressBar
-                                from: 0
-                                to: 100
-                                value: 0
-                                Layout.fillWidth: true
-                            }
+                            anchors.fill: parent
+                            anchors.margins: 16
+                            spacing: 12
 
                             Label {
-                                text: progressBar.value + "%"
-                                horizontalAlignment: Text.AlignHCenter
+                                text: "固件烧录"
+                                font.bold: true
+                            }
+
+                            RowLayout {
+                                Label {
+                                    text: "从站地址:"
+                                }
+
+                                SpinBox {
+                                    id: firmwareSlaveIdBox
+                                    from: 1
+                                    to: 255
+                                    value: 1
+                                }
+                            }
+
+                            RowLayout {
+                                Button {
+                                    text: "选择 BIN"
+                                    onClicked: firmwareFileDialog.open()
+                                }
+
+                                Label {
+                                    id: firmwareFileLabel
+                                    text: "未选择"
+                                    elide: Label.ElideRight
+                                    Layout.fillWidth: true
+                                }
+                            }
+
+                            ColumnLayout {
+                                spacing: 4
+
+                                ProgressBar {
+                                    id: firmwareProgressBar
+                                    from: 0
+                                    to: 100
+                                    value: 0
+                                    Layout.fillWidth: true
+                                }
+
+                                Label {
+                                    text: firmwareProgressBar.value + "%"
+                                    horizontalAlignment: Text.AlignHCenter
+                                    Layout.fillWidth: true
+                                }
+                            }
+
+                            Button {
+                                text: "开始烧录"
                                 Layout.fillWidth: true
+                                enabled: !isConnected
+
+                                onClicked: {
+                                    firmwareProgressBar.value = 0
+
+                                    EthercatBackend.flashFirmware(
+                                                firmwareSlaveIdBox.value,
+                                                firmwareFileDialog.selectedFile)
+                                }
+                            }
+
+                            Item {
+                                Layout.fillHeight: true
                             }
                         }
+                    }
 
-                        // 按钮
-                        Button {
-                            text: "开始烧录"
-                            Layout.fillWidth: true
-                            enabled: !isConnected
-                            onClicked: {
-                                progressBar.value = 0
-                                EthercatBackend.flashEEprom(
-                                            slaveIdBox.value,
-                                            fileDialog.selectedFile)
+                    // ===== EEPROM 烧录 =====
+                    Rectangle {
+                        Layout.preferredWidth: 320
+                        Layout.fillHeight: true
+                        radius: 10
+                        color: "white"
+                        border.color: "#e6e6e6"
+
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 16
+                            spacing: 12
+
+                            Label {
+                                text: "EEPROM 烧录"
+                                font.bold: true
+                            }
+
+                            // 从站地址
+                            RowLayout {
+                                Label {
+                                    text: "从站地址:"
+                                }
+
+                                SpinBox {
+                                    id: slaveIdBox
+                                    from: 1
+                                    to: 255
+                                    value: 1
+                                }
+                            }
+
+                            // 文件选择
+                            RowLayout {
+                                Button {
+                                    text: "选择 HEX"
+                                    onClicked: eepromFileDialog.open()
+                                }
+
+                                Label {
+                                    id: fileLabel
+                                    text: "未选择"
+                                    elide: Label.ElideRight
+                                    Layout.fillWidth: true
+                                }
+                            }
+
+                            // 进度条
+                            ColumnLayout {
+                                spacing: 4
+
+                                ProgressBar {
+                                    id: progressBar
+                                    from: 0
+                                    to: 100
+                                    value: 0
+                                    Layout.fillWidth: true
+                                }
+
+                                Label {
+                                    text: progressBar.value + "%"
+                                    horizontalAlignment: Text.AlignHCenter
+                                    Layout.fillWidth: true
+                                }
+                            }
+
+                            // 按钮
+                            Button {
+                                text: "开始烧录"
+                                Layout.fillWidth: true
+                                enabled: !isConnected
+                                onClicked: {
+                                    progressBar.value = 0
+                                    EthercatBackend.flashEEprom(
+                                                slaveIdBox.value,
+                                                eepromFileDialog.selectedFile)
+                                }
+                            }
+
+                            Item {
+                                Layout.fillHeight: true
                             }
                         }
-
-                        Item { Layout.fillHeight: true }
                     }
                 }
             }
@@ -283,11 +381,23 @@ Item {
 
     // ================= 文件选择 =================
     FileDialog {
-        id: fileDialog
+        id: eepromFileDialog
         nameFilters: ["HEX (*.hex)"]
 
         onAccepted: {
             fileLabel.text = selectedFile
+        }
+    }
+
+    FileDialog {
+        id: firmwareFileDialog
+
+        title: "选择固件 BIN 文件"
+        nameFilters: ["BIN files (*.bin)"]
+
+        onAccepted: {
+            var path = selectedFile.toString()
+            firmwareFileLabel.text = path.substring(path.lastIndexOf("/") + 1)
         }
     }
 
@@ -308,14 +418,21 @@ Item {
         }
 
         // 进度更新
-        function onFlashProgress(percent) {
-            progressBar.value = percent
+        function onFlashProgress(type, percent) {
+            if (type === "eeprom") {
+                eepromProgressBar.value = percent
+            } else if (type === "firmware") {
+                firmwareProgressBar.value = percent
+            }
         }
 
         // 烧录结果
-        function onFlashFinished(success, msg) {
-            logArea.text = success ? "烧录成功: " + msg
-                                        : "烧录失败: " + msg
+        function onFlashFinished(type, success, msg) {
+            if (type === "eeprom") {
+                eepromLog.text = success ? "EEPROM成功: " + msg : "EEPROM失败: " + msg
+            } else if (type === "firmware") {
+                firmwareLog.text = success ? "固件成功: " + msg : "固件失败: " + msg
+            }
         }
     }
 }

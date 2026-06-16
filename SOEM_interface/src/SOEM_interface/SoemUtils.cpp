@@ -149,4 +149,196 @@ namespace soem_interface{
         }
     }
 
+    FirmwareTool::FirmwareTool(const std::string& ifname)
+        : ifname_(ifname)
+    {
+        std::memset(&ctx_, 0, sizeof(ctx_));
+    }
+
+    FirmwareTool::~FirmwareTool()
+    {
+        close();
+    }
+
+    //====================================================
+    // INIT / CLOSE
+    //====================================================
+
+    bool FirmwareTool::init()
+    {
+        if (inited_)
+            return true;
+
+        if (!ecx_init(&ctx_, ifname_.c_str()))
+            return false;
+
+        if (ecx_config_init(&ctx_) <= 0)
+            return false;
+
+        ecx_statecheck(&ctx_, 0, EC_STATE_PRE_OP, EC_TIMEOUTSTATE * 4);
+
+        inited_ = true;
+        return true;
+    }
+
+    void FirmwareTool::close()
+    {
+        if (inited_)
+        {
+            ecx_close(&ctx_);
+            inited_ = false;
+        }
+    }
+
+    //====================================================
+    // FILE LOAD
+    //====================================================
+
+    bool FirmwareTool::loadFile(
+        const std::filesystem::path& file,
+        std::vector<uint8_t>& buffer)
+    {
+        std::ifstream ifs(file, std::ios::binary);
+        if (!ifs)
+            return false;
+
+        ifs.seekg(0, std::ios::end);
+        size_t size = static_cast<size_t>(ifs.tellg());
+        ifs.seekg(0);
+
+        buffer.resize(size);
+
+        ifs.read(reinterpret_cast<char*>(buffer.data()), size);
+
+        return true;
+    }
+
+    //====================================================
+    // BOOT MAILBOX CONFIG
+    //====================================================
+
+    bool FirmwareTool::configBootMailbox(uint16_t slave)
+    {
+        uint32_t data;
+
+        data = ecx_readeeprom(
+            &ctx_,
+            slave,
+            ECT_SII_BOOTRXMBX,
+            EC_TIMEOUTEEP);
+
+        ctx_.slavelist[slave].SM[0].StartAddr = LO_WORD(data);
+        ctx_.slavelist[slave].SM[0].SMlength   = HI_WORD(data);
+
+        ctx_.slavelist[slave].mbx_wo = LO_WORD(data);
+        ctx_.slavelist[slave].mbx_l  = HI_WORD(data);
+
+        data = ecx_readeeprom(
+            &ctx_,
+            slave,
+            ECT_SII_BOOTTXMBX,
+            EC_TIMEOUTEEP);
+
+        ctx_.slavelist[slave].SM[1].StartAddr = LO_WORD(data);
+        ctx_.slavelist[slave].SM[1].SMlength   = HI_WORD(data);
+
+        ctx_.slavelist[slave].mbx_ro = LO_WORD(data);
+        ctx_.slavelist[slave].mbx_rl = HI_WORD(data);
+
+        ecx_FPWR(
+            &ctx_.port,
+            ctx_.slavelist[slave].configadr,
+            ECT_REG_SM0,
+            sizeof(ec_smt),
+            &ctx_.slavelist[slave].SM[0],
+            EC_TIMEOUTRET);
+
+        ecx_FPWR(
+            &ctx_.port,
+            ctx_.slavelist[slave].configadr,
+            ECT_REG_SM1,
+            sizeof(ec_smt),
+            &ctx_.slavelist[slave].SM[1],
+            EC_TIMEOUTRET);
+
+        return true;
+    }
+
+    //====================================================
+    // ENTER BOOT
+    //====================================================
+
+    bool FirmwareTool::enterBootMode(uint16_t slave)
+    {
+        ctx_.slavelist[slave].state = EC_STATE_INIT;
+        ecx_writestate(&ctx_, slave);
+
+        if (ecx_statecheck(
+                &ctx_,
+                slave,
+                EC_STATE_INIT,
+                EC_TIMEOUTSTATE * 4) != EC_STATE_INIT)
+            return false;
+
+        configBootMailbox(slave);
+
+        ctx_.slavelist[slave].state = EC_STATE_BOOT;
+        ecx_writestate(&ctx_, slave);
+
+        return ecx_statecheck(
+                   &ctx_,
+                   slave,
+                   EC_STATE_BOOT,
+                   EC_TIMEOUTSTATE * 10)
+               == EC_STATE_BOOT;
+    }
+
+    //====================================================
+    // LEAVE BOOT
+    //====================================================
+
+    bool FirmwareTool::leaveBootMode(uint16_t slave)
+    {
+        ctx_.slavelist[slave].state = EC_STATE_INIT;
+        ecx_writestate(&ctx_, slave);
+
+        return ecx_statecheck(
+                   &ctx_,
+                   slave,
+                   EC_STATE_INIT,
+                   EC_TIMEOUTSTATE * 4)
+               == EC_STATE_INIT;
+    }
+
+    //====================================================
+    // FLASH FIRMWARE
+    //====================================================
+
+    bool FirmwareTool::flashFirmware(
+        uint16_t slave,
+        const std::filesystem::path& binFile)
+    {
+        if (!inited_ && !init())
+            return false;
+
+        std::vector<uint8_t> fw;
+
+        if (!loadFile(binFile, fw))
+            return false;
+
+        if (!enterBootMode(slave))
+            return false;
+
+        int ret = ecx_FOEwrite(
+            &ctx_,
+            slave,
+            const_cast<char*>(binFile.filename().string().c_str()),
+            0,
+            fw.size(),
+            fw.data(),
+            EC_TIMEOUTSTATE);
+
+        leaveBootMode(slave);
+        return ret > 0;
+    }
 }
