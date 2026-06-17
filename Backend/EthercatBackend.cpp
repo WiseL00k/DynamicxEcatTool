@@ -750,6 +750,7 @@ void EthercatBackend::flashFirmware(int slaveId, const QString& filePath)
         try
         {
             emit logUpdated("开始固件烧录...");
+
             tool.init();
             ok = tool.flashFirmware(
                 static_cast<uint16_t>(slaveId),
@@ -761,7 +762,7 @@ void EthercatBackend::flashFirmware(int slaveId, const QString& filePath)
             }
             else
             {
-                emit soemErrorOccurred("固件烧录失败, 请检查固件文件名是否正确!");
+                emit soemErrorOccurred("固件烧录失败, 请检查固件文件名或网卡名是否正确!或重新烧录EEProm文件!");
             }
             tool.close();
         }

@@ -342,7 +342,7 @@ Item {
                                 spacing: 4
 
                                 ProgressBar {
-                                    id: progressBar
+                                    id: eepromProgressBar
                                     from: 0
                                     to: 100
                                     value: 0
@@ -350,7 +350,7 @@ Item {
                                 }
 
                                 Label {
-                                    text: progressBar.value + "%"
+                                    text: eepromProgressBar.value + "%"
                                     horizontalAlignment: Text.AlignHCenter
                                     Layout.fillWidth: true
                                 }
@@ -362,7 +362,7 @@ Item {
                                 Layout.fillWidth: true
                                 enabled: !isConnected
                                 onClicked: {
-                                    progressBar.value = 0
+                                    eepromProgressBar.value = 0
                                     EthercatBackend.flashEEprom(
                                                 slaveIdBox.value,
                                                 eepromFileDialog.selectedFile)

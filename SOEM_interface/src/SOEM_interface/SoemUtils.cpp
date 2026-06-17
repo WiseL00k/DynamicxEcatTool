@@ -318,6 +318,7 @@ namespace soem_interface{
         uint16_t slave,
         const std::filesystem::path& binFile)
     {
+
         if (!inited_ && !init())
             return false;
 
