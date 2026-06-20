@@ -16,6 +16,7 @@ Dialog {
     y: (parent.height - height) / 2
 
     property string text: ""
+    property var theme
 
     function show(msg) {
         text = msg
@@ -24,8 +25,8 @@ Dialog {
 
     background: Rectangle {
         radius: 12
-        color: "#ffffff"
-        border.color: "#e5e7eb"
+        color: theme.surface
+        border.color: theme.border
         border.width: 1
     }
 
@@ -42,14 +43,14 @@ Dialog {
                 width: 36
                 height: 36
                 radius: 8
-                color: "#fee2e2"
+                color: theme.dangerBackground
 
                 Text {
                     anchors.centerIn: parent
                     text: "!"
                     font.pixelSize: 20
                     font.bold: true
-                    color: "#dc2626"
+                    color: theme.dangerText
                 }
             }
 
@@ -57,7 +58,7 @@ Dialog {
                 text: "系统提示"
                 font.pixelSize: 18
                 font.bold: true
-                color: "#111827"
+                color: theme.textPrimary
                 Layout.fillWidth: true
                 verticalAlignment: Text.AlignVCenter
             }
@@ -67,14 +68,14 @@ Dialog {
             text: dialog.text
             wrapMode: Text.WordWrap
             font.pixelSize: 14
-            color: "#374151"
+            color: theme.textSecondary
             Layout.fillWidth: true
         }
 
         Rectangle {
             Layout.fillWidth: true
             height: 1
-            color: "#f3f4f6"
+            color: theme.border
         }
 
         RowLayout {
@@ -85,6 +86,7 @@ Dialog {
             Item { Layout.fillWidth: true }
 
             Button {
+                id: okButton
                 text: "确定"
 
                 highlighted: true
@@ -97,12 +99,12 @@ Dialog {
                 background: Rectangle {
                     radius: 8
 
-                    color: parent.hovered
-                           ? "#2563eb"
-                           : "#3b82f6"
+                    color: okButton.hovered
+                           ? theme.accentHover
+                           : theme.accent
 
-                    border.color: "#1d4ed8"
-                    border.width: parent.hovered ? 1 : 0
+                    border.color: theme.accentHover
+                    border.width: okButton.hovered ? 1 : 0
 
                     Behavior on color {
                         ColorAnimation { duration: 120 }
@@ -110,10 +112,10 @@ Dialog {
                 }
 
                 contentItem: Text {
-                    text: parent.text
+                    text: okButton.text
                     font.pixelSize: 14
                     font.bold: true
-                    color: "#ffffff"
+                    color: theme.textOnAccent
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                 }
