@@ -5,12 +5,13 @@ import QtQuick.Dialogs
 
 Item {
 
+    property var theme
     property bool isConnected: false
     signal connectionChanged(bool connected)
 
     Rectangle {
         anchors.fill: parent
-        color: "#f4f6f8"
+        color: theme.pageBackground
 
         ColumnLayout {
             anchors.fill: parent
@@ -22,8 +23,8 @@ Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 170
                 radius: 10
-                color: "white"
-                border.color: "#e6e6e6"
+                color: theme.surface
+                border.color: theme.border
 
                 RowLayout {
                     anchors.fill: parent
@@ -54,7 +55,8 @@ Item {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             radius: 6
-                            border.color: "#e0e0e0"
+                            color: theme.inputBackground
+                            border.color: theme.borderStrong
 
                             ListView {
                                 id: nicList
@@ -68,15 +70,15 @@ Item {
                                     height: 36
                                     radius: 6
 
-                                    color: ListView.isCurrentItem ? "#e3f2fd" : "transparent"
-                                    border.color: ListView.isCurrentItem ? "#90caf9" : "transparent"
+                                    color: ListView.isCurrentItem ? theme.selectedBackground : "transparent"
+                                    border.color: ListView.isCurrentItem ? theme.selectedBorder : "transparent"
 
                                     Text {
                                         anchors.verticalCenter: parent.verticalCenter
                                         anchors.left: parent.left
                                         anchors.leftMargin: 12
                                         text: modelData
-                                        color: "#333"
+                                        color: theme.textPrimary
                                         elide: Text.ElideRight
                                     }
 
@@ -122,8 +124,8 @@ Item {
                                 Layout.preferredHeight: 40
 
                                 radius: 6
-                                color: isConnected ? "#e8f5e9" : "#ffebee"
-                                border.color: isConnected ? "#81c784" : "#e57373"
+                                color: isConnected ? theme.successBackground : theme.dangerBackground
+                                border.color: isConnected ? theme.successBorder : theme.dangerBorder
 
                                 RowLayout {
                                     anchors.centerIn: parent
@@ -133,7 +135,7 @@ Item {
                                         width: 10
                                         height: 10
                                         radius: 5
-                                        color: isConnected ? "#4caf50" : "#f44336"
+                                        color: isConnected ? theme.success : theme.danger
 
                                         Layout.alignment: Qt.AlignVCenter
                                     }
@@ -143,7 +145,7 @@ Item {
                                         text: isConnected ? qsTr("已连接") : qsTr(
                                                                 "未连接")
                                         font.bold: true
-                                        color: "#333"
+                                        color: theme.textPrimary
 
                                         Layout.alignment: Qt.AlignVCenter
                                     }
@@ -179,8 +181,8 @@ Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     radius: 10
-                    color: "white"
-                    border.color: "#e6e6e6"
+                    color: theme.surface
+                    border.color: theme.border
 
                     ColumnLayout {
                         anchors.fill: parent
@@ -198,7 +200,7 @@ Item {
                             TextArea {
                                 id: logArea
                                 readOnly: true
-                                font.family: "Consolas"
+                                font.family: theme.fontFamily
                             }
                         }
                     }
@@ -212,8 +214,8 @@ Item {
                         Layout.preferredWidth: 320
                         Layout.fillHeight: true
                         radius: 10
-                        color: "white"
-                        border.color: "#e6e6e6"
+                        color: theme.surface
+                        border.color: theme.border
 
                         ColumnLayout {
                             anchors.fill: parent
@@ -295,8 +297,8 @@ Item {
                         Layout.preferredWidth: 320
                         Layout.fillHeight: true
                         radius: 10
-                        color: "white"
-                        border.color: "#e6e6e6"
+                        color: theme.surface
+                        border.color: theme.border
 
                         ColumnLayout {
                             anchors.fill: parent

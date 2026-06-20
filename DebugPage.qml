@@ -5,12 +5,13 @@ import QtQuick.Dialogs
 
 Item {
 
+    property var theme
     property bool isConnected: false
     signal connectionChanged(bool connected)
 
     Rectangle {
         anchors.fill: parent
-        color: "#f4f6f8"
+        color: theme.pageBackground
 
         ColumnLayout {
             anchors.fill: parent
@@ -25,8 +26,8 @@ Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 160
                 radius: 10
-                color: "white"
-                border.color: "#e6e6e6"
+                color: theme.surface
+                border.color: theme.border
 
                 RowLayout {
                     anchors.fill: parent
@@ -57,7 +58,8 @@ Item {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             radius: 6
-                            border.color: "#e0e0e0"
+                            color: theme.inputBackground
+                            border.color: theme.borderStrong
 
                             ListView {
 
@@ -77,15 +79,15 @@ Item {
                                     height: 36
                                     radius: 6
 
-                                    color: ListView.isCurrentItem ? "#e3f2fd" : "transparent"
-                                    border.color: ListView.isCurrentItem ? "#90caf9" : "transparent"
+                                    color: ListView.isCurrentItem ? theme.selectedBackground : "transparent"
+                                    border.color: ListView.isCurrentItem ? theme.selectedBorder : "transparent"
 
                                     Text {
                                         anchors.verticalCenter: parent.verticalCenter
                                         anchors.left: parent.left
                                         anchors.leftMargin: 12
                                         text: modelData
-                                        color: "#333"
+                                        color: theme.textPrimary
                                         elide: Text.ElideRight
                                     }
 
@@ -122,8 +124,8 @@ Item {
                                 Layout.preferredHeight: 40
 
                                 radius: 6
-                                color: isConnected ? "#e8f5e9" : "#ffebee"
-                                border.color: isConnected ? "#81c784" : "#e57373"
+                                color: isConnected ? theme.successBackground : theme.dangerBackground
+                                border.color: isConnected ? theme.successBorder : theme.dangerBorder
 
                                 RowLayout {
                                     anchors.centerIn: parent
@@ -133,7 +135,7 @@ Item {
                                         width: 10
                                         height: 10
                                         radius: 5
-                                        color: isConnected ? "#4caf50" : "#f44336"
+                                        color: isConnected ? theme.success : theme.danger
 
                                         Layout.alignment: Qt.AlignVCenter
                                     }
@@ -142,7 +144,7 @@ Item {
                                         id: connectionStatus
                                         text: qsTr("未连接")
                                         font.bold: true
-                                        color: "#333"
+                                        color: theme.textPrimary
 
                                         Layout.alignment: Qt.AlignVCenter
                                     }
@@ -192,8 +194,8 @@ Item {
                 Layout.fillHeight: true
 
                 radius: 10
-                color: "white"
-                border.color: "#e6e6e6"
+                color: theme.surface
+                border.color: theme.border
 
                 RowLayout {
 
@@ -207,8 +209,8 @@ Item {
                         Layout.fillHeight: true
 
                         radius: 6
-                        color: "#fafafa"
-                        border.color: "#e0e0e0"
+                        color: theme.surfaceMuted
+                        border.color: theme.borderStrong
 
                         ScrollView {
 
@@ -221,7 +223,7 @@ Item {
                                 readOnly: true
                                 wrapMode: TextArea.NoWrap
 
-                                font.family: "Consolas"
+                                font.family: theme.fontFamily
                                 font.pixelSize: 13
 
                                 padding: 10
@@ -236,8 +238,8 @@ Item {
                         Layout.fillHeight: true
 
                         radius: 6
-                        color: "#fafafa"
-                        border.color: "#e0e0e0"
+                        color: theme.surfaceMuted
+                        border.color: theme.borderStrong
 
                         ColumnLayout {
 
@@ -270,8 +272,8 @@ Item {
 
                                     property var style:
                                         type === "slaveHeader"
-                                        ? { bg:"#e3f2fd", border:"#90caf9", height:32 }
-                                        : { bg:"#ffffff", border:"#e6e6e6", height:52 }
+                                        ? { bg:theme.selectedBackground, border:theme.selectedBorder, height:32 }
+                                        : { bg:theme.surface, border:theme.border, height:52 }
 
                                     height: style.height
 
@@ -299,7 +301,7 @@ Item {
                                                 Label {
                                                     text: name || ""
                                                     font.bold: true
-                                                    color: "#333"
+                                                    color: theme.textPrimary
                                                 }
 
                                                 // 根据类型动态显示信息
@@ -313,7 +315,7 @@ Item {
                                                             return ""
                                                     }
                                                     font.pixelSize: 12
-                                                    color: "#666"
+                                                    color: theme.textSecondary
                                                 }
                                             }
 
@@ -322,13 +324,13 @@ Item {
                                                 width: 14
                                                 height: 14
                                                 radius: 7
-                                                color: online ? "#4CAF50" : "#E53935"
+                                                color: online ? theme.success : theme.danger
                                             }
 
                                             // 在线状态文字
                                             Label {
                                                 text: online ? qsTr("在线") : qsTr("离线")
-                                                color: online ? "#4CAF50" : "#E53935"
+                                                color: online ? theme.success : theme.danger
                                                 font.bold: true
                                             }
                                         }
@@ -344,6 +346,7 @@ Item {
 
                                             text: slaveName || ""
                                             font.bold: true
+                                            color: theme.accentText
                                         }
                                     }
                                 }

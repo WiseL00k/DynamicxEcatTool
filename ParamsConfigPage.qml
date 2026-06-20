@@ -5,6 +5,7 @@ import QtQuick.Dialogs
 
 Item {
 
+    property var theme
     property bool isConnected: false
     signal connectionChanged(bool connected)
 
@@ -13,7 +14,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        color: "#f4f6f8"
+        color: theme.pageBackground
 
         ColumnLayout {
             anchors.fill: parent
@@ -27,8 +28,8 @@ Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 180
                 radius: 10
-                color: "white"
-                border.color: "#e6e6e6"
+                color: theme.surface
+                border.color: theme.border
 
                 RowLayout {
                     anchors.fill: parent
@@ -60,7 +61,8 @@ Item {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             radius: 6
-                            border.color: "#e0e0e0"
+                            color: theme.inputBackground
+                            border.color: theme.borderStrong
 
                             ListView {
                                 id: nicList
@@ -79,17 +81,17 @@ Item {
                                     radius: 6
 
                                     color: ListView.isCurrentItem
-                                           ? "#e3f2fd"
+                                           ? theme.selectedBackground
                                            : "transparent"
 
                                     border.color: ListView.isCurrentItem
-                                                  ? "#90caf9"
+                                                  ? theme.selectedBorder
                                                   : "transparent"
 
                                     Text {
                                         anchors.centerIn: parent
                                         text: modelData
-                                        color: "#333"
+                                        color: theme.textPrimary
                                         elide: Text.ElideRight
                                     }
 
@@ -131,7 +133,7 @@ Item {
                         // 提示信息
                         Label {
                             text: "参数界面只能有一块从站"
-                            color: "#d32f2f"
+                            color: theme.dangerText
                             font.pixelSize: 12
                             wrapMode: Text.WordWrap
                         }
@@ -153,8 +155,8 @@ Item {
                             Layout.preferredHeight: 40
                             radius: 6
 
-                            color: isConnected ? "#e8f5e9" : "#ffebee"
-                            border.color: isConnected ? "#81c784" : "#e57373"
+                            color: isConnected ? theme.successBackground : theme.dangerBackground
+                            border.color: isConnected ? theme.successBorder : theme.dangerBorder
 
                             RowLayout {
                                 anchors.centerIn: parent
@@ -164,13 +166,14 @@ Item {
                                     width: 10
                                     height: 10
                                     radius: 5
-                                    color: isConnected ? "#4caf50" : "#f44336"
+                                    color: isConnected ? theme.success : theme.danger
                                 }
 
                                 Text {
                                     id: connectionStatus
                                     text: isConnected ? "已连接" : "未连接"
                                     font.bold: true
+                                    color: theme.textPrimary
                                 }
                             }
                         }
@@ -197,8 +200,8 @@ Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 radius: 10
-                color: "white"
-                border.color: "#e6e6e6"
+                color: theme.surface
+                border.color: theme.border
 
                 Loader {
                     id: configLoader
@@ -214,7 +217,8 @@ Item {
             "panels/MITConfigPanel.qml",
             {
                 "slaveType": selectedSlaveType,
-                "isConnected": isConnected
+                "isConnected": isConnected,
+                "theme": theme
             }
         )
     }

@@ -6,6 +6,7 @@ Item {
 
     property int slaveId: -1
     property bool isConnected: false
+    property var theme
 
     // =========================
     // 后端MIT CAN数据帧（8字节）
@@ -78,8 +79,8 @@ Item {
             Layout.fillWidth: true
             Layout.preferredHeight: 160
             radius: 10
-            color: "#fafafa"
-            border.color: "#e6e6e6"
+            color: theme.surfaceMuted
+            border.color: theme.border
 
             GridLayout {
 
@@ -247,8 +248,8 @@ Item {
                 Layout.preferredWidth: 2
 
                 radius: 10
-                color: "white"
-                border.color: "#e6e6e6"
+                color: theme.surface
+                border.color: theme.border
 
                 ColumnLayout {
 
@@ -349,8 +350,8 @@ Item {
                 Layout.preferredWidth: 3
 
                 radius: 10
-                color: "white"
-                border.color: "#e6e6e6"
+                color: theme.surface
+                border.color: theme.border
 
                 RowLayout {
 
@@ -461,8 +462,8 @@ Item {
                         Layout.preferredHeight: 90 // 稍微加高一点
 
                         radius: 6
-                        color: "#f6f6f6"
-                        border.color: "#dddddd"
+                        color: theme.surfaceMuted
+                        border.color: theme.borderStrong
 
                         ColumnLayout {
 
@@ -479,7 +480,7 @@ Item {
                                 horizontalAlignment: Text.AlignHCenter
 
                                 font.pixelSize: 12
-                                color: "#666"
+                                color: theme.textSecondary
                             }
 
                             // =========================
@@ -495,7 +496,7 @@ Item {
 
                                 font.pixelSize: 18
                                 font.bold: true
-                                color: "#409eff"
+                                color: theme.accent
                             }
                         }
                     }
