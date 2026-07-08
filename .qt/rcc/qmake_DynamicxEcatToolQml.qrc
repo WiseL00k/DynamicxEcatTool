@@ -1,6 +1,0 @@
-<RCC>
-  <qresource prefix="/DynamicxEcatToolQml">
-    <file alias="qmldir">D:/QtProjects/DynamicxEcatTool-codex/DynamicxEcatToolQml/qmldir</file>
-  </qresource>
-</RCC>
-

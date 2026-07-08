@@ -40,6 +40,10 @@ Thumbs.db
 *.pro.user*
 *.qbs.user*
 CMakeLists.txt.user*
+.qtcreator/
+.qtc/
+.qtc_clangd/
+qtcsettings.cmake
 
 # xemacs temporary files
 *.flc
@@ -61,6 +65,8 @@ CMakeLists.txt.user*
 *.opensdf
 *.vcxproj
 *vcxproj.*
+*.exp
+*.lib
 
 # MinGW generated files
 *.Debug
@@ -81,3 +87,25 @@ CMakeLists.txt.user*
 .rcc/
 .uic/
 /build*/
+/.cmake/
+/.qt/
+CMakeFiles/
+/Testing/
+/release/
+*_autogen/
+
+# CMake/Ninja generated files
+CMakeCache.txt
+cmake_install.cmake
+**/cmake_install.cmake
+CPackConfig.cmake
+CPackSourceConfig.cmake
+build.ninja
+.ninja_*
+compile_commands.json
+
+# Qt/CMake generated QML metadata
+/DynamicxEcatToolQml/
+/meta_types/
+/qmltypes/
+*_qmltyperegistrations.cpp
