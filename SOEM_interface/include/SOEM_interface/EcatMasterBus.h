@@ -1,12 +1,13 @@
 #ifndef ECATMASTERBUS_H
 #define ECATMASTERBUS_H
 
+#include <atomic>
+#include <cstdint>
+#include <memory>
 #include <mutex>
 #include <string>
-#include <atomic>
 #include <thread>
 #include <vector>
-#include <memory>
 
 #include "SOEM_interface/soem_interface_export.h"
 #include <SOEM_interface/SoemUtils.h>
@@ -29,14 +30,22 @@ enum SDOType
 
 struct SDOConfig
 {
-    uint16_t slave;
-    uint16_t index;
-    uint8_t subindex;
+    uint16_t slave{0};
+    uint16_t index{0};
+    uint8_t subindex{0};
 
-    SDOType type;
+    SDOType type{READ};
 
-    std::vector<uint8_t> data;   // 写用
-    int expected_size = 0;       // 读用
+    std::vector<uint8_t> data;
+    int expected_size = 0;
+};
+
+struct ProcessDataSnapshot
+{
+    int workingCounter{0};
+    int64_t dcTime{0};
+    std::vector<uint8_t> outputPreview;
+    std::vector<uint8_t> inputPreview;
 };
 
 class SOEM_INTERFACE_EXPORT EcatMasterBus
@@ -48,7 +57,7 @@ public:
     SoemInterfaceErrorCode start();
     SoemInterfaceErrorCode startTest();
     void stop();
-    void stopTest();
+    void stopTest() { stop(); }
     SoemInterfaceErrorCode initMaster();
     SoemInterfaceErrorCode closeMaster();
     void requestInit();
@@ -56,44 +65,31 @@ public:
     void requestOperational();
     bool addSlave(const EcatSlaveBasePtr& slave);
 
-    EcatSlaveBasePtr& getSlave(const uint16_t address) { return slaves_[address - 1]; }
+    EcatSlaveBasePtr getSlave(uint16_t address) const;
+    EcatSlaveBasePtr findSlave(uint16_t address) const;
+    std::vector<EcatSlaveBasePtr> registeredSlaves() const;
     void setNICName(const std::string& ifname);
 
     bool isOperational() const;
+    bool isMasterInitialized() const;
     int slaveCount() const;
 
     ecx_contextt& getContext() { return context_; }
     int getWKC() const { return wkc.load(); }
+    ProcessDataSnapshot processDataSnapshot() const;
 
-    void readTxPdo(const uint16_t slave, int size, void* buf) const;
-    void writeRxPdo(const uint16_t slave, int size, const void* buf);
-    bool sdoWrite(const uint16_t slave, const uint16_t index, const uint8_t subindex, const bool completeAccess, int size, void* buf);
-    bool sdoRead(const uint16_t slave, const uint16_t index, const uint8_t subindex, const bool completeAccess, int size, void* buf);
-    /*!
-   * Send a writing SDO.
-   * @param slave          Address of the slave.
-   * @param index          Index of the SDO.
-   * @param subindex       Sub-index of the SDO.
-   * @param completeAccess Access all sub-indices at once.
-   * @param value          Value to write.
-   * @return True if successful.
-   */
+    void readTxPdo(uint16_t slave, int size, void* buf) const;
+    void writeRxPdo(uint16_t slave, int size, const void* buf);
+    bool sdoWrite(uint16_t slave, uint16_t index, uint8_t subindex, bool completeAccess, int size, void* buf);
+    bool sdoRead(uint16_t slave, uint16_t index, uint8_t subindex, bool completeAccess, int size, void* buf);
+
     template <typename Value>
     bool sendSdoWrite(const uint16_t slave, const uint16_t index, const uint8_t subindex, const bool completeAccess, const Value value) {
         const int size = sizeof(Value);
-        Value valueCopy = value;  // copy value to make it modifiable
+        Value valueCopy = value;
         return sdoWrite(slave, index, subindex, completeAccess, size, &valueCopy);
     }
 
-    /*!
-   * Send a reading SDO.
-   * @param slave          Address of the slave.
-   * @param index          Index of the SDO.
-   * @param subindex       Sub-index of the SDO.
-   * @param completeAccess Access all sub-indices at once.
-   * @param value          Return argument, will contain the value which was read.
-   * @return True if successful.
-   */
     template <typename Value>
     bool sendSdoRead(const uint16_t slave, const uint16_t index, const uint8_t subindex, const bool completeAccess, Value& value) {
         int size = sizeof(Value);
@@ -101,14 +97,13 @@ public:
     }
     bool applySDOConfigs(const std::vector<SDOConfig>& configs);
 
-
-
 private:
     void cyclicTask();
     void cyclicTestTask();
     void checkTask();
     std::string getErrorString(ec_errort error);
-    bool checkForSdoErrors(const uint16_t slave, const uint16_t index);
+    bool checkForSdoErrors(uint16_t slave, uint16_t index);
+    bool isValidSlaveAddress(uint16_t slave) const;
 
 private:
     std::string nic_name_;
@@ -123,13 +118,12 @@ private:
     std::thread cyclicThread_;
     std::thread checkThread_;
 
-    mutable std::mutex contextMutex_;
+    mutable std::recursive_mutex contextMutex_;
     ecx_contextt context_{};
 
     char IOmap_[4096]{};
     int expectedWKC{};
-    std::atomic<int> wkc;
-    // int mappingdone, dorun, inOP, dowkccheck;
+    std::atomic<int> wkc{0};
 
     std::vector<EcatSlaveBasePtr> slaves_;
 };

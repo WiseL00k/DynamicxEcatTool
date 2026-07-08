@@ -2,15 +2,23 @@
 #define ECATSLAVEBASE_H
 
 #include "SOEM_interface/soem_interface_export.h"
-#include "EcatMasterBus.h"
-#include <memory>
+#include <cstdint>
 #include <mutex>
+#include <string>
+#include <vector>
 
 namespace soem_interface{
+
+class EcatMasterBus;
 
 class SOEM_INTERFACE_EXPORT EcatSlaveBase
 {
 public:
+    struct DeviceOnlineStatus {
+        std::string name;
+        bool online{false};
+    };
+
     /**
    * @brief      Struct defining the Pdo characteristic
    */
@@ -71,6 +79,9 @@ public:
    */
     virtual void shutdown() = 0;
 
+    virtual uint32_t statuswordRaw() const { return 0; }
+    virtual std::vector<DeviceOnlineStatus> collectDeviceOnlineStatuses() const { return {}; }
+
     void setEthercatBusBasePointer(EcatMasterBus* bus) {bus_ = bus;}
     /**
    * @brief      Returns the bus address of the slave
@@ -80,7 +91,7 @@ public:
     uint32_t getAddress() const { return address_; }
 protected:
     mutable std::recursive_mutex mutex_;
-    EcatMasterBus* bus_;
+    EcatMasterBus* bus_{nullptr};
     uint32_t address_{0};
 };
 }

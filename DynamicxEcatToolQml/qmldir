@@ -1,0 +1,10 @@
+module DynamicxEcatToolQml
+typeinfo DynamicxEcatTool.qmltypes
+prefer :/DynamicxEcatToolQml/
+Main 1.0 Main.qml
+TestPage 1.0 TestPage.qml
+DebugPage 1.0 DebugPage.qml
+ParamsConfigPage 1.0 ParamsConfigPage.qml
+ErrorPopup 1.0 ErrorPopup.qml
+MITConfigPanel 1.0 panels/MITConfigPanel.qml
+

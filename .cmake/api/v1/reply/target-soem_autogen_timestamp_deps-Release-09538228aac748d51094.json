@@ -1,0 +1,27 @@
+{
+	"backtrace" : 0,
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : 
+		[
+			"SOEM/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			}
+		]
+	},
+	"id" : "soem_autogen_timestamp_deps::@b044d06f1ad8f85a2397",
+	"isGeneratorProvided" : true,
+	"name" : "soem_autogen_timestamp_deps",
+	"paths" : 
+	{
+		"build" : "SOEM",
+		"source" : "SOEM"
+	},
+	"sources" : [],
+	"type" : "UTILITY"
+}

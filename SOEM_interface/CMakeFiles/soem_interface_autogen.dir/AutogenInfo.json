@@ -1,0 +1,108 @@
+{
+	"AUTOGEN_COMMAND_LINE_LENGTH_MAX" : 32000,
+	"BUILD_DIR" : "D:/QtProjects/DynamicxEcatTool-codex/SOEM_interface/soem_interface_autogen",
+	"CMAKE_BINARY_DIR" : "D:/QtProjects/DynamicxEcatTool-codex",
+	"CMAKE_CURRENT_BINARY_DIR" : "D:/QtProjects/DynamicxEcatTool-codex/SOEM_interface",
+	"CMAKE_CURRENT_SOURCE_DIR" : "D:/QtProjects/DynamicxEcatTool-codex/SOEM_interface",
+	"CMAKE_EXECUTABLE" : "D:/Qt/Tools/CMake_64/bin/cmake.exe",
+	"CMAKE_LIST_FILES" : 
+	[
+		"D:/QtProjects/DynamicxEcatTool-codex/SOEM_interface/CMakeLists.txt",
+		"D:/QtProjects/DynamicxEcatTool-codex/.qtc/package-manager/auto-setup.cmake"
+	],
+	"CMAKE_SOURCE_DIR" : "D:/QtProjects/DynamicxEcatTool-codex",
+	"CROSS_CONFIG" : false,
+	"DEP_FILE" : "D:/QtProjects/DynamicxEcatTool-codex/SOEM_interface/soem_interface_autogen/deps",
+	"DEP_FILE_RULE_NAME" : "soem_interface_autogen/timestamp",
+	"HEADERS" : 
+	[
+		[
+			"D:/QtProjects/DynamicxEcatTool-codex/SOEM_interface/include/SOEM_interface/EcatMasterBus.h",
+			"Mu",
+			"IH7PQJJGNF/moc_EcatMasterBus.cpp",
+			null
+		],
+		[
+			"D:/QtProjects/DynamicxEcatTool-codex/SOEM_interface/include/SOEM_interface/EcatSlaveBase.h",
+			"Mu",
+			"IH7PQJJGNF/moc_EcatSlaveBase.cpp",
+			null
+		],
+		[
+			"D:/QtProjects/DynamicxEcatTool-codex/SOEM_interface/include/SOEM_interface/SoemUtils.h",
+			"Mu",
+			"IH7PQJJGNF/moc_SoemUtils.cpp",
+			null
+		],
+		[
+			"D:/QtProjects/DynamicxEcatTool-codex/SOEM_interface/include/SOEM_interface/soem_interface_export.h",
+			"Mu",
+			"IH7PQJJGNF/moc_soem_interface_export.cpp",
+			null
+		]
+	],
+	"HEADER_EXTENSIONS" : [ "h", "hh", "h++", "hm", "hpp", "hxx", "in", "txx" ],
+	"INCLUDE_DIR" : "D:/QtProjects/DynamicxEcatTool-codex/SOEM_interface/soem_interface_autogen/include",
+	"MOC_COMPILATION_FILE" : "D:/QtProjects/DynamicxEcatTool-codex/SOEM_interface/soem_interface_autogen/mocs_compilation.cpp",
+	"MOC_DEFINITIONS" : [ "SOEM_INTERFACE_BUILD", "WIN32", "soem_interface_EXPORTS" ],
+	"MOC_DEPEND_FILTERS" : 
+	[
+		[
+			"Q_PLUGIN_METADATA",
+			"[\n][ \t]*Q_PLUGIN_METADATA[ \t]*\\([^\\)]*FILE[ \t]*\"([^\"]+)\""
+		]
+	],
+	"MOC_INCLUDES" : 
+	[
+		"D:/QtProjects/DynamicxEcatTool-codex/SOEM_interface/include",
+		"D:/QtProjects/DynamicxEcatTool-codex/SOEM_interface/include/common",
+		"D:/QtProjects/DynamicxEcatTool-codex/SOEM/include",
+		"D:/QtProjects/DynamicxEcatTool-codex/SOEM/osal",
+		"D:/QtProjects/DynamicxEcatTool-codex/SOEM/osal/win32",
+		"D:/QtProjects/DynamicxEcatTool-codex/SOEM/oshw/win32",
+		"D:/QtProjects/DynamicxEcatTool-codex/SOEM/oshw/win32/wpcap/Include"
+	],
+	"MOC_MACRO_NAMES" : 
+	[
+		"Q_OBJECT",
+		"Q_GADGET",
+		"Q_NAMESPACE",
+		"Q_NAMESPACE_EXPORT",
+		"Q_GADGET_EXPORT",
+		"Q_ENUM_NS"
+	],
+	"MOC_OPTIONS" : [],
+	"MOC_PATH_PREFIX" : false,
+	"MOC_PREDEFS_CMD" : [],
+	"MOC_PREDEFS_FILE" : "",
+	"MOC_RELAXED_MODE" : false,
+	"MOC_SKIP" : [],
+	"MULTI_CONFIG" : false,
+	"PARALLEL" : 8,
+	"PARSE_CACHE_FILE" : "D:/QtProjects/DynamicxEcatTool-codex/SOEM_interface/CMakeFiles/soem_interface_autogen.dir/ParseCache.txt",
+	"QT_MOC_EXECUTABLE" : "D:/Qt/6.8.3/msvc2022_64/bin/moc.exe",
+	"QT_UIC_EXECUTABLE" : "",
+	"QT_VERSION_MAJOR" : 6,
+	"QT_VERSION_MINOR" : 8,
+	"SETTINGS_FILE" : "D:/QtProjects/DynamicxEcatTool-codex/SOEM_interface/CMakeFiles/soem_interface_autogen.dir/AutogenUsed.txt",
+	"SOURCES" : 
+	[
+		[
+			"D:/QtProjects/DynamicxEcatTool-codex/SOEM_interface/src/SOEM_interface/EcatMasterBus.cpp",
+			"Mu",
+			null
+		],
+		[
+			"D:/QtProjects/DynamicxEcatTool-codex/SOEM_interface/src/SOEM_interface/EcatSlaveBase.cpp",
+			"Mu",
+			null
+		],
+		[
+			"D:/QtProjects/DynamicxEcatTool-codex/SOEM_interface/src/SOEM_interface/SoemUtils.cpp",
+			"Mu",
+			null
+		]
+	],
+	"USE_BETTER_GRAPH" : true,
+	"VERBOSITY" : 0
+}

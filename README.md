@@ -18,8 +18,7 @@ DynamicxEcatTool 是一个基于 **Qt6 + QML + C++** 的 EtherCAT 调试与测�
 ## 目录结构
 
 - `tutorial/`：**软件使用简单教程  <==**
-- `Backend/`：后端业务逻辑与配置解析
-- `Frontend/`：前端数据适配层
+- `Backend/`：后端业务逻辑，按 `Config`、`Ethercat`、`Monitor`、`Flash`、`Models`、`Network`、`Commands` 分层组织
 - `SOEM_interface/`：对 SOEM 的封装接口
 - `sample_config/`：示例 YAML 配置文件
 - `*.qml`：界面页面与组件、
@@ -28,7 +27,7 @@ DynamicxEcatTool 是一个基于 **Qt6 + QML + C++** 的 EtherCAT 调试与测�
 
 - CMake >= 3.16
 - C++17 编译器
-- Qt6（至少包含 `Core`、`Quick`、`QuickControls2`、`Concurrent`）
+- Qt6（至少包含 `Core`、`Quick`、`QuickControls2`）
 - `yaml-cpp`
 
 > 注意： 仓库包含 `SOEM` 子模块，首次拉取后需要初始化子模块。
@@ -76,3 +75,4 @@ cmake --build build -j
 - 在测试/调试/参数界面先刷新并选择正确网卡；
 - 在调试界面，需先加载 `sample_config/` 下对应 YAML；
 - 确认连接状态后再执行测试流程、EEPROM 烧录或参数下发，并观察日志与状态信息。
+

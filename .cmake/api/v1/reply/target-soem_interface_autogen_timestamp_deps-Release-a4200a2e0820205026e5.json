@@ -1,0 +1,34 @@
+{
+	"backtrace" : 0,
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : 
+		[
+			"SOEM_interface/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			}
+		]
+	},
+	"dependencies" : 
+	[
+		{
+			"backtrace" : 0,
+			"id" : "soem::@b044d06f1ad8f85a2397"
+		}
+	],
+	"id" : "soem_interface_autogen_timestamp_deps::@c934c987144bfd6b5589",
+	"isGeneratorProvided" : true,
+	"name" : "soem_interface_autogen_timestamp_deps",
+	"paths" : 
+	{
+		"build" : "SOEM_interface",
+		"source" : "SOEM_interface"
+	},
+	"sources" : [],
+	"type" : "UTILITY"
+}

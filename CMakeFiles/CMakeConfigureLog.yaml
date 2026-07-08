@@ -1,0 +1,415 @@
+
+---
+events:
+  -
+    kind: "message-v1"
+    backtrace:
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeDetermineSystem.cmake:205 (message)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      The system is: Windows - 10.0.22631 - AMD64
+  -
+    kind: "message-v1"
+    backtrace:
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeDetermineCXXCompiler.cmake:126 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" succeeded.
+      Compiler: C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.33.31629/bin/HostX64/x64/cl.exe 
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      0
+      用于 x64 的 Microsoft (R) C/C++ 优化编译器 19.33.31629 版
+      版权所有(C) Microsoft Corporation。保留所有权利。
+      
+      CMakeCXXCompilerId.cpp
+      Microsoft (R) Incremental Linker Version 14.33.31629.0
+      Copyright (C) Microsoft Corporation.  All rights reserved.
+      
+      /out:CMakeCXXCompilerId.exe 
+      CMakeCXXCompilerId.obj 
+      
+      
+      Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "CMakeCXXCompilerId.exe"
+      
+      Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "CMakeCXXCompilerId.obj"
+      
+      The CXX compiler identification is MSVC, found in:
+        D:/QtProjects/DynamicxEcatTool-codex/CMakeFiles/3.30.5/CompilerIdCXX/CMakeCXXCompilerId.exe
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeDetermineCompilerId.cmake:1243 (message)"
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeDetermineCompilerId.cmake:250 (CMAKE_DETERMINE_MSVC_SHOWINCLUDES_PREFIX)"
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeDetermineCXXCompiler.cmake:126 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      Detecting CXX compiler /showIncludes prefix:
+        main.c
+        注意: 包含文件:  D:\\QtProjects\\DynamicxEcatTool-codex\\CMakeFiles\\ShowIncludes\\foo.h
+        
+      Found prefix "注意: 包含文件:  "
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeDetermineCompilerABI.cmake:74 (try_compile)"
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:3 (project)"
+    checks:
+      - "Detecting CXX compiler ABI info"
+    directories:
+      source: "D:/QtProjects/DynamicxEcatTool-codex/CMakeFiles/CMakeScratch/TryCompile-c6dob0"
+      binary: "D:/QtProjects/DynamicxEcatTool-codex/CMakeFiles/CMakeScratch/TryCompile-c6dob0"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: "/DWIN32 /D_WINDOWS /GR /EHsc"
+      CMAKE_CXX_FLAGS_DEBUG: "/Zi /Ob0 /Od /RTC1"
+      CMAKE_CXX_SCAN_FOR_MODULES: "OFF"
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      VCPKG_INSTALLED_DIR: "D:/Program Files/vcpkg/installed"
+      VCPKG_PREFER_SYSTEM_LIBS: "OFF"
+      VCPKG_TARGET_TRIPLET: "x64-windows"
+      Z_VCPKG_ROOT_DIR: "D:/Program Files/vcpkg"
+    buildResult:
+      variable: "CMAKE_CXX_ABI_COMPILED"
+      cached: true
+      stdout: |
+        Change Dir: 'D:/QtProjects/DynamicxEcatTool-codex/CMakeFiles/CMakeScratch/TryCompile-c6dob0'
+        
+        Run Build Command(s): D:/Qt/Tools/Ninja/ninja.exe -v cmTC_530bf
+        [1/2] C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1433~1.316\\bin\\HostX64\\x64\\cl.exe  /nologo /TP   /DWIN32 /D_WINDOWS /GR /EHsc  /Zi /Ob0 /Od /RTC1 -MDd /showIncludes /FoCMakeFiles\\cmTC_530bf.dir\\CMakeCXXCompilerABI.cpp.obj /FdCMakeFiles\\cmTC_530bf.dir\\ /FS -c D:\\Qt\\Tools\\CMake_64\\share\\cmake-3.30\\Modules\\CMakeCXXCompilerABI.cpp
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && D:\\Qt\\Tools\\CMake_64\\bin\\cmake.exe -E vs_link_exe --intdir=CMakeFiles\\cmTC_530bf.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1433~1.316\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_530bf.dir\\CMakeCXXCompilerABI.cpp.obj  /out:cmTC_530bf.exe /implib:cmTC_530bf.lib /pdb:cmTC_530bf.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        
+      exitCode: 0
+  -
+    kind: "message-v1"
+    backtrace:
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeDetermineCompilerABI.cmake:218 (message)"
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      Parsed CXX implicit link information:
+        link line regex: [^( *|.*[/\\])(ld[0-9]*(\\.[a-z]+)?|link\\.exe|lld-link(\\.exe)?|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
+        linker tool regex: [^[ 	]*(->|")?[ 	]*(([^"]*[/\\])?(ld[0-9]*(\\.[a-z]+)?|link\\.exe|lld-link(\\.exe)?))("|,| |$)]
+        linker tool for 'CXX': C:/PROGRA~1/MICROS~4/2022/COMMUN~1/VC/Tools/MSVC/1433~1.316/bin/Hostx64/x64/link.exe
+        implicit libs: []
+        implicit objs: []
+        implicit dirs: []
+        implicit fwks: []
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/Internal/CMakeDetermineLinkerId.cmake:40 (message)"
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeDetermineCompilerABI.cmake:255 (cmake_determine_linker_id)"
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      Running the CXX compiler's linker: "C:/PROGRA~1/MICROS~4/2022/COMMUN~1/VC/Tools/MSVC/1433~1.316/bin/Hostx64/x64/link.exe" "-v"
+      Microsoft (R) Incremental Linker Version 14.33.31629.0
+      Copyright (C) Microsoft Corporation.  All rights reserved.
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CheckCXXSourceCompiles.cmake:52 (cmake_check_source_compiles)"
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/FindThreads.cmake:99 (CHECK_CXX_SOURCE_COMPILES)"
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/FindThreads.cmake:163 (_threads_check_libc)"
+      - "D:/Program Files/vcpkg/scripts/buildsystems/vcpkg.cmake:908 (_find_package)"
+      - ".qtc/package-manager/maintenance_tool_provider.cmake:340 (find_package)"
+      - "D:/Program Files/vcpkg/scripts/buildsystems/vcpkg.cmake:908 (_find_package)"
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeFindDependencyMacro.cmake:76 (find_package)"
+      - "D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6/QtPublicDependencyHelpers.cmake:36 (find_dependency)"
+      - "D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6/Qt6Dependencies.cmake:34 (_qt_internal_find_third_party_dependencies)"
+      - "D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6/Qt6Config.cmake:146 (include)"
+      - "D:/Program Files/vcpkg/scripts/buildsystems/vcpkg.cmake:908 (_find_package)"
+      - ".qtc/package-manager/maintenance_tool_provider.cmake:333 (find_package)"
+      - "D:/Program Files/vcpkg/scripts/buildsystems/vcpkg.cmake:908 (_find_package)"
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeFindDependencyMacro.cmake:76 (find_package)"
+      - "D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6Core/Qt6CoreDependencies.cmake:20 (find_dependency)"
+      - "D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6Core/Qt6CoreConfig.cmake:45 (include)"
+      - "D:/Program Files/vcpkg/scripts/buildsystems/vcpkg.cmake:908 (_find_package)"
+      - ".qtc/package-manager/maintenance_tool_provider.cmake:315 (find_package)"
+      - "D:/Program Files/vcpkg/scripts/buildsystems/vcpkg.cmake:908 (_find_package)"
+      - "CMakeLists.txt:9 (find_package)"
+    directories:
+      source: "D:/QtProjects/DynamicxEcatTool-codex/CMakeFiles/CMakeScratch/TryCompile-cxq6ts"
+      binary: "D:/QtProjects/DynamicxEcatTool-codex/CMakeFiles/CMakeScratch/TryCompile-cxq6ts"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: "/DWIN32 /D_WINDOWS /GR /EHsc"
+      CMAKE_CXX_FLAGS_DEBUG: "/Zi /Ob0 /Od /RTC1"
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6;D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6/3rdparty/extra-cmake-modules/find-modules;D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6/3rdparty/kwin"
+      VCPKG_INSTALLED_DIR: "D:/Program Files/vcpkg/installed"
+      VCPKG_PREFER_SYSTEM_LIBS: "OFF"
+      VCPKG_TARGET_TRIPLET: "x64-windows"
+      Z_VCPKG_ROOT_DIR: "D:/Program Files/vcpkg"
+    buildResult:
+      variable: "CMAKE_HAVE_LIBC_PTHREAD"
+      cached: true
+      stdout: |
+        Change Dir: 'D:/QtProjects/DynamicxEcatTool-codex/CMakeFiles/CMakeScratch/TryCompile-cxq6ts'
+        
+        Run Build Command(s): D:/Qt/Tools/Ninja/ninja.exe -v cmTC_ec461
+        [1/2] C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1433~1.316\\bin\\HostX64\\x64\\cl.exe  /nologo /TP -DCMAKE_HAVE_LIBC_PTHREAD  /DWIN32 /D_WINDOWS /GR /EHsc  /Zi /Ob0 /Od /RTC1 -MDd /showIncludes /FoCMakeFiles\\cmTC_ec461.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_ec461.dir\\ /FS -c D:\\QtProjects\\DynamicxEcatTool-codex\\CMakeFiles\\CMakeScratch\\TryCompile-cxq6ts\\src.cxx
+        \x1b[31mFAILED: \x1b[0mCMakeFiles/cmTC_ec461.dir/src.cxx.obj 
+        C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1433~1.316\\bin\\HostX64\\x64\\cl.exe  /nologo /TP -DCMAKE_HAVE_LIBC_PTHREAD  /DWIN32 /D_WINDOWS /GR /EHsc  /Zi /Ob0 /Od /RTC1 -MDd /showIncludes /FoCMakeFiles\\cmTC_ec461.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_ec461.dir\\ /FS -c D:\\QtProjects\\DynamicxEcatTool-codex\\CMakeFiles\\CMakeScratch\\TryCompile-cxq6ts\\src.cxx
+        D:\\QtProjects\\DynamicxEcatTool-codex\\CMakeFiles\\CMakeScratch\\TryCompile-cxq6ts\\src.cxx(1): fatal error C1083: 无法打开包括文件: “pthread.h”: No such file or directory
+        ninja: build stopped: subcommand failed.
+        
+      exitCode: 1
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CheckLibraryExists.cmake:69 (try_compile)"
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/FindThreads.cmake:112 (CHECK_LIBRARY_EXISTS)"
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/FindThreads.cmake:175 (_threads_check_lib)"
+      - "D:/Program Files/vcpkg/scripts/buildsystems/vcpkg.cmake:908 (_find_package)"
+      - ".qtc/package-manager/maintenance_tool_provider.cmake:340 (find_package)"
+      - "D:/Program Files/vcpkg/scripts/buildsystems/vcpkg.cmake:908 (_find_package)"
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeFindDependencyMacro.cmake:76 (find_package)"
+      - "D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6/QtPublicDependencyHelpers.cmake:36 (find_dependency)"
+      - "D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6/Qt6Dependencies.cmake:34 (_qt_internal_find_third_party_dependencies)"
+      - "D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6/Qt6Config.cmake:146 (include)"
+      - "D:/Program Files/vcpkg/scripts/buildsystems/vcpkg.cmake:908 (_find_package)"
+      - ".qtc/package-manager/maintenance_tool_provider.cmake:333 (find_package)"
+      - "D:/Program Files/vcpkg/scripts/buildsystems/vcpkg.cmake:908 (_find_package)"
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeFindDependencyMacro.cmake:76 (find_package)"
+      - "D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6Core/Qt6CoreDependencies.cmake:20 (find_dependency)"
+      - "D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6Core/Qt6CoreConfig.cmake:45 (include)"
+      - "D:/Program Files/vcpkg/scripts/buildsystems/vcpkg.cmake:908 (_find_package)"
+      - ".qtc/package-manager/maintenance_tool_provider.cmake:315 (find_package)"
+      - "D:/Program Files/vcpkg/scripts/buildsystems/vcpkg.cmake:908 (_find_package)"
+      - "CMakeLists.txt:9 (find_package)"
+    directories:
+      source: "D:/QtProjects/DynamicxEcatTool-codex/CMakeFiles/CMakeScratch/TryCompile-jsdfph"
+      binary: "D:/QtProjects/DynamicxEcatTool-codex/CMakeFiles/CMakeScratch/TryCompile-jsdfph"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: "/DWIN32 /D_WINDOWS /GR /EHsc"
+      CMAKE_CXX_FLAGS_DEBUG: "/Zi /Ob0 /Od /RTC1"
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6;D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6/3rdparty/extra-cmake-modules/find-modules;D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6/3rdparty/kwin"
+      VCPKG_INSTALLED_DIR: "D:/Program Files/vcpkg/installed"
+      VCPKG_PREFER_SYSTEM_LIBS: "OFF"
+      VCPKG_TARGET_TRIPLET: "x64-windows"
+      Z_VCPKG_ROOT_DIR: "D:/Program Files/vcpkg"
+    buildResult:
+      variable: "CMAKE_HAVE_PTHREADS_CREATE"
+      cached: true
+      stdout: |
+        Change Dir: 'D:/QtProjects/DynamicxEcatTool-codex/CMakeFiles/CMakeScratch/TryCompile-jsdfph'
+        
+        Run Build Command(s): D:/Qt/Tools/Ninja/ninja.exe -v cmTC_42239
+        [1/2] C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1433~1.316\\bin\\HostX64\\x64\\cl.exe  /nologo /TP   /DWIN32 /D_WINDOWS /GR /EHsc -DCHECK_FUNCTION_EXISTS=pthread_create /Zi /Ob0 /Od /RTC1 -MDd /showIncludes /FoCMakeFiles\\cmTC_42239.dir\\CheckFunctionExists.cxx.obj /FdCMakeFiles\\cmTC_42239.dir\\ /FS -c D:\\QtProjects\\DynamicxEcatTool-codex\\CMakeFiles\\CMakeScratch\\TryCompile-jsdfph\\CheckFunctionExists.cxx
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && D:\\Qt\\Tools\\CMake_64\\bin\\cmake.exe -E vs_link_exe --intdir=CMakeFiles\\cmTC_42239.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1433~1.316\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_42239.dir\\CheckFunctionExists.cxx.obj  /out:cmTC_42239.exe /implib:cmTC_42239.lib /pdb:cmTC_42239.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  pthreads.lib  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        \x1b[31mFAILED: \x1b[0mcmTC_42239.exe 
+        C:\\WINDOWS\\system32\\cmd.exe /C "cd . && D:\\Qt\\Tools\\CMake_64\\bin\\cmake.exe -E vs_link_exe --intdir=CMakeFiles\\cmTC_42239.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1433~1.316\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_42239.dir\\CheckFunctionExists.cxx.obj  /out:cmTC_42239.exe /implib:cmTC_42239.lib /pdb:cmTC_42239.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  pthreads.lib  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        LINK Pass 1: command "C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1433~1.316\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_42239.dir\\CheckFunctionExists.cxx.obj /out:cmTC_42239.exe /implib:cmTC_42239.lib /pdb:cmTC_42239.pdb /version:0.0 /machine:x64 /debug /INCREMENTAL /subsystem:console pthreads.lib kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /MANIFEST /MANIFESTFILE:CMakeFiles\\cmTC_42239.dir/intermediate.manifest CMakeFiles\\cmTC_42239.dir/manifest.res" failed (exit code 1104) with the following output:
+        LINK : fatal error LNK1104: 无法打开文件“pthreads.lib”\x0d
+        ninja: build stopped: subcommand failed.
+        
+      exitCode: 1
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CheckLibraryExists.cmake:69 (try_compile)"
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/FindThreads.cmake:112 (CHECK_LIBRARY_EXISTS)"
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/FindThreads.cmake:176 (_threads_check_lib)"
+      - "D:/Program Files/vcpkg/scripts/buildsystems/vcpkg.cmake:908 (_find_package)"
+      - ".qtc/package-manager/maintenance_tool_provider.cmake:340 (find_package)"
+      - "D:/Program Files/vcpkg/scripts/buildsystems/vcpkg.cmake:908 (_find_package)"
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeFindDependencyMacro.cmake:76 (find_package)"
+      - "D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6/QtPublicDependencyHelpers.cmake:36 (find_dependency)"
+      - "D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6/Qt6Dependencies.cmake:34 (_qt_internal_find_third_party_dependencies)"
+      - "D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6/Qt6Config.cmake:146 (include)"
+      - "D:/Program Files/vcpkg/scripts/buildsystems/vcpkg.cmake:908 (_find_package)"
+      - ".qtc/package-manager/maintenance_tool_provider.cmake:333 (find_package)"
+      - "D:/Program Files/vcpkg/scripts/buildsystems/vcpkg.cmake:908 (_find_package)"
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeFindDependencyMacro.cmake:76 (find_package)"
+      - "D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6Core/Qt6CoreDependencies.cmake:20 (find_dependency)"
+      - "D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6Core/Qt6CoreConfig.cmake:45 (include)"
+      - "D:/Program Files/vcpkg/scripts/buildsystems/vcpkg.cmake:908 (_find_package)"
+      - ".qtc/package-manager/maintenance_tool_provider.cmake:315 (find_package)"
+      - "D:/Program Files/vcpkg/scripts/buildsystems/vcpkg.cmake:908 (_find_package)"
+      - "CMakeLists.txt:9 (find_package)"
+    directories:
+      source: "D:/QtProjects/DynamicxEcatTool-codex/CMakeFiles/CMakeScratch/TryCompile-zwsyqq"
+      binary: "D:/QtProjects/DynamicxEcatTool-codex/CMakeFiles/CMakeScratch/TryCompile-zwsyqq"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: "/DWIN32 /D_WINDOWS /GR /EHsc"
+      CMAKE_CXX_FLAGS_DEBUG: "/Zi /Ob0 /Od /RTC1"
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6;D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6/3rdparty/extra-cmake-modules/find-modules;D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6/3rdparty/kwin"
+      VCPKG_INSTALLED_DIR: "D:/Program Files/vcpkg/installed"
+      VCPKG_PREFER_SYSTEM_LIBS: "OFF"
+      VCPKG_TARGET_TRIPLET: "x64-windows"
+      Z_VCPKG_ROOT_DIR: "D:/Program Files/vcpkg"
+    buildResult:
+      variable: "CMAKE_HAVE_PTHREAD_CREATE"
+      cached: true
+      stdout: |
+        Change Dir: 'D:/QtProjects/DynamicxEcatTool-codex/CMakeFiles/CMakeScratch/TryCompile-zwsyqq'
+        
+        Run Build Command(s): D:/Qt/Tools/Ninja/ninja.exe -v cmTC_a3bab
+        [1/2] C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1433~1.316\\bin\\HostX64\\x64\\cl.exe  /nologo /TP   /DWIN32 /D_WINDOWS /GR /EHsc -DCHECK_FUNCTION_EXISTS=pthread_create /Zi /Ob0 /Od /RTC1 -MDd /showIncludes /FoCMakeFiles\\cmTC_a3bab.dir\\CheckFunctionExists.cxx.obj /FdCMakeFiles\\cmTC_a3bab.dir\\ /FS -c D:\\QtProjects\\DynamicxEcatTool-codex\\CMakeFiles\\CMakeScratch\\TryCompile-zwsyqq\\CheckFunctionExists.cxx
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && D:\\Qt\\Tools\\CMake_64\\bin\\cmake.exe -E vs_link_exe --intdir=CMakeFiles\\cmTC_a3bab.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1433~1.316\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_a3bab.dir\\CheckFunctionExists.cxx.obj  /out:cmTC_a3bab.exe /implib:cmTC_a3bab.lib /pdb:cmTC_a3bab.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  pthread.lib  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        \x1b[31mFAILED: \x1b[0mcmTC_a3bab.exe 
+        C:\\WINDOWS\\system32\\cmd.exe /C "cd . && D:\\Qt\\Tools\\CMake_64\\bin\\cmake.exe -E vs_link_exe --intdir=CMakeFiles\\cmTC_a3bab.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1433~1.316\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_a3bab.dir\\CheckFunctionExists.cxx.obj  /out:cmTC_a3bab.exe /implib:cmTC_a3bab.lib /pdb:cmTC_a3bab.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  pthread.lib  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        LINK Pass 1: command "C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1433~1.316\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_a3bab.dir\\CheckFunctionExists.cxx.obj /out:cmTC_a3bab.exe /implib:cmTC_a3bab.lib /pdb:cmTC_a3bab.pdb /version:0.0 /machine:x64 /debug /INCREMENTAL /subsystem:console pthread.lib kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /MANIFEST /MANIFESTFILE:CMakeFiles\\cmTC_a3bab.dir/intermediate.manifest CMakeFiles\\cmTC_a3bab.dir/manifest.res" failed (exit code 1104) with the following output:
+        LINK : fatal error LNK1104: 无法打开文件“pthread.lib”\x0d
+        ninja: build stopped: subcommand failed.
+        
+      exitCode: 1
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CheckCXXSourceCompiles.cmake:52 (cmake_check_source_compiles)"
+      - "D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6/FindWrapAtomic.cmake:36 (check_cxx_source_compiles)"
+      - "D:/Program Files/vcpkg/scripts/buildsystems/vcpkg.cmake:908 (_find_package)"
+      - ".qtc/package-manager/maintenance_tool_provider.cmake:340 (find_package)"
+      - "D:/Program Files/vcpkg/scripts/buildsystems/vcpkg.cmake:908 (_find_package)"
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeFindDependencyMacro.cmake:76 (find_package)"
+      - "D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6/QtPublicDependencyHelpers.cmake:36 (find_dependency)"
+      - "D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6Core/Qt6CoreDependencies.cmake:35 (_qt_internal_find_third_party_dependencies)"
+      - "D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6Core/Qt6CoreConfig.cmake:45 (include)"
+      - "D:/Program Files/vcpkg/scripts/buildsystems/vcpkg.cmake:908 (_find_package)"
+      - ".qtc/package-manager/maintenance_tool_provider.cmake:315 (find_package)"
+      - "D:/Program Files/vcpkg/scripts/buildsystems/vcpkg.cmake:908 (_find_package)"
+      - "CMakeLists.txt:9 (find_package)"
+    checks:
+      - "Performing Test HAVE_STDATOMIC"
+    directories:
+      source: "D:/QtProjects/DynamicxEcatTool-codex/CMakeFiles/CMakeScratch/TryCompile-dxv7rd"
+      binary: "D:/QtProjects/DynamicxEcatTool-codex/CMakeFiles/CMakeScratch/TryCompile-dxv7rd"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: "/DWIN32 /D_WINDOWS /GR /EHsc"
+      CMAKE_CXX_FLAGS_DEBUG: "/Zi /Ob0 /Od /RTC1"
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6;D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6/3rdparty/extra-cmake-modules/find-modules;D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6/3rdparty/kwin"
+      VCPKG_INSTALLED_DIR: "D:/Program Files/vcpkg/installed"
+      VCPKG_PREFER_SYSTEM_LIBS: "OFF"
+      VCPKG_TARGET_TRIPLET: "x64-windows"
+      Z_VCPKG_ROOT_DIR: "D:/Program Files/vcpkg"
+    buildResult:
+      variable: "HAVE_STDATOMIC"
+      cached: true
+      stdout: |
+        Change Dir: 'D:/QtProjects/DynamicxEcatTool-codex/CMakeFiles/CMakeScratch/TryCompile-dxv7rd'
+        
+        Run Build Command(s): D:/Qt/Tools/Ninja/ninja.exe -v cmTC_f2cbf
+        [1/2] C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1433~1.316\\bin\\HostX64\\x64\\cl.exe  /nologo /TP -DHAVE_STDATOMIC  /DWIN32 /D_WINDOWS /GR /EHsc  /Zi /Ob0 /Od /RTC1 -MDd /showIncludes /FoCMakeFiles\\cmTC_f2cbf.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_f2cbf.dir\\ /FS -c D:\\QtProjects\\DynamicxEcatTool-codex\\CMakeFiles\\CMakeScratch\\TryCompile-dxv7rd\\src.cxx
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && D:\\Qt\\Tools\\CMake_64\\bin\\cmake.exe -E vs_link_exe --intdir=CMakeFiles\\cmTC_f2cbf.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1433~1.316\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_f2cbf.dir\\src.cxx.obj  /out:cmTC_f2cbf.exe /implib:cmTC_f2cbf.lib /pdb:cmTC_f2cbf.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        
+      exitCode: 0
+  -
+    kind: "message-v1"
+    backtrace:
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeDetermineCCompiler.cmake:123 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "SOEM/CMakeLists.txt:7 (project)"
+    message: |
+      Compiling the C compiler identification source file "CMakeCCompilerId.c" succeeded.
+      Compiler: C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.33.31629/bin/HostX64/x64/cl.exe 
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      0
+      用于 x64 的 Microsoft (R) C/C++ 优化编译器 19.33.31629 版
+      版权所有(C) Microsoft Corporation。保留所有权利。
+      
+      CMakeCCompilerId.c
+      Microsoft (R) Incremental Linker Version 14.33.31629.0
+      Copyright (C) Microsoft Corporation.  All rights reserved.
+      
+      /out:CMakeCCompilerId.exe 
+      CMakeCCompilerId.obj 
+      
+      
+      Compilation of the C compiler identification source "CMakeCCompilerId.c" produced "CMakeCCompilerId.exe"
+      
+      Compilation of the C compiler identification source "CMakeCCompilerId.c" produced "CMakeCCompilerId.obj"
+      
+      The C compiler identification is MSVC, found in:
+        D:/QtProjects/DynamicxEcatTool-codex/CMakeFiles/3.30.5/CompilerIdC/CMakeCCompilerId.exe
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeDetermineCompilerId.cmake:1243 (message)"
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeDetermineCompilerId.cmake:250 (CMAKE_DETERMINE_MSVC_SHOWINCLUDES_PREFIX)"
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeDetermineCCompiler.cmake:123 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "SOEM/CMakeLists.txt:7 (project)"
+    message: |
+      Detecting C compiler /showIncludes prefix:
+        main.c
+        注意: 包含文件:  D:\\QtProjects\\DynamicxEcatTool-codex\\CMakeFiles\\ShowIncludes\\foo.h
+        
+      Found prefix "注意: 包含文件:  "
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeDetermineCompilerABI.cmake:74 (try_compile)"
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "SOEM/CMakeLists.txt:7 (project)"
+    checks:
+      - "Detecting C compiler ABI info"
+    directories:
+      source: "D:/QtProjects/DynamicxEcatTool-codex/CMakeFiles/CMakeScratch/TryCompile-54nu92"
+      binary: "D:/QtProjects/DynamicxEcatTool-codex/CMakeFiles/CMakeScratch/TryCompile-54nu92"
+    cmakeVariables:
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/Zi /Ob0 /Od /RTC1"
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6;D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6/3rdparty/extra-cmake-modules/find-modules;D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6/3rdparty/kwin;D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6;D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6/3rdparty/extra-cmake-modules/find-modules;D:/Qt/6.8.3/msvc2022_64/lib/cmake/Qt6/3rdparty/kwin;D:/QtProjects/DynamicxEcatTool-codex/SOEM/cmake"
+      VCPKG_INSTALLED_DIR: "D:/Program Files/vcpkg/installed"
+      VCPKG_PREFER_SYSTEM_LIBS: "OFF"
+      VCPKG_TARGET_TRIPLET: "x64-windows"
+      Z_VCPKG_ROOT_DIR: "D:/Program Files/vcpkg"
+    buildResult:
+      variable: "CMAKE_C_ABI_COMPILED"
+      cached: true
+      stdout: |
+        Change Dir: 'D:/QtProjects/DynamicxEcatTool-codex/CMakeFiles/CMakeScratch/TryCompile-54nu92'
+        
+        Run Build Command(s): D:/Qt/Tools/Ninja/ninja.exe -v cmTC_2a495
+        [1/2] C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1433~1.316\\bin\\HostX64\\x64\\cl.exe  /nologo   /DWIN32 /D_WINDOWS  /Zi /Ob0 /Od /RTC1 -MDd /showIncludes /FoCMakeFiles\\cmTC_2a495.dir\\CMakeCCompilerABI.c.obj /FdCMakeFiles\\cmTC_2a495.dir\\ /FS -c D:\\Qt\\Tools\\CMake_64\\share\\cmake-3.30\\Modules\\CMakeCCompilerABI.c
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && D:\\Qt\\Tools\\CMake_64\\bin\\cmake.exe -E vs_link_exe --intdir=CMakeFiles\\cmTC_2a495.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1433~1.316\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_2a495.dir\\CMakeCCompilerABI.c.obj  /out:cmTC_2a495.exe /implib:cmTC_2a495.lib /pdb:cmTC_2a495.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        
+      exitCode: 0
+  -
+    kind: "message-v1"
+    backtrace:
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeDetermineCompilerABI.cmake:218 (message)"
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "SOEM/CMakeLists.txt:7 (project)"
+    message: |
+      Parsed C implicit link information:
+        link line regex: [^( *|.*[/\\])(ld[0-9]*(\\.[a-z]+)?|link\\.exe|lld-link(\\.exe)?|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
+        linker tool regex: [^[ 	]*(->|")?[ 	]*(([^"]*[/\\])?(ld[0-9]*(\\.[a-z]+)?|link\\.exe|lld-link(\\.exe)?))("|,| |$)]
+        linker tool for 'C': C:/PROGRA~1/MICROS~4/2022/COMMUN~1/VC/Tools/MSVC/1433~1.316/bin/Hostx64/x64/link.exe
+        implicit libs: []
+        implicit objs: []
+        implicit dirs: []
+        implicit fwks: []
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/Internal/CMakeDetermineLinkerId.cmake:40 (message)"
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeDetermineCompilerABI.cmake:255 (cmake_determine_linker_id)"
+      - "D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "SOEM/CMakeLists.txt:7 (project)"
+    message: |
+      Running the C compiler's linker: "C:/PROGRA~1/MICROS~4/2022/COMMUN~1/VC/Tools/MSVC/1433~1.316/bin/Hostx64/x64/link.exe" "-v"
+      Microsoft (R) Incremental Linker Version 14.33.31629.0
+      Copyright (C) Microsoft Corporation.  All rights reserved.
+...

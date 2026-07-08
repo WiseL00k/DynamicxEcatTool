@@ -1,0 +1,220 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"install",
+			"include"
+		],
+		"files" : 
+		[
+			"SOEM/CMakeLists.txt",
+			"SOEM/cmake/Windows.cmake",
+			"D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/InstallRequiredSystemLibraries.cmake"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 127,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 133,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 138,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 155,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 160,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 165,
+				"parent" : 0
+			},
+			{
+				"command" : 1,
+				"file" : 0,
+				"line" : 189,
+				"parent" : 0
+			},
+			{
+				"file" : 1,
+				"parent" : 7
+			},
+			{
+				"command" : 0,
+				"file" : 1,
+				"line" : 71,
+				"parent" : 8
+			},
+			{
+				"command" : 1,
+				"file" : 0,
+				"line" : 191,
+				"parent" : 0
+			},
+			{
+				"file" : 2,
+				"parent" : 10
+			},
+			{
+				"command" : 0,
+				"file" : 2,
+				"line" : 798,
+				"parent" : 11
+			}
+		]
+	},
+	"installers" : 
+	[
+		{
+			"backtrace" : 1,
+			"component" : "Unspecified",
+			"destination" : "lib",
+			"paths" : 
+			[
+				"SOEM/soem.lib"
+			],
+			"targetId" : "soem::@b044d06f1ad8f85a2397",
+			"targetIndex" : 19,
+			"type" : "target"
+		},
+		{
+			"backtrace" : 1,
+			"component" : "Unspecified",
+			"cxxModuleBmiTarget" : 
+			{
+				"id" : "soem::@b044d06f1ad8f85a2397",
+				"index" : 19
+			},
+			"destination" : "lib",
+			"type" : "cxxModuleBmi"
+		},
+		{
+			"backtrace" : 2,
+			"component" : "Unspecified",
+			"destination" : "cmake",
+			"exportName" : "soemConfig",
+			"exportTargets" : 
+			[
+				{
+					"id" : "soem::@b044d06f1ad8f85a2397",
+					"index" : 19
+				}
+			],
+			"paths" : 
+			[
+				"SOEM/CMakeFiles/Export/272ceadb8458515b2ae4b5630a6029cc/soemConfig.cmake"
+			],
+			"type" : "export"
+		},
+		{
+			"backtrace" : 3,
+			"component" : "Unspecified",
+			"destination" : "include/soem",
+			"paths" : 
+			[
+				"SOEM/include/soem/ec_base.h",
+				"SOEM/include/soem/ec_coe.h",
+				"SOEM/include/soem/ec_config.h",
+				"SOEM/include/soem/ec_dc.h",
+				"SOEM/include/soem/ec_eoe.h",
+				"SOEM/include/soem/ec_foe.h",
+				"SOEM/include/soem/ec_main.h",
+				"SOEM/include/soem/ec_print.h",
+				"SOEM/include/soem/ec_soe.h",
+				"SOEM/include/soem/ec_type.h",
+				"SOEM/include/soem/soem.h",
+				"SOEM/osal/osal.h",
+				"SOEM/include/soem/ec_options.h"
+			],
+			"type" : "file"
+		},
+		{
+			"backtrace" : 4,
+			"component" : "Unspecified",
+			"destination" : "scripts",
+			"paths" : 
+			[
+				"SOEM/scripts/eniconv.py"
+			],
+			"type" : "file"
+		},
+		{
+			"backtrace" : 5,
+			"component" : "Unspecified",
+			"destination" : "cmake",
+			"paths" : 
+			[
+				"SOEM/cmake/AddENI.cmake"
+			],
+			"type" : "file"
+		},
+		{
+			"backtrace" : 6,
+			"component" : "Unspecified",
+			"destination" : ".",
+			"paths" : 
+			[
+				"SOEM/README.md",
+				"SOEM/LICENSE.md"
+			],
+			"type" : "file"
+		},
+		{
+			"backtrace" : 9,
+			"component" : "Unspecified",
+			"destination" : "include/soem",
+			"paths" : 
+			[
+				"SOEM/osal/win32/osal_defs.h",
+				"SOEM/oshw/win32/nicdrv.h"
+			],
+			"type" : "file"
+		},
+		{
+			"backtrace" : 12,
+			"component" : "Unspecified",
+			"destination" : "bin",
+			"paths" : 
+			[
+				"C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Redist/MSVC/14.32.31326/x64/Microsoft.VC143.CRT/msvcp140.dll",
+				"C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Redist/MSVC/14.32.31326/x64/Microsoft.VC143.CRT/msvcp140_1.dll",
+				"C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Redist/MSVC/14.32.31326/x64/Microsoft.VC143.CRT/msvcp140_2.dll",
+				"C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Redist/MSVC/14.32.31326/x64/Microsoft.VC143.CRT/msvcp140_atomic_wait.dll",
+				"C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Redist/MSVC/14.32.31326/x64/Microsoft.VC143.CRT/msvcp140_codecvt_ids.dll",
+				"C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Redist/MSVC/14.32.31326/x64/Microsoft.VC143.CRT/vcruntime140_1.dll",
+				"C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Redist/MSVC/14.32.31326/x64/Microsoft.VC143.CRT/vcruntime140.dll",
+				"C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Redist/MSVC/14.32.31326/x64/Microsoft.VC143.CRT/concrt140.dll"
+			],
+			"type" : "file"
+		}
+	],
+	"paths" : 
+	{
+		"build" : "SOEM",
+		"source" : "SOEM"
+	}
+}

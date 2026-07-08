@@ -1,0 +1,2 @@
+#line 1 "D:\\QtProjects\\DynamicxEcatTool-codex\\icons.rc"
+IDI_ICON1 ICON DISCARDABLE "dynamicx_ecat_tool_logo.ico"
