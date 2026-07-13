@@ -9,7 +9,6 @@ ApplicationWindow {
     visible: true
     title: qsTr("Dynamicx EtherCAT Tool")
 
-    property bool isConnected: false
 
     function isDarkColor(c) {
         return (0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b) < 0.5
@@ -180,19 +179,40 @@ ApplicationWindow {
                                 verticalAlignment: Text.AlignVCenter
                             }
                         }
+                        TabButton {
+                            id: tabBusBtn
+                            text: qsTr("总线配置")
+                            font.pixelSize: Math.max(12, Math.min(16, height * 0.4))
+
+                            background: Rectangle {
+                                implicitHeight: 36
+                                radius: 6
+                                color: tabBar.currentIndex === 3 ? appTheme.selectedBackground : "transparent"
+                                border.color: tabBar.currentIndex === 3 ? appTheme.selectedBorder : "transparent"
+                            }
+
+                            contentItem: Text {
+                                text: tabBusBtn.text
+                                font: tabBusBtn.font
+                                color: tabBar.currentIndex === 3 ? appTheme.accentText : appTheme.textSecondary
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                        }
+
                     }
 
                     Rectangle {
                         width: 120
                         height: 28
                         radius: 6
-                        visible: root.isConnected
+                        visible: EthercatBackend.sessionActive
                         color: appTheme.successBackground
                         border.color: appTheme.successBorder
 
                         Text {
                             anchors.centerIn: parent
-                            text: qsTr("EtherCAT 已连接")
+                            text: EthercatBackend.sessionMode
                             font.pixelSize: 12
                             color: appTheme.successText
                         }
@@ -215,21 +235,19 @@ ApplicationWindow {
 
                     TestPage {
                         theme: appTheme
-                        isConnected: root.isConnected
-                        onConnectionChanged: root.isConnected = connected
                     }
 
                     DebugPage {
                         theme: appTheme
-                        isConnected: root.isConnected
-                        onConnectionChanged: root.isConnected = connected
                     }
 
                     ParamsConfigPage {
                         theme: appTheme
-                        isConnected: root.isConnected
-                        onConnectionChanged: root.isConnected = connected
                     }
+                    BusConfigurationPage {
+                        theme: appTheme
+                    }
+
 
                 }
             }
@@ -284,9 +302,9 @@ ApplicationWindow {
 
                     // 连接状态（最右）
                     Text {
-                        text: root.isConnected ? qsTr("● 已连接") : qsTr("● 未连接")
+                        text: EthercatBackend.sessionActive ? qsTr("● ") + EthercatBackend.sessionMode : qsTr("● 未连接")
                         font.pixelSize: 11
-                        color: root.isConnected ? appTheme.success : appTheme.danger
+                        color: EthercatBackend.sessionActive ? appTheme.success : appTheme.danger
                         opacity: 0.9
                     }
                 }

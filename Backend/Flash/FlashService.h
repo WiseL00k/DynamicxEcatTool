@@ -14,8 +14,8 @@ class FlashService : public QObject
 public:
     explicit FlashService(QObject* parent = nullptr);
 
-    void flashEEprom(const std::string& nicName, int slaveId, const QString& filePath);
-    void flashFirmware(const std::string& nicName, int slaveId, const QString& filePath);
+    bool flashEEprom(const std::string& nicName, int slaveId, const QString& filePath);
+    bool flashFirmware(const std::string& nicName, int slaveId, const QString& filePath);
 
 signals:
     void logUpdated(const QString& line);

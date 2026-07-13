@@ -227,7 +227,8 @@ Item {
         target: EthercatBackend
 
         function onConnectedUpdated(status) {
-            isConnected = (status === 1)
+            isConnected = status === 1
+                    && EthercatBackend.sessionMode === "MIT参数调试"
 
             connectionStatus.text =
                 isConnected ? "已连接" : "未连接"

@@ -60,6 +60,14 @@ void EthercatMasterController::closePreOp()
     reset();
 }
 
+void EthercatMasterController::stopExplorer()
+{
+    if (master_) {
+        master_->resetExplorer();
+    }
+    reset();
+}
+
 bool EthercatMasterController::validateSlaveCount(int configuredSlaveCount, QString& logMessage)
 {
     if (!master_) {
@@ -76,6 +84,27 @@ bool EthercatMasterController::validateSlaveCount(int configuredSlaveCount, QStr
     master_->stop();
     connected_ = false;
     return false;
+}
+
+soem_interface::BusScanResult EthercatMasterController::startExplorer(const std::string& nicName)
+{
+    soem_interface::BusScanResult result;
+    if (master_) {
+        result.errorCode = soem_interface::error::EcatInitFailed;
+        result.error = "An EtherCAT master session is already active.";
+        return result;
+    }
+
+    master_ = std::make_shared<soem_interface::EcatMasterBus>(nicName);
+    result = master_->scanForSlaves();
+    if (!result.success) {
+        reset();
+        return result;
+    }
+
+    connected_ = true;
+    configuredSlaveCount_ = result.slaveCount;
+    return result;
 }
 
 MasterStartResult EthercatMasterController::startTest(const std::string& nicName)

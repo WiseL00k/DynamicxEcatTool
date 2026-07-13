@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<EtherCATInfo>
+  <Vendor><Id>1</Id></Vendor>
+  <Device>
+    <Type ProductCode="2" RevisionNo="3">Type</Type>
+    <Name>Parsed First Device</Name>
+  </Device>
+  <Device>

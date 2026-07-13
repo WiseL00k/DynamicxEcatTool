@@ -1,8 +1,10 @@
 #ifndef ETHERCATBACKEND_H
 #define ETHERCATBACKEND_H
 
+#include "Backend/Ethercat/BusSessionCoordinator.h"
 #include "Backend/Ethercat/EthercatMasterController.h"
 #include "Backend/Ethercat/MitSlaveController.h"
+#include "Backend/Explorer/EthercatExplorerController.h"
 #include "Backend/Flash/FlashService.h"
 #include "Backend/Models/DeviceStatusModel.h"
 #include "Backend/Monitor/EthercatMonitorController.h"
@@ -22,6 +24,9 @@ class EthercatBackend : public QObject
     Q_PROPERTY(QStringList nicList READ nicList NOTIFY nicListChanged)
     Q_PROPERTY(bool connected READ connected NOTIFY connectedChanged)
     Q_PROPERTY(int slaveCount READ slaveCount NOTIFY slaveCountChanged)
+    Q_PROPERTY(bool sessionActive READ sessionActive NOTIFY sessionChanged)
+    Q_PROPERTY(QString sessionMode READ sessionMode NOTIFY sessionChanged)
+    Q_PROPERTY(EthercatExplorerController* busExplorer READ busExplorer CONSTANT)
     Q_PROPERTY(DeviceStatusModel* deviceStatusList READ motorStatusList CONSTANT)
 
 public:
@@ -31,6 +36,9 @@ public:
     QStringList nicList() const;
     bool connected() const;
     int slaveCount() const;
+    bool sessionActive() const;
+    QString sessionMode() const;
+    EthercatExplorerController* busExplorer();
     DeviceStatusModel* motorStatusList()
     {
         return &deviceModel_;
@@ -68,26 +76,21 @@ signals:
     void soemErrorOccurred(QString message);
     void flashProgress(QString type, int percent);
     void flashFinished(QString type, bool success, QString msg);
+    void sessionChanged();
 
 private:
-    enum class ConnectionMode {
-        Idle,
-        Test,
-        Communication,
-        PreOp,
-        MitDebug
-    };
-
     void refreshNics();
     bool validateSelectedNic() const;
     bool ensureConfigFileSelected();
     bool ensureMonitorStopped();
+    bool acquireSession(BusSessionCoordinator::Mode mode);
+    bool isSession(BusSessionCoordinator::Mode mode) const;
     void clearMotorStatusList();
-    void resetConnectionState();
-    void failConnection(soem_interface::error::SoemInterfaceErrorCode errorCode);
+    void resetConnectionState(BusSessionCoordinator::Mode mode);
+    void failConnection(soem_interface::error::SoemInterfaceErrorCode errorCode, BusSessionCoordinator::Mode mode);
     void updateConnectionState(bool connected, int slaveCount);
     void connectServices();
-    void emitStartFailure(const MasterStartResult& result);
+    void emitStartFailure(const MasterStartResult& result, BusSessionCoordinator::Mode mode);
 
     QStringList nicList_;
     DeviceStatusModel deviceModel_;
@@ -95,13 +98,14 @@ private:
     int slaveCount_{0};
 
     NetworkAdapterService adapterService_;
+    BusSessionCoordinator sessionCoordinator_;
     EthercatMasterController masterController_;
+    EthercatExplorerController busExplorer_;
     EthercatMonitorController monitorController_;
     FlashService flashService_;
     MitSlaveController mitSlaveController_;
     std::string configFilePath_;
     std::string nicName_;
-    ConnectionMode mode_{ConnectionMode::Idle};
 };
 
 } // namespace Backend
