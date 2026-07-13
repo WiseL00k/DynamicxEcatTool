@@ -329,6 +329,12 @@ void EthercatExplorerController::buildRuntime(
                 inputBits += entry.bitLength;
             }
         }
+
+        qDebug() << outputBits;
+        qDebug() << inputBits;
+        qDebug() << identity.outputBits;
+        qDebug() << identity.inputBits;
+
         online.activeMappingKnown =
             outputBits == identity.outputBits && inputBits == identity.inputBits;
 

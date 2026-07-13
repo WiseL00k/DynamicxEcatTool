@@ -215,6 +215,8 @@ private:
     bool mapProcessDataLocked(std::string& error);
     bool readActivePdoMappingsLocked(std::vector<ActivePdoEntry>& mappings,
                                      std::vector<bool>& completeBySlave);
+    bool readCoEPdoAssignmentCaLocked(uint16_t slave, uint16_t assignmentIndex,
+                                      PdoDirection direction, std::vector<ActivePdoEntry>& mappings);
     bool readCoEPdoAssignmentLocked(uint16_t slave, uint16_t assignmentIndex,
                                     PdoDirection direction, std::vector<ActivePdoEntry>& mappings);
     bool readSiiPdoLocked(uint16_t slave, PdoDirection direction,

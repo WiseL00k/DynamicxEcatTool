@@ -196,7 +196,6 @@ BusScanResult EcatMasterBus::scanForSlaves()
         }
 
         slaveIdentities_ = captureSlaveIdentitiesLocked(true);
-        readActivePdoMappingsLocked(activePdoMappings_, activePdoCompleteBySlave_);
 
         std::string mappingError;
         if (!mapProcessDataLocked(mappingError)) {
@@ -208,6 +207,7 @@ BusScanResult EcatMasterBus::scanForSlaves()
             return result;
         }
 
+        readActivePdoMappingsLocked(activePdoMappings_, activePdoCompleteBySlave_);
         ecx_configdc(&context_);
         updatePdoIoMapOffsetsLocked(activePdoMappings_);
         ecx_readstate(&context_);
@@ -454,13 +454,13 @@ BusStateResult EcatMasterBus::requestStateDetailed(const uint16_t requestedState
 
         if ((requestedState == EC_STATE_SAFE_OP ||
              requestedState == EC_STATE_OPERATIONAL) && !mapping_ready_) {
-            readActivePdoMappingsLocked(
-                activePdoMappings_, activePdoCompleteBySlave_);
             std::string mappingError;
             if (!mapProcessDataLocked(mappingError)) {
                 return currentStateResultLocked(
                     requestedState, mappingError);
             }
+            readActivePdoMappingsLocked(
+                activePdoMappings_, activePdoCompleteBySlave_);
             ecx_configdc(&context_);
             updatePdoIoMapOffsetsLocked(activePdoMappings_);
         }
@@ -979,6 +979,70 @@ bool EcatMasterBus::mapProcessDataLocked(std::string& error)
     return true;
 }
 
+bool EcatMasterBus::readCoEPdoAssignmentCaLocked(
+    const uint16_t slave,
+    const uint16_t assignmentIndex,
+    const PdoDirection direction,
+    std::vector<ActivePdoEntry>& mappings)
+{
+    const size_t originalSize = mappings.size();
+    ec_PDOassignt assignment{};
+    int size = sizeof(assignment);
+    if (ecx_SDOread(&context_, slave, assignmentIndex, 0, TRUE,
+                    &size, &assignment, EC_TIMEOUTRXM) <= 0 ||
+        assignment.n == 0 ||
+        size < static_cast<int>(2u + static_cast<size_t>(assignment.n) * sizeof(uint16_t))) {
+        checkForSdoErrors(slave, assignmentIndex);
+        return false;
+    }
+
+    uint32_t bitOffset = 0;
+    for (uint16_t assignmentSubindex = 0;
+         assignmentSubindex < assignment.n; ++assignmentSubindex) {
+        const uint16_t pdoIndex = etohs(assignment.index[assignmentSubindex]);
+        if (pdoIndex == 0) {
+            continue;
+        }
+
+        ec_PDOdesct description{};
+        size = sizeof(description);
+        if (ecx_SDOread(&context_, slave, pdoIndex, 0, TRUE,
+                        &size, &description, EC_TIMEOUTRXM) <= 0 ||
+            description.n == 0 ||
+            size < static_cast<int>(2u + static_cast<size_t>(description.n) * sizeof(uint32_t))) {
+            checkForSdoErrors(slave, pdoIndex);
+            mappings.resize(originalSize);
+            return false;
+        }
+
+        for (uint16_t mappingSubindex = 0;
+             mappingSubindex < description.n; ++mappingSubindex) {
+            const uint32_t mapping = etohl(description.PDO[mappingSubindex]);
+            const uint16_t bitLength = static_cast<uint16_t>(mapping & 0xffu);
+            if (bitLength == 0) {
+                mappings.resize(originalSize);
+                return false;
+            }
+
+            ActivePdoEntry entry;
+            entry.slave = slave;
+            entry.direction = direction;
+            entry.pdoIndex = pdoIndex;
+            entry.index = static_cast<uint16_t>((mapping >> 16u) & 0xffffu);
+            entry.subindex = static_cast<uint8_t>((mapping >> 8u) & 0xffu);
+            entry.bitLength = bitLength;
+            entry.bitOffset = bitOffset;
+            mappings.push_back(std::move(entry));
+            bitOffset += bitLength;
+        }
+    }
+
+    if (mappings.size() == originalSize) {
+        return false;
+    }
+    return true;
+}
+
 bool EcatMasterBus::readCoEPdoAssignmentLocked(
     const uint16_t slave,
     const uint16_t assignmentIndex,
@@ -986,14 +1050,17 @@ bool EcatMasterBus::readCoEPdoAssignmentLocked(
     std::vector<ActivePdoEntry>& mappings)
 {
     const size_t originalSize = mappings.size();
-    uint8_t assignmentCount = 0;
-    int size = sizeof(assignmentCount);
+    uint8_t rawAssignmentCount[sizeof(uint16_t)]{};
+    int size = sizeof(rawAssignmentCount);
     if (ecx_SDOread(&context_, slave, assignmentIndex, 0, FALSE,
-                    &size, &assignmentCount, EC_TIMEOUTRXM) <= 0 ||
-        size != static_cast<int>(sizeof(assignmentCount))) {
+                    &size, rawAssignmentCount, EC_TIMEOUTRXM) <= 0 ||
+        (size != 1 && size != static_cast<int>(sizeof(rawAssignmentCount)))) {
         checkForSdoErrors(slave, assignmentIndex);
         return false;
     }
+
+    const uint16_t assignmentCount = static_cast<uint16_t>(rawAssignmentCount[0]) |
+        (size == 2 ? static_cast<uint16_t>(rawAssignmentCount[1]) << 8u : 0u);
 
     uint32_t bitOffset = 0;
     for (uint16_t assignmentSubindex = 1;
@@ -1164,19 +1231,46 @@ bool EcatMasterBus::readActivePdoMappingsLocked(
             (context_.slavelist[slave].mbx_proto & ECT_MBXPROT_COE) != 0;
 
         const auto readDirection = [&](const PdoDirection direction) {
-            const bool noProcessBits = direction == PdoDirection::Rx
-                ? context_.slavelist[slave].Obits == 0
-                : context_.slavelist[slave].Ibits == 0;
-            if (noProcessBits) {
+            const uint32_t expectedBits = direction == PdoDirection::Rx
+                ? context_.slavelist[slave].Obits
+                : context_.slavelist[slave].Ibits;
+            if (expectedBits == 0) {
                 return true;
             }
+
+            const size_t directionStart = mappings.size();
+            const auto hasExpectedBits = [&]() {
+                uint32_t mappedBits = 0;
+                for (size_t index = directionStart; index < mappings.size(); ++index) {
+                    mappedBits += mappings[index].bitLength;
+                }
+                return mappedBits == expectedBits;
+            };
+
             if (hasCoE) {
                 const uint16_t assignment =
                     direction == PdoDirection::Rx ? 0x1c12u : 0x1c13u;
-                return readCoEPdoAssignmentLocked(
-                    slave, assignment, direction, mappings);
+                const bool supportsCompleteAccess =
+                    (context_.slavelist[slave].CoEdetails & ECT_COEDET_SDOCA) != 0;
+
+                if (supportsCompleteAccess &&
+                    readCoEPdoAssignmentCaLocked(
+                        slave, assignment, direction, mappings) &&
+                    hasExpectedBits()) {
+                    return true;
+                }
+                mappings.resize(directionStart);
+
+                if (readCoEPdoAssignmentLocked(
+                        slave, assignment, direction, mappings) &&
+                    hasExpectedBits()) {
+                    return true;
+                }
+                mappings.resize(directionStart);
             }
-            return readSiiPdoLocked(slave, direction, mappings);
+
+            return readSiiPdoLocked(slave, direction, mappings) &&
+                hasExpectedBits();
         };
 
         const bool rxComplete = readDirection(PdoDirection::Rx);
