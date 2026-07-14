@@ -55,8 +55,14 @@ struct OdSubItem
 struct DataTypeDefinition
 {
     QString name;
+    QString baseType;
     int bitSize{0};
+    int arrayLowerBound{0};
+    int arrayElements{0};
+    int arrayElementBitSize{0};
     QVector<OdSubItem> subItems;
+
+    bool isArray() const { return arrayElements > 0; }
 };
 
 struct ObjectDictionaryEntry
@@ -82,6 +88,10 @@ struct PdoEntry
     int bitLength{0};
     qsizetype pdoBitOffset{0};
     qsizetype processBitOffset{0};
+    QString arrayName;
+    int arrayLowerBound{0};
+    int arrayElements{0};
+    int arrayElementIndex{-1};
 };
 
 struct PdoMapping
@@ -178,6 +188,10 @@ struct PdoVariable
     QString dataType;
     int bitLength{0};
     qsizetype bitOffset{0};
+    QString arrayName;
+    int arrayLowerBound{0};
+    int arrayElements{0};
+    int arrayElementIndex{-1};
     QVariant value;
     QString displayValue;
     bool writable{false};

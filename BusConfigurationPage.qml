@@ -8,6 +8,7 @@ Item {
 
     required property var theme
     readonly property var explorer: EthercatBackend.busExplorer
+    readonly property bool wideLayout: width >= 980
 
     FolderDialog {
         id: esiFolderDialog
@@ -26,12 +27,14 @@ Item {
 
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 118
+                Layout.preferredHeight: headerContent.implicitHeight + 24
+                Layout.minimumHeight: headerContent.implicitHeight + 24
                 radius: 8
                 color: theme.surface
                 border.color: theme.border
 
                 ColumnLayout {
+                    id: headerContent
                     anchors.fill: parent
                     anchors.margins: 12
                     spacing: 8
@@ -48,9 +51,15 @@ Item {
 
                         ComboBox {
                             id: nicBox
-                            Layout.preferredWidth: 270
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 180
+                            Layout.maximumWidth: 520
                             model: EthercatBackend.nicList
                             enabled: !explorer.busy && !explorer.scanned
+                            hoverEnabled: true
+                            ToolTip.visible: hovered && currentText.length > 28
+                            ToolTip.text: currentText
+                            ToolTip.delay: 500
                             onActivated: EthercatBackend.changedSelectedNic(currentIndex)
                         }
 
@@ -58,25 +67,6 @@ Item {
                             text: "刷新"
                             enabled: !explorer.busy && !explorer.scanned
                             onClicked: EthercatBackend.refreshNicsAsync()
-                        }
-
-                        Label {
-                            text: "ESI"
-                            font.bold: true
-                            color: theme.textPrimary
-                        }
-
-                        TextField {
-                            Layout.fillWidth: true
-                            text: explorer.esiDirectory
-                            readOnly: true
-                            color: theme.textPrimary
-                        }
-
-                        Button {
-                            text: "选择"
-                            enabled: !explorer.busy && !explorer.scanned
-                            onClicked: esiFolderDialog.open()
                         }
 
                         Button {
@@ -98,12 +88,48 @@ Item {
                         spacing: 8
 
                         Label {
-                            text: "全站状态"
+                            text: "ESI目录"
                             font.bold: true
                             color: theme.textPrimary
                         }
 
+                        TextField {
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 180
+                            text: explorer.esiDirectory
+                            readOnly: true
+                            selectByMouse: true
+                            hoverEnabled: true
+                            color: theme.textPrimary
+                            ToolTip.visible: hovered && text.length > 45
+                            ToolTip.text: text
+                            ToolTip.delay: 500
+                        }
+
                         Button {
+                            text: "选择"
+                            enabled: !explorer.busy && !explorer.scanned
+                            onClicked: esiFolderDialog.open()
+                        }
+                    }
+
+                    Flow {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: childrenRect.height
+                        spacing: 8
+
+                        Label {
+                            width: implicitWidth
+                            height: 30
+                            text: "全站状态"
+                            font.bold: true
+                            color: theme.textPrimary
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        Button {
+                            width: implicitWidth
+                            height: 30
                             text: "INIT"
                             checkable: true
                             checked: explorer.currentState === 1
@@ -112,6 +138,8 @@ Item {
                         }
 
                         Button {
+                            width: implicitWidth
+                            height: 30
                             text: "PRE-OP"
                             checkable: true
                             checked: explorer.currentState === 2
@@ -120,6 +148,8 @@ Item {
                         }
 
                         Button {
+                            width: implicitWidth
+                            height: 30
                             text: "SAFE-OP"
                             checkable: true
                             checked: explorer.currentState === 4
@@ -128,6 +158,8 @@ Item {
                         }
 
                         Button {
+                            width: implicitWidth
+                            height: 30
                             text: "OP"
                             checkable: true
                             checked: explorer.currentState === 8
@@ -136,11 +168,9 @@ Item {
                             onClicked: explorer.requestState(8)
                         }
 
-                        Item { Layout.fillWidth: true }
-
                         Rectangle {
-                            Layout.preferredWidth: 116
-                            Layout.preferredHeight: 30
+                            width: 116
+                            height: 30
                             radius: 6
                             color: explorer.scanned ? theme.successBackground : theme.controlBackground
                             border.color: explorer.scanned ? theme.successBorder : theme.borderStrong
@@ -154,8 +184,8 @@ Item {
                         }
 
                         Rectangle {
-                            Layout.preferredWidth: 150
-                            Layout.preferredHeight: 30
+                            width: 150
+                            height: 30
                             radius: 6
                             color: explorer.allEsiTrusted ? theme.successBackground : theme.dangerBackground
                             border.color: explorer.allEsiTrusted ? theme.successBorder : theme.dangerBorder
@@ -168,10 +198,17 @@ Item {
                         }
 
                         Label {
-                            Layout.preferredWidth: 92
+                            id: busStatusText
+                            width: Math.min(240, Math.max(92, implicitWidth))
+                            height: 30
                             text: explorer.statusText
                             color: theme.textSecondary
-                            horizontalAlignment: Text.AlignRight
+                            verticalAlignment: Text.AlignVCenter
+                            elide: Text.ElideRight
+                            HoverHandler { id: busStatusHover }
+                            ToolTip.visible: busStatusHover.hovered && busStatusText.truncated
+                            ToolTip.text: busStatusText.text
+                            ToolTip.delay: 500
                         }
                     }
                 }
@@ -180,19 +217,24 @@ Item {
             SplitView {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                orientation: Qt.Horizontal
+                orientation: root.wideLayout ? Qt.Horizontal : Qt.Vertical
 
                 Item {
-                    SplitView.preferredWidth: 410
-                    SplitView.minimumWidth: 330
+                    SplitView.preferredWidth: root.wideLayout ? 410 : parent.width
+                    SplitView.minimumWidth: root.wideLayout ? 330 : 0
+                    SplitView.preferredHeight: root.wideLayout ? parent.height
+                                                                : Math.max(300, parent.height * 0.52)
+                    SplitView.minimumHeight: root.wideLayout ? 0 : 280
+                    SplitView.fillWidth: !root.wideLayout
 
-                    ColumnLayout {
+                    SplitView {
                         anchors.fill: parent
-                        spacing: 10
+                        orientation: Qt.Vertical
 
                         Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: Math.max(190, parent.height * 0.34)
+                            SplitView.fillWidth: true
+                            SplitView.preferredHeight: Math.max(150, parent.height * 0.34)
+                            SplitView.minimumHeight: 120
                             radius: 8
                             color: theme.surface
                             border.color: theme.border
@@ -218,6 +260,7 @@ Item {
                                     ScrollBar.vertical: ScrollBar {}
 
                                     delegate: Rectangle {
+                                        required property int index
                                         required property int address
                                         required property string name
                                         required property string stateText
@@ -241,11 +284,16 @@ Item {
                                             spacing: 2
 
                                             Text {
+                                                id: slaveNameText
                                                 width: parent.width
                                                 text: address + "  " + name + "  [" + stateText + "]"
                                                 color: theme.textPrimary
                                                 font.bold: true
                                                 elide: Text.ElideRight
+                                                HoverHandler { id: slaveNameHover }
+                                                ToolTip.visible: slaveNameHover.hovered && slaveNameText.truncated
+                                                ToolTip.text: slaveNameText.text
+                                                ToolTip.delay: 500
                                             }
 
                                             Text {
@@ -275,8 +323,9 @@ Item {
                         }
 
                         Rectangle {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
+                            SplitView.fillWidth: true
+                            SplitView.fillHeight: true
+                            SplitView.minimumHeight: 150
                             radius: 8
                             color: theme.surface
                             border.color: theme.border
@@ -298,67 +347,118 @@ Item {
                                     Layout.fillHeight: true
                                     clip: true
                                     spacing: 4
-                                    model: explorer.pdoEntriesModel
+                                    model: explorer.pdoVariableGroupsModel
                                     ScrollBar.vertical: ScrollBar {}
 
                                     delegate: Rectangle {
-                                        required property string stableId
+                                        required property int index
+                                        required property string groupId
                                         required property string direction
+                                        required property string pdoIndexText
+                                        required property string pdoName
                                         required property string indexText
-                                        required property string subIndexText
                                         required property string name
-                                        required property string dataType
-                                        required property string displayValue
-                                        required property bool writable
+                                        required property bool isArray
+                                        required property var elementLabels
+                                        required property int elementCount
+                                        required property int selectedElementIndex
+                                        required property string selectedStableId
+                                        required property string selectedSubIndexText
+                                        required property string selectedDataType
+                                        required property string selectedDisplayValue
+                                        required property bool selectedWritable
 
                                         width: pdoList.width
-                                        height: 62
+                                        height: isArray ? 88 : 66
                                         radius: 6
                                         color: theme.surfaceMuted
                                         border.color: theme.border
 
-                                        RowLayout {
+                                        ColumnLayout {
                                             anchors.fill: parent
                                             anchors.margins: 7
-                                            spacing: 7
+                                            spacing: 4
 
-                                            ColumnLayout {
+                                            RowLayout {
                                                 Layout.fillWidth: true
-                                                spacing: 1
+                                                spacing: 7
 
+                                                ColumnLayout {
+                                                    Layout.fillWidth: true
+                                                    spacing: 1
                                                 Text {
+                                                    id: pdoGroupName
                                                     Layout.fillWidth: true
                                                     text: name
                                                     color: theme.textPrimary
                                                     font.bold: true
                                                     elide: Text.ElideRight
+                                                    HoverHandler { id: pdoNameHover }
+                                                    ToolTip.visible: pdoNameHover.hovered && pdoGroupName.truncated
+                                                    ToolTip.text: pdoGroupName.text
+                                                    ToolTip.delay: 500
                                                 }
 
                                                 Text {
                                                     Layout.fillWidth: true
-                                                    text: direction + "  " + indexText + ":" + subIndexText
-                                                          + "  " + dataType
+                                                    text: direction + "  PDO " + pdoIndexText
+                                                          + "  OD " + indexText + ":"
+                                                          + selectedSubIndexText + "  "
+                                                          + selectedDataType
                                                     color: theme.textMuted
                                                     font.pixelSize: 11
                                                     elide: Text.ElideRight
                                                 }
-                                            }
+                                                }
 
                                             TextField {
                                                 id: pdoEditor
-                                                Layout.preferredWidth: 122
-                                                readOnly: !writable || explorer.currentState !== 8
+                                                Layout.preferredWidth: Math.min(150, Math.max(108, pdoList.width * 0.32))
+                                                readOnly: !selectedWritable || explorer.currentState !== 8
                                                 selectByMouse: true
                                                 Binding {
                                                     target: pdoEditor
                                                     property: "text"
-                                                    value: displayValue
+                                                    value: selectedDisplayValue
                                                     when: !pdoEditor.activeFocus
                                                     restoreMode: Binding.RestoreNone
                                                 }
                                                 onEditingFinished: {
-                                                    if (!readOnly && text !== displayValue)
-                                                        explorer.writePdoValue(stableId, text)
+                                                    if (!readOnly && selectedStableId.length > 0
+                                                            && text !== selectedDisplayValue) {
+                                                        explorer.writePdoValue(selectedStableId, text)
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                            RowLayout {
+                                                Layout.fillWidth: true
+                                                visible: isArray
+                                                spacing: 7
+
+                                                ComboBox {
+                                                    Layout.fillWidth: true
+                                                    Layout.minimumWidth: 120
+                                                    model: elementLabels
+                                                    currentIndex: selectedElementIndex
+                                                    enabled: elementCount > 0
+                                                    hoverEnabled: true
+                                                    ToolTip.visible: hovered && currentText.length > 20
+                                                    ToolTip.text: currentText
+                                                    ToolTip.delay: 500
+                                                    onActivated: function(elementIndex) {
+                                                        explorer.selectPdoArrayElement(groupId, elementIndex)
+                                                    }
+                                                }
+
+                                                Label {
+                                                    Layout.preferredWidth: 118
+                                                    text: indexText + ":" + selectedSubIndexText
+                                                          + "  " + selectedDataType
+                                                    color: theme.textSecondary
+                                                    elide: Text.ElideRight
+                                                    horizontalAlignment: Text.AlignRight
                                                 }
                                             }
                                         }
@@ -378,7 +478,9 @@ Item {
 
                 Rectangle {
                     SplitView.fillWidth: true
-                    SplitView.minimumWidth: 520
+                    SplitView.fillHeight: true
+                    SplitView.minimumWidth: root.wideLayout ? 500 : 0
+                    SplitView.minimumHeight: root.wideLayout ? 0 : 240
                     radius: 8
                     color: theme.surface
                     border.color: theme.border
@@ -411,6 +513,7 @@ Item {
                                 ScrollBar.vertical: ScrollBar {}
 
                                 delegate: Rectangle {
+                                    required property int index
                                     required property string stableId
                                     required property string indexText
                                     required property string subIndexText
@@ -422,65 +525,81 @@ Item {
                                     required property bool writable
 
                                     width: odList.width
-                                    height: 48
+                                    height: 70
                                     color: index % 2 === 0 ? theme.surfaceMuted : theme.surface
                                     border.color: theme.border
 
-                                    RowLayout {
+                                    ColumnLayout {
                                         anchors.fill: parent
                                         anchors.margins: 5
                                         spacing: 6
 
-                                        Label {
-                                            Layout.preferredWidth: 86
-                                            text: indexText + ":" + subIndexText
-                                            color: theme.accentText
-                                        }
-
-                                        Label {
+                                        RowLayout {
                                             Layout.fillWidth: true
-                                            text: name
-                                            color: theme.textPrimary
-                                            elide: Text.ElideRight
-                                        }
+                                            spacing: 6
 
-                                        Label {
-                                            Layout.preferredWidth: 88
-                                            text: dataType
-                                            color: theme.textSecondary
-                                            elide: Text.ElideRight
-                                        }
+                                            Label {
+                                                Layout.preferredWidth: 92
+                                                text: indexText + ":" + subIndexText
+                                                color: theme.accentText
+                                            }
 
-                                        Label {
-                                            Layout.preferredWidth: 42
-                                            text: access
-                                            color: theme.textMuted
-                                        }
+                                            Text {
+                                                id: odNameText
+                                                Layout.fillWidth: true
+                                                text: name
+                                                color: theme.textPrimary
+                                                elide: Text.ElideRight
+                                                HoverHandler { id: odNameHover }
+                                                ToolTip.visible: odNameHover.hovered && odNameText.truncated
+                                                ToolTip.text: odNameText.text
+                                                ToolTip.delay: 500
+                                            }
 
-                                        TextField {
-                                            id: odEditor
-                                            Layout.preferredWidth: 110
-                                            readOnly: !writable
-                                            selectByMouse: true
-                                            Binding {
-                                                target: odEditor
-                                                property: "text"
-                                                value: displayValue
-                                                when: !odEditor.activeFocus
-                                                restoreMode: Binding.RestoreNone
+                                            Label {
+                                                Layout.preferredWidth: 100
+                                                text: dataType
+                                                color: theme.textSecondary
+                                                elide: Text.ElideRight
                                             }
                                         }
 
-                                        Button {
-                                            text: "读"
-                                            enabled: readable && explorer.scanned && !explorer.busy
-                                            onClicked: explorer.readSdoValue(stableId)
-                                        }
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 6
 
-                                        Button {
-                                            text: "写"
-                                            enabled: writable && explorer.scanned && !explorer.busy
-                                            onClicked: explorer.writeSdoValue(stableId, odEditor.text)
+                                            Label {
+                                                Layout.preferredWidth: 100
+                                                text: "权限 " + access
+                                                color: theme.textMuted
+                                            }
+
+                                            TextField {
+                                                id: odEditor
+                                                Layout.fillWidth: true
+                                                Layout.minimumWidth: 100
+                                                readOnly: !writable
+                                                selectByMouse: true
+                                                Binding {
+                                                    target: odEditor
+                                                    property: "text"
+                                                    value: displayValue
+                                                    when: !odEditor.activeFocus
+                                                    restoreMode: Binding.RestoreNone
+                                                }
+                                            }
+
+                                            Button {
+                                                text: "读"
+                                                enabled: readable && explorer.scanned && !explorer.busy
+                                                onClicked: explorer.readSdoValue(stableId)
+                                            }
+
+                                            Button {
+                                                text: "写"
+                                                enabled: writable && explorer.scanned && !explorer.busy
+                                                onClicked: explorer.writeSdoValue(stableId, odEditor.text)
+                                            }
                                         }
                                     }
                                 }
@@ -494,6 +613,7 @@ Item {
                                 ScrollBar.vertical: ScrollBar {}
 
                                 delegate: Rectangle {
+                                    required property int index
                                     required property string direction
                                     required property string pdoIndexText
                                     required property string pdoName
@@ -505,23 +625,83 @@ Item {
                                     required property int processBitOffset
 
                                     width: mappingList.width
-                                    height: 44
+                                    height: 62
                                     color: index % 2 === 0 ? theme.surfaceMuted : theme.surface
                                     border.color: theme.border
 
-                                    RowLayout {
+                                    ColumnLayout {
                                         anchors.fill: parent
                                         anchors.margins: 6
-                                        spacing: 8
+                                        spacing: 3
 
-                                        Label { Layout.preferredWidth: 42; text: direction }
-                                        Label { Layout.preferredWidth: 74; text: pdoIndexText; color: theme.accentText }
-                                        Label { Layout.preferredWidth: 130; text: pdoName; elide: Text.ElideRight }
-                                        Label { Layout.preferredWidth: 92; text: indexText + ":" + subIndexText }
-                                        Label { Layout.fillWidth: true; text: name; elide: Text.ElideRight }
-                                        Label { Layout.preferredWidth: 78; text: dataType; elide: Text.ElideRight }
-                                        Label { Layout.preferredWidth: 72; text: bitLength + " bit" }
-                                        Label { Layout.preferredWidth: 72; text: "@" + processBitOffset }
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 8
+
+                                            Label {
+                                                Layout.preferredWidth: 42
+                                                text: direction
+                                                color: theme.textSecondary
+                                            }
+                                            Label {
+                                                Layout.preferredWidth: 76
+                                                text: pdoIndexText
+                                                color: theme.accentText
+                                            }
+                                            Text {
+                                                id: mappingPdoName
+                                                Layout.fillWidth: true
+                                                text: pdoName
+                                                color: theme.textPrimary
+                                                elide: Text.ElideRight
+                                                HoverHandler { id: mappingPdoHover }
+                                                ToolTip.visible: mappingPdoHover.hovered
+                                                                 && mappingPdoName.truncated
+                                                ToolTip.text: mappingPdoName.text
+                                                ToolTip.delay: 500
+                                            }
+                                            Label {
+                                                Layout.preferredWidth: 74
+                                                text: "@" + processBitOffset
+                                                color: theme.textMuted
+                                                horizontalAlignment: Text.AlignRight
+                                            }
+                                        }
+
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 8
+
+                                            Label {
+                                                Layout.preferredWidth: 126
+                                                text: indexText + ":" + subIndexText
+                                                color: theme.textSecondary
+                                            }
+                                            Text {
+                                                id: mappingEntryName
+                                                Layout.fillWidth: true
+                                                text: name
+                                                color: theme.textPrimary
+                                                elide: Text.ElideRight
+                                                HoverHandler { id: mappingNameHover }
+                                                ToolTip.visible: mappingNameHover.hovered
+                                                                 && mappingEntryName.truncated
+                                                ToolTip.text: mappingEntryName.text
+                                                ToolTip.delay: 500
+                                            }
+                                            Label {
+                                                Layout.preferredWidth: 82
+                                                text: dataType
+                                                color: theme.textSecondary
+                                                elide: Text.ElideRight
+                                            }
+                                            Label {
+                                                Layout.preferredWidth: 64
+                                                text: bitLength + " bit"
+                                                color: theme.textMuted
+                                                horizontalAlignment: Text.AlignRight
+                                            }
+                                        }
                                     }
                                 }
                             }

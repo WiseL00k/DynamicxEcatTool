@@ -3,6 +3,7 @@
 #include "Backend/Explorer/ExplorerTypes.h"
 
 #include <QAbstractListModel>
+#include <QStringList>
 
 namespace explorer {
 
@@ -96,6 +97,71 @@ signals:
 
 private:
     QVector<PdoVariable> items_;
+};
+
+class ExplorerPdoVariableGroupModel : public QAbstractListModel
+{
+    Q_OBJECT
+    Q_PROPERTY(int count READ count NOTIFY countChanged)
+
+public:
+    enum Role {
+        GroupIdRole = Qt::UserRole + 1,
+        DirectionRole,
+        PdoIndexTextRole,
+        PdoNameRole,
+        IndexTextRole,
+        NameRole,
+        IsArrayRole,
+        ElementLabelsRole,
+        ElementCountRole,
+        SelectedElementIndexRole,
+        SelectedStableIdRole,
+        SelectedSubIndexTextRole,
+        SelectedDataTypeRole,
+        SelectedDisplayValueRole,
+        SelectedWritableRole
+    };
+
+    explicit ExplorerPdoVariableGroupModel(QObject* parent = nullptr);
+
+    int rowCount(const QModelIndex& parent = {}) const override;
+    QVariant data(const QModelIndex& index, int role) const override;
+    QHash<int, QByteArray> roleNames() const override;
+    int count() const;
+
+    void setVariables(QVector<PdoVariable> variables, bool arrayMetadataTrusted);
+    void clear();
+    bool selectElement(const QString& groupId, int elementIndex);
+    bool updateValue(const QString& stableId,
+                     const QVariant& value,
+                     const QString& displayValue);
+
+signals:
+    void countChanged();
+
+private:
+    struct Group
+    {
+        QString groupId;
+        PdoDirection direction{PdoDirection::Rx};
+        quint16 pdoIndex{0};
+        QString pdoName;
+        quint16 index{0};
+        QString name;
+        bool isArray{false};
+        bool writeTrusted{false};
+        QStringList elementLabels;
+        QVector<PdoVariable> elements;
+        int selectedElementIndex{0};
+    };
+
+    static QString arrayGroupId(const PdoVariable& variable);
+    static QString scalarGroupId(const PdoVariable& variable);
+    static QString elementLabel(const PdoVariable& variable);
+    const PdoVariable* selectedVariable(const Group& group) const;
+
+    QVector<Group> groups_;
 };
 
 class ExplorerPdoMappingModel : public QAbstractListModel

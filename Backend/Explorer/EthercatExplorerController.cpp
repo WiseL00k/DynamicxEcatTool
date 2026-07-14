@@ -71,6 +71,7 @@ EthercatExplorerController::EthercatExplorerController(
     , masterController_(masterController)
     , slavesModel_(this)
     , pdoEntriesModel_(this)
+    , pdoVariableGroupsModel_(this)
     , pdoMappingsModel_(this)
     , objectDictionaryModel_(this)
     , sdoMutex_(std::make_shared<QMutex>())
@@ -128,6 +129,10 @@ QStringList EthercatExplorerController::logs() const { return logs_; }
 
 QAbstractItemModel* EthercatExplorerController::slavesModel() { return &slavesModel_; }
 QAbstractItemModel* EthercatExplorerController::pdoEntriesModel() { return &pdoEntriesModel_; }
+QAbstractItemModel* EthercatExplorerController::pdoVariableGroupsModel()
+{
+    return &pdoVariableGroupsModel_;
+}
 QAbstractItemModel* EthercatExplorerController::pdoMappingsModel() { return &pdoMappingsModel_; }
 QAbstractItemModel* EthercatExplorerController::objectDictionaryModel() { return &objectDictionaryModel_; }
 
@@ -330,11 +335,6 @@ void EthercatExplorerController::buildRuntime(
             }
         }
 
-        qDebug() << outputBits;
-        qDebug() << inputBits;
-        qDebug() << identity.outputBits;
-        qDebug() << identity.inputBits;
-
         online.activeMappingKnown =
             outputBits == identity.outputBits && inputBits == identity.inputBits;
 
@@ -453,6 +453,10 @@ QVector<explorer::PdoMapping> EthercatExplorerController::mergeMappings(
         entry.bitLength = active.bitLength;
         entry.pdoBitOffset = mapping->bitLength;
         entry.processBitOffset = active.bitOffset;
+        entry.arrayName = esiEntry != nullptr ? esiEntry->arrayName : QString{};
+        entry.arrayLowerBound = esiEntry != nullptr ? esiEntry->arrayLowerBound : 0;
+        entry.arrayElements = esiEntry != nullptr ? esiEntry->arrayElements : 0;
+        entry.arrayElementIndex = esiEntry != nullptr ? esiEntry->arrayElementIndex : -1;
         mapping->entries.push_back(std::move(entry));
         mapping->bitLength += active.bitLength;
     }
@@ -497,6 +501,7 @@ void EthercatExplorerController::refreshSelectedModels()
         static_cast<quint16>(selectedSlaveAddress_));
     if (runtimeIt == runtimes_.constEnd()) {
         pdoEntriesModel_.clear();
+        pdoVariableGroupsModel_.clear();
         pdoMappingsModel_.clear();
         objectDictionaryModel_.clear();
         return;
@@ -525,12 +530,18 @@ void EthercatExplorerController::refreshSelectedModels()
             variable.dataType = entry.dataType;
             variable.bitLength = entry.bitLength;
             variable.bitOffset = entry.processBitOffset;
+            variable.arrayName = entry.arrayName;
+            variable.arrayLowerBound = entry.arrayLowerBound;
+            variable.arrayElements = entry.arrayElements;
+            variable.arrayElementIndex = entry.arrayElementIndex;
             variable.writable = runtimeIt->match.trusted
                 && mapping.direction == explorer::PdoDirection::Rx;
             variables.push_back(std::move(variable));
         }
     }
-    pdoEntriesModel_.setItems(std::move(variables));
+    pdoEntriesModel_.setItems(variables);
+    pdoVariableGroupsModel_.setVariables(
+        std::move(variables), runtimeIt->match.trusted);
     refreshProcessValues();
 }
 
@@ -566,6 +577,14 @@ void EthercatExplorerController::selectSlave(int address)
     emit selectedSlaveAddressChanged();
     refreshSelectedModels();
     loadOnlineObjectDictionary(static_cast<quint16>(address));
+}
+
+void EthercatExplorerController::selectPdoArrayElement(
+    const QString& groupId, int elementIndex)
+{
+    if (!pdoVariableGroupsModel_.selectElement(groupId, elementIndex)) {
+        emit errorOccurred(QStringLiteral("PDO数组元素选择无效"));
+    }
 }
 
 bool EthercatExplorerController::validateStateRequest(
@@ -764,6 +783,9 @@ void EthercatExplorerController::writePdoValue(
     pdoEntriesModel_.updateValue(
         stableId, decoded.ok ? decoded.value : value,
         decoded.ok ? decoded.displayValue : value.toString());
+    pdoVariableGroupsModel_.updateValue(
+        stableId, decoded.ok ? decoded.value : value,
+        decoded.ok ? decoded.displayValue : value.toString());
 }
 
 void EthercatExplorerController::refreshProcessValues()
@@ -843,6 +865,8 @@ void EthercatExplorerController::refreshProcessValues()
             image, variable.bitOffset, variable.bitLength, variable.dataType);
         if (decoded.ok) {
             pdoEntriesModel_.updateValue(
+                variable.stableId, decoded.value, decoded.displayValue);
+            pdoVariableGroupsModel_.updateValue(
                 variable.stableId, decoded.value, decoded.displayValue);
         }
     }
@@ -1119,6 +1143,7 @@ void EthercatExplorerController::clearModels()
 {
     slavesModel_.clear();
     pdoEntriesModel_.clear();
+    pdoVariableGroupsModel_.clear();
     pdoMappingsModel_.clear();
     objectDictionaryModel_.clear();
     repository_.clear();

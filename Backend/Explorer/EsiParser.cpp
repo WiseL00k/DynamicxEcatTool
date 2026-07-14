@@ -132,16 +132,37 @@ DataTypeDefinition parseDataType(QXmlStreamReader& xml,
     while (xml.readNextStartElement()) {
         if (xml.name() == QStringLiteral("Name")) {
             result.name = elementText(xml);
+        } else if (xml.name() == QStringLiteral("BaseType")) {
+            result.baseType = elementText(xml);
         } else if (xml.name() == QStringLiteral("BitSize")) {
             quint64 value = 0;
             if (readUnsignedElement(xml, value, diagnostics, source)) {
                 result.bitSize = static_cast<int>(value);
+            }
+        } else if (xml.name() == QStringLiteral("ArrayInfo")) {
+            while (xml.readNextStartElement()) {
+                quint64 value = 0;
+                if (xml.name() == QStringLiteral("LBound")) {
+                    if (readUnsignedElement(xml, value, diagnostics, source)) {
+                        result.arrayLowerBound = static_cast<int>(value);
+                    }
+                } else if (xml.name() == QStringLiteral("Elements")) {
+                    if (readUnsignedElement(xml, value, diagnostics, source)) {
+                        result.arrayElements = static_cast<int>(value);
+                    }
+                } else {
+                    xml.skipCurrentElement();
+                }
             }
         } else if (xml.name() == QStringLiteral("SubItem")) {
             result.subItems.push_back(parseDataTypeSubItem(xml, diagnostics, source));
         } else {
             xml.skipCurrentElement();
         }
+    }
+    if (result.arrayElements > 0 && result.bitSize > 0
+        && result.bitSize % result.arrayElements == 0) {
+        result.arrayElementBitSize = result.bitSize / result.arrayElements;
     }
     return result;
 }
@@ -455,6 +476,31 @@ void enrichPdoEntries(EsiDevice& device)
                 continue;
             }
             const ObjectDictionaryEntry& object = device.objects.at(*objectPosition);
+            const DataTypeDefinition* arrayType = nullptr;
+            const auto parentType = device.dataTypes.constFind(object.dataType);
+            if (parentType != device.dataTypes.constEnd()) {
+                for (const OdSubItem& subItem : parentType->subItems) {
+                    const auto referencedType = device.dataTypes.constFind(subItem.dataType);
+                    if (referencedType == device.dataTypes.constEnd()
+                        || !referencedType->isArray()) {
+                        continue;
+                    }
+                    const qint64 first = referencedType->arrayLowerBound;
+                    const qint64 end = first + referencedType->arrayElements;
+                    if (entry.subIndex >= first && entry.subIndex < end) {
+                        arrayType = &referencedType.value();
+                        break;
+                    }
+                }
+            }
+
+            if (arrayType) {
+                entry.arrayName = object.name;
+                entry.arrayLowerBound = arrayType->arrayLowerBound;
+                entry.arrayElements = arrayType->arrayElements;
+                entry.arrayElementIndex = static_cast<int>(entry.subIndex)
+                    - arrayType->arrayLowerBound;
+            }
             if (entry.subIndex == 0) {
                 if (entry.name.isEmpty()) {
                     entry.name = object.name;

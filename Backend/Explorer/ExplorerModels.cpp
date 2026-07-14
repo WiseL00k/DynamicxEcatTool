@@ -1,5 +1,6 @@
 #include "Backend/Explorer/ExplorerModels.h"
 
+#include <algorithm>
 #include <utility>
 
 namespace explorer {
@@ -223,6 +224,266 @@ const PdoVariable* ExplorerPdoVariableModel::itemByStableId(const QString& stabl
         }
     }
     return nullptr;
+}
+
+ExplorerPdoVariableGroupModel::ExplorerPdoVariableGroupModel(QObject* parent)
+    : QAbstractListModel(parent)
+{}
+
+int ExplorerPdoVariableGroupModel::rowCount(const QModelIndex& parent) const
+{
+    return parent.isValid() ? 0 : groups_.size();
+}
+
+QVariant ExplorerPdoVariableGroupModel::data(const QModelIndex& index, int role) const
+{
+    if (!validIndex(index, groups_.size())) {
+        return {};
+    }
+    const Group& group = groups_.at(index.row());
+    const PdoVariable* selected = selectedVariable(group);
+    switch (role) {
+    case GroupIdRole: return group.groupId;
+    case DirectionRole: return pdoDirectionText(group.direction);
+    case PdoIndexTextRole: return hexValue(group.pdoIndex, 4);
+    case PdoNameRole: return group.pdoName;
+    case IndexTextRole: return hexValue(group.index, 4);
+    case NameRole: return group.name;
+    case IsArrayRole: return group.isArray;
+    case ElementLabelsRole: return group.elementLabels;
+    case ElementCountRole: return group.elements.size();
+    case SelectedElementIndexRole: return group.selectedElementIndex;
+    case SelectedStableIdRole: return selected != nullptr ? selected->stableId : QString{};
+    case SelectedSubIndexTextRole:
+        return selected != nullptr ? hexValue(selected->subIndex, 2) : QString{};
+    case SelectedDataTypeRole: return selected != nullptr ? selected->dataType : QString{};
+    case SelectedDisplayValueRole:
+        return selected != nullptr ? selected->displayValue : QString{};
+    case SelectedWritableRole:
+        return selected != nullptr && group.writeTrusted
+            && selected->direction == PdoDirection::Rx && selected->writable;
+    default: return {};
+    }
+}
+
+QHash<int, QByteArray> ExplorerPdoVariableGroupModel::roleNames() const
+{
+    return {{GroupIdRole, "groupId"},
+            {DirectionRole, "direction"},
+            {PdoIndexTextRole, "pdoIndexText"},
+            {PdoNameRole, "pdoName"},
+            {IndexTextRole, "indexText"},
+            {NameRole, "name"},
+            {IsArrayRole, "isArray"},
+            {ElementLabelsRole, "elementLabels"},
+            {ElementCountRole, "elementCount"},
+            {SelectedElementIndexRole, "selectedElementIndex"},
+            {SelectedStableIdRole, "selectedStableId"},
+            {SelectedSubIndexTextRole, "selectedSubIndexText"},
+            {SelectedDataTypeRole, "selectedDataType"},
+            {SelectedDisplayValueRole, "selectedDisplayValue"},
+            {SelectedWritableRole, "selectedWritable"}};
+}
+
+int ExplorerPdoVariableGroupModel::count() const
+{
+    return groups_.size();
+}
+
+void ExplorerPdoVariableGroupModel::setVariables(
+    QVector<PdoVariable> variables, bool arrayMetadataTrusted)
+{
+    QHash<QString, QString> previousSelections;
+    for (const Group& group : std::as_const(groups_)) {
+        const PdoVariable* selected = selectedVariable(group);
+        if (selected != nullptr) {
+            previousSelections.insert(group.groupId, selected->stableId);
+        }
+    }
+
+    QVector<Group> groups;
+    QVector<bool> consumed(variables.size(), false);
+    for (qsizetype row = 0; row < variables.size(); ++row) {
+        if (consumed.at(row)) {
+            continue;
+        }
+        const PdoVariable& first = variables.at(row);
+        QVector<qsizetype> candidateRows;
+        bool validArray = arrayMetadataTrusted
+            && !first.arrayName.isEmpty()
+            && first.arrayElements > 0
+            && first.arrayElementIndex >= 0
+            && first.arrayElementIndex < first.arrayElements;
+
+        if (validArray) {
+            const QString candidateId = arrayGroupId(first);
+            QVector<bool> seen(first.arrayElements, false);
+            for (qsizetype candidateRow = 0;
+                 candidateRow < variables.size(); ++candidateRow) {
+                const PdoVariable& candidate = variables.at(candidateRow);
+                if (arrayGroupId(candidate) != candidateId) {
+                    continue;
+                }
+                const bool metadataMatches = candidate.arrayName == first.arrayName
+                    && candidate.arrayLowerBound == first.arrayLowerBound
+                    && candidate.arrayElements == first.arrayElements
+                    && candidate.arrayElementIndex >= 0
+                    && candidate.arrayElementIndex < first.arrayElements
+                    && candidate.subIndex
+                        == first.arrayLowerBound + candidate.arrayElementIndex;
+                if (!metadataMatches || seen.at(candidate.arrayElementIndex)) {
+                    validArray = false;
+                    break;
+                }
+                seen[candidate.arrayElementIndex] = true;
+                candidateRows.push_back(candidateRow);
+            }
+            validArray = validArray
+                && candidateRows.size() == first.arrayElements
+                && std::all_of(seen.cbegin(), seen.cend(), [](bool present) {
+                       return present;
+                   });
+        }
+
+        Group group;
+        group.writeTrusted = arrayMetadataTrusted;
+        if (validArray) {
+            std::sort(candidateRows.begin(), candidateRows.end(),
+                      [&variables](qsizetype lhs, qsizetype rhs) {
+                          return variables.at(lhs).arrayElementIndex
+                              < variables.at(rhs).arrayElementIndex;
+                      });
+            group.groupId = arrayGroupId(first);
+            group.direction = first.direction;
+            group.pdoIndex = first.pdoIndex;
+            group.pdoName = first.pdoName;
+            group.index = first.index;
+            group.name = first.arrayName;
+            group.isArray = true;
+            for (qsizetype candidateRow : std::as_const(candidateRows)) {
+                consumed[candidateRow] = true;
+                group.elements.push_back(variables.at(candidateRow));
+                group.elementLabels.push_back(elementLabel(variables.at(candidateRow)));
+            }
+        } else {
+            consumed[row] = true;
+            group.groupId = scalarGroupId(first);
+            group.direction = first.direction;
+            group.pdoIndex = first.pdoIndex;
+            group.pdoName = first.pdoName;
+            group.index = first.index;
+            group.name = first.name;
+            group.elementLabels = {first.name};
+            group.elements = {first};
+        }
+
+        const QString previousStableId = previousSelections.value(group.groupId);
+        for (qsizetype element = 0; element < group.elements.size(); ++element) {
+            if (group.elements.at(element).stableId == previousStableId) {
+                group.selectedElementIndex = element;
+                break;
+            }
+        }
+        groups.push_back(std::move(group));
+    }
+
+    const bool changedCount = groups_.size() != groups.size();
+    beginResetModel();
+    groups_ = std::move(groups);
+    endResetModel();
+    if (changedCount) {
+        emit countChanged();
+    }
+}
+
+void ExplorerPdoVariableGroupModel::clear()
+{
+    setVariables({}, false);
+}
+
+bool ExplorerPdoVariableGroupModel::selectElement(
+    const QString& groupId, int elementIndex)
+{
+    for (qsizetype row = 0; row < groups_.size(); ++row) {
+        Group& group = groups_[row];
+        if (group.groupId != groupId) {
+            continue;
+        }
+        if (elementIndex < 0 || elementIndex >= group.elements.size()) {
+            return false;
+        }
+        if (group.selectedElementIndex == elementIndex) {
+            return true;
+        }
+        group.selectedElementIndex = elementIndex;
+        const QModelIndex changed = index(row);
+        emit dataChanged(changed, changed,
+                         {SelectedElementIndexRole,
+                          SelectedStableIdRole,
+                          SelectedSubIndexTextRole,
+                          SelectedDataTypeRole,
+                          SelectedDisplayValueRole,
+                          SelectedWritableRole});
+        return true;
+    }
+    return false;
+}
+
+bool ExplorerPdoVariableGroupModel::updateValue(
+    const QString& stableId, const QVariant& value, const QString& displayValue)
+{
+    for (qsizetype row = 0; row < groups_.size(); ++row) {
+        Group& group = groups_[row];
+        for (qsizetype element = 0; element < group.elements.size(); ++element) {
+            PdoVariable& variable = group.elements[element];
+            if (variable.stableId != stableId) {
+                continue;
+            }
+            variable.value = value;
+            variable.displayValue = displayValue;
+            if (group.selectedElementIndex == element) {
+                const QModelIndex changed = index(row);
+                emit dataChanged(changed, changed, {SelectedDisplayValueRole});
+            }
+            return true;
+        }
+    }
+    return false;
+}
+
+QString ExplorerPdoVariableGroupModel::arrayGroupId(const PdoVariable& variable)
+{
+    return QStringLiteral("pdo-group:%1:%2:%3:%4")
+        .arg(variable.slaveAddress)
+        .arg(static_cast<int>(variable.direction))
+        .arg(variable.pdoIndex)
+        .arg(variable.index);
+}
+
+QString ExplorerPdoVariableGroupModel::scalarGroupId(const PdoVariable& variable)
+{
+    return QStringLiteral("pdo-scalar:%1").arg(variable.stableId);
+}
+
+QString ExplorerPdoVariableGroupModel::elementLabel(const PdoVariable& variable)
+{
+    const QString name = variable.name.trimmed();
+    const bool genericName = name.isEmpty()
+        || name.compare(QStringLiteral("New array subitem"), Qt::CaseInsensitive) == 0;
+    if (!genericName) {
+        return name;
+    }
+    return QStringLiteral("元素 %1 · %2")
+        .arg(variable.arrayElementIndex + 1)
+        .arg(hexValue(variable.subIndex, 2));
+}
+
+const PdoVariable* ExplorerPdoVariableGroupModel::selectedVariable(
+    const Group& group) const
+{
+    return group.selectedElementIndex >= 0
+            && group.selectedElementIndex < group.elements.size()
+        ? &group.elements.at(group.selectedElementIndex) : nullptr;
 }
 
 ExplorerPdoMappingModel::ExplorerPdoMappingModel(QObject* parent)

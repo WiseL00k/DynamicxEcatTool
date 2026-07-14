@@ -41,6 +41,7 @@ class EthercatExplorerController : public QObject
     Q_PROPERTY(int selectedSlaveAddress READ selectedSlaveAddress NOTIFY selectedSlaveAddressChanged)
     Q_PROPERTY(QAbstractItemModel* slavesModel READ slavesModel CONSTANT)
     Q_PROPERTY(QAbstractItemModel* pdoEntriesModel READ pdoEntriesModel CONSTANT)
+    Q_PROPERTY(QAbstractItemModel* pdoVariableGroupsModel READ pdoVariableGroupsModel CONSTANT)
     Q_PROPERTY(QAbstractItemModel* pdoMappingsModel READ pdoMappingsModel CONSTANT)
     Q_PROPERTY(QAbstractItemModel* objectDictionaryModel READ objectDictionaryModel CONSTANT)
     Q_PROPERTY(QStringList logs READ logs NOTIFY logsChanged)
@@ -82,6 +83,7 @@ public:
 
     QAbstractItemModel* slavesModel();
     QAbstractItemModel* pdoEntriesModel();
+    QAbstractItemModel* pdoVariableGroupsModel();
     QAbstractItemModel* pdoMappingsModel();
     QAbstractItemModel* objectDictionaryModel();
 
@@ -92,6 +94,8 @@ public:
     Q_INVOKABLE void reset();
     Q_INVOKABLE void requestState(int state);
     Q_INVOKABLE void selectSlave(int address);
+    Q_INVOKABLE void selectPdoArrayElement(const QString& groupId,
+                                           int elementIndex);
     Q_INVOKABLE void writePdoValue(const QString& stableId, const QVariant& value);
     Q_INVOKABLE void readSdoValue(const QString& stableId);
     Q_INVOKABLE void writeSdoValue(const QString& stableId, const QVariant& value);
@@ -172,6 +176,7 @@ private:
     explorer::EsiRepository repository_;
     explorer::ExplorerSlaveListModel slavesModel_;
     explorer::ExplorerPdoVariableModel pdoEntriesModel_;
+    explorer::ExplorerPdoVariableGroupModel pdoVariableGroupsModel_;
     explorer::ExplorerPdoMappingModel pdoMappingsModel_;
     explorer::ExplorerObjectDictionaryModel objectDictionaryModel_;
     QHash<quint16, SlaveRuntime> runtimes_;
