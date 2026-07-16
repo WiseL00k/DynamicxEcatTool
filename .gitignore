@@ -90,6 +90,7 @@ qtcsettings.cmake
 /.cmake/
 /.qt/
 CMakeFiles/
+/tests/
 /Testing/
 /release/
 *_autogen/
