@@ -360,42 +360,40 @@ BusStateResult EcatMasterBus::leaveOperationalForSafeOp()
         if (!master_init_) {
             result.requestedState = EC_STATE_SAFE_OP;
             result.error = "The EtherCAT bus was closed during the state request.";
-            return result;
-        }
-        context_.slavelist[0].state = EC_STATE_SAFE_OP;
-        stateWriteWkc = ecx_writestate(&context_, 0);
-    }
-
-    if (stateWriteWkc <= 0) {
-        std::lock_guard<std::recursive_mutex> contextLock(contextMutex_);
-        return currentStateResultLocked(
-            EC_STATE_SAFE_OP, "SOEM could not write the SAFE-OP state request.");
-    }
-
-    const auto deadline = std::chrono::steady_clock::now() +
-        std::chrono::microseconds(EC_TIMEOUTSTATE);
-    do {
-        {
-            std::lock_guard<std::recursive_mutex> contextLock(contextMutex_);
-            ecx_readstate(&context_);
-            updateStateFlagsLocked();
-            result = currentStateResultLocked(EC_STATE_SAFE_OP);
-            if (result.success) {
-                break;
+        } else {
+            context_.slavelist[0].state = EC_STATE_SAFE_OP;
+            stateWriteWkc = ecx_writestate(&context_, 0);
+            if (stateWriteWkc <= 0) {
+                result = currentStateResultLocked(
+                    EC_STATE_SAFE_OP, "SOEM could not write the SAFE-OP state request.");
             }
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    } while (std::chrono::steady_clock::now() < deadline);
-
-    if (!result.success) {
-        return result;
     }
 
+    if (master_init_ && stateWriteWkc > 0) {
+        const auto deadline = std::chrono::steady_clock::now() +
+            std::chrono::microseconds(EC_TIMEOUTSTATE);
+        do {
+            {
+                std::lock_guard<std::recursive_mutex> contextLock(contextMutex_);
+                ecx_readstate(&context_);
+                updateStateFlagsLocked();
+                result = currentStateResultLocked(EC_STATE_SAFE_OP);
+                if (result.success) {
+                    break;
+                }
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        } while (std::chrono::steady_clock::now() < deadline);
+    }
+
+    // Leaving OP always terminates the OP cycle, even when the AL-state
+    // request failed or timed out. Keeping these threads alive makes the next
+    // OP request reuse stale cyclic-mailbox/check state and can deadlock.
     mailboxLock.unlock();
     stopProcessData();
     return result;
 }
-
 BusStateResult EcatMasterBus::requestStateDetailed(const uint16_t requestedState)
 {
     if (!isSupportedState(requestedState)) {
@@ -437,6 +435,11 @@ BusStateResult EcatMasterBus::requestStateDetailed(const uint16_t requestedState
         }
 
         uint16_t current = baseState(context_.slavelist[0].state);
+        if (current == EC_STATE_INIT && requestedState != EC_STATE_INIT) {
+            return currentStateResultLocked(
+                requestedState,
+                "The bus entered INIT. Reset and rescan before requesting a higher state.");
+        }
         if (requestedState == EC_STATE_INIT) {
             result = writeStateLocked(EC_STATE_INIT);
             mapping_ready_ = false;
@@ -479,7 +482,11 @@ BusStateResult EcatMasterBus::requestStateDetailed(const uint16_t requestedState
         }
 
         if (requestedState == EC_STATE_OPERATIONAL) {
-            enableCyclicMailboxesLocked();
+            if (registeredCallbacksEnabled_) {
+                enableCyclicMailboxesLocked();
+            } else {
+                disableCyclicMailboxesLocked();
+            }
             const int sendWkc = ecx_send_processdata(&context_);
             const int receiveWkc = sendWkc > 0
                 ? ecx_receive_processdata(&context_, EC_TIMEOUTRET)
@@ -668,11 +675,17 @@ bool EcatMasterBus::startProcessData()
         return false;
     }
 
-    enableCyclicMailboxesLocked();
+    if (registeredCallbacksEnabled_) {
+        enableCyclicMailboxesLocked();
+    } else {
+        disableCyclicMailboxesLocked();
+    }
     running_ = true;
     try {
         cyclicThread_ = std::thread(&EcatMasterBus::cyclicTask, this);
-        checkThread_ = std::thread(&EcatMasterBus::checkTask, this);
+        if (registeredCallbacksEnabled_) {
+            checkThread_ = std::thread(&EcatMasterBus::checkTask, this);
+        }
     } catch (...) {
         running_ = false;
         if (cyclicThread_.joinable()) {
@@ -727,7 +740,9 @@ void EcatMasterBus::cyclicTask()
                     }
                 }
             }
-            ecx_mbxhandler(&context_, 0, 4);
+            if (registeredCallbacksEnabled_) {
+                ecx_mbxhandler(&context_, 0, 4);
+            }
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
