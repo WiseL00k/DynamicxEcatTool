@@ -5,6 +5,7 @@ project(DynamicxEcatTool VERSION 0.1 LANGUAGES CXX)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(BUILD_TESTING OFF)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Quick QuickControls2)
 find_package(yaml-cpp CONFIG REQUIRED)
