@@ -92,7 +92,7 @@ target_include_directories(dynamicx_backend
 target_link_libraries(dynamicx_backend
     PUBLIC
         Qt6::Core
-        yaml-cpp::yaml-cpp
+        yaml-cpp
         soem_interface
 )
 
