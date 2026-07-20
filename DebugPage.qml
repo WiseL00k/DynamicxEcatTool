@@ -381,7 +381,8 @@ Item {
                 break
 
             case 1:
-                isConnected = true
+                isConnected =
+                        EthercatBackend.sessionMode === "调试通信"
                 connectionStatus.text = "已连接"
                 break
             }

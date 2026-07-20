@@ -10,6 +10,8 @@ class DeviceStatusModel;
 
 namespace soem_interface {
 class EcatMasterBus;
+struct BusScanResult;
+struct BusStateResult;
 }
 
 namespace Backend {
@@ -41,9 +43,11 @@ public:
         DeviceStatusModel& deviceModel);
     MasterStartResult enterPreOp(const std::string& nicName);
     MasterStartResult enterMitDebugMode(const std::string& nicName);
+    soem_interface::BusScanResult startExplorer(const std::string& nicName);
 
     void stop();
     void closePreOp();
+    void stopExplorer();
     void reset();
 
 private:

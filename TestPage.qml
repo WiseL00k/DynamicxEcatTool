@@ -434,7 +434,8 @@ Item {
         }
 
         function onConnectedUpdated(status) {
-            isConnected = (status === 1)
+            isConnected = status === 1
+                    && EthercatBackend.sessionMode === "测试"
         }
 
         // 进度更新

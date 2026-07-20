@@ -8,11 +8,15 @@
 #include <QPointer>
 #include <QThreadPool>
 #include <QUrl>
+#include <utility>
+
 
 namespace Backend {
 
 EthercatBackend::EthercatBackend(QObject* parent)
     : QObject(parent)
+    , sessionCoordinator_(this)
+    , busExplorer_(sessionCoordinator_, masterController_, this)
     , monitorController_(this)
     , flashService_(this)
 {
@@ -22,7 +26,6 @@ EthercatBackend::EthercatBackend(QObject* parent)
 EthercatBackend::~EthercatBackend()
 {
     monitorController_.stop();
-    masterController_.stop();
 }
 
 QStringList EthercatBackend::nicList() const
@@ -40,6 +43,21 @@ int EthercatBackend::slaveCount() const
     return slaveCount_;
 }
 
+bool EthercatBackend::sessionActive() const
+{
+    return sessionCoordinator_.active();
+}
+
+QString EthercatBackend::sessionMode() const
+{
+    return sessionCoordinator_.modeName();
+}
+
+EthercatExplorerController* EthercatBackend::busExplorer()
+{
+    return &busExplorer_;
+}
+
 bool EthercatBackend::setDeviceOnlineStatus(const QString& motorName, const bool& status)
 {
     return deviceModel_.setDeviceOnline(motorName, status);
@@ -54,7 +72,13 @@ void EthercatBackend::connectServices()
     connect(&flashService_, &FlashService::logUpdated, this, &EthercatBackend::logUpdated);
     connect(&flashService_, &FlashService::errorOccurred, this, &EthercatBackend::soemErrorOccurred);
     connect(&flashService_, &FlashService::flashProgress, this, &EthercatBackend::flashProgress);
-    connect(&flashService_, &FlashService::flashFinished, this, &EthercatBackend::flashFinished);
+    connect(&flashService_, &FlashService::flashFinished, this, [this](const QString& type, bool success, const QString& message) {
+        sessionCoordinator_.release(BusSessionCoordinator::Mode::Flashing);
+        emit flashFinished(type, success, message);
+    });
+    connect(&sessionCoordinator_, &BusSessionCoordinator::sessionChanged, this, &EthercatBackend::sessionChanged);
+    connect(&busExplorer_, &EthercatExplorerController::errorOccurred, this, &EthercatBackend::soemErrorOccurred);
+    connect(&busExplorer_, &EthercatExplorerController::logAppended, this, &EthercatBackend::logAppend);
 }
 
 bool EthercatBackend::validateSelectedNic() const
@@ -83,10 +107,32 @@ bool EthercatBackend::ensureMonitorStopped()
     return false;
 }
 
+bool EthercatBackend::acquireSession(BusSessionCoordinator::Mode mode)
+{
+    QString errorMessage;
+    if (sessionCoordinator_.tryAcquire(mode, errorMessage)) {
+        return true;
+    }
+
+    emit soemErrorOccurred(errorMessage);
+    return false;
+}
+
+bool EthercatBackend::isSession(BusSessionCoordinator::Mode mode) const
+{
+    return sessionCoordinator_.mode() == mode;
+}
+
 void EthercatBackend::refreshNics()
 {
     adapterService_.replaceAdapters(NetworkAdapterService::scan());
     nicList_ = adapterService_.descriptions();
+    if (nicName_.empty() && !nicList_.isEmpty()) {
+        QString errorMessage;
+        if (adapterService_.selectAdapter(0, nicName_, errorMessage)) {
+            busExplorer_.setNicName(nicName_);
+        }
+    }
     emit nicListChanged();
 }
 
@@ -110,6 +156,13 @@ void EthercatBackend::refreshNicsAsync()
 
                 self->adapterService_.replaceAdapters(std::move(adapters));
                 self->nicList_ = self->adapterService_.descriptions();
+                if (self->nicName_.empty() && !self->nicList_.isEmpty()) {
+                    QString errorMessage;
+                    if (self->adapterService_.selectAdapter(
+                            0, self->nicName_, errorMessage)) {
+                        self->busExplorer_.setNicName(self->nicName_);
+                    }
+                }
                 emit self->nicListChanged();
             },
             Qt::QueuedConnection);
@@ -124,6 +177,7 @@ void EthercatBackend::changedSelectedNic(const int& nicIndex)
         return;
     }
 
+    busExplorer_.setNicName(nicName_);
     emit logUpdated(QStringLiteral("选择了网卡: %1").arg(QString::fromStdString(nicName_)));
 }
 
@@ -146,20 +200,20 @@ void EthercatBackend::updateConnectionState(bool connected, int slaveCount)
     emit connectedUpdated(connected ? 1 : 0);
 }
 
-void EthercatBackend::resetConnectionState()
+void EthercatBackend::resetConnectionState(BusSessionCoordinator::Mode mode)
 {
-    mode_ = ConnectionMode::Idle;
+    sessionCoordinator_.release(mode);
     updateConnectionState(false, 0);
 }
 
-void EthercatBackend::failConnection(soem_interface::error::SoemInterfaceErrorCode errorCode)
+void EthercatBackend::failConnection(soem_interface::error::SoemInterfaceErrorCode errorCode, BusSessionCoordinator::Mode mode)
 {
     masterController_.reset();
-    resetConnectionState();
+    resetConnectionState(mode);
     emit soemErrorOccurred(toUserMessage(errorCode));
 }
 
-void EthercatBackend::emitStartFailure(const MasterStartResult& result)
+void EthercatBackend::emitStartFailure(const MasterStartResult& result, BusSessionCoordinator::Mode mode)
 {
     if (!result.logMessage.isEmpty()) {
         emit logUpdated(result.logMessage);
@@ -170,39 +224,37 @@ void EthercatBackend::emitStartFailure(const MasterStartResult& result)
     }
 
     if (result.errorCode != soem_interface::error::NoError) {
-        failConnection(result.errorCode);
+        failConnection(result.errorCode, mode);
         return;
     }
 
-    resetConnectionState();
+    resetConnectionState(mode);
 }
 
 void EthercatBackend::startTest()
 {
-    if (masterController_.hasMaster()) {
-        emit soemErrorOccurred(QStringLiteral("当前已有EtherCAT连接"));
-        return;
-    }
-
     if (!validateSelectedNic()) {
         emit soemErrorOccurred(QStringLiteral("请先选择网卡"));
         return;
     }
 
-    const MasterStartResult result = masterController_.startTest(nicName_);
-    if (!result.ok) {
-        emitStartFailure(result);
+    if (!acquireSession(BusSessionCoordinator::Mode::Test)) {
         return;
     }
 
-    mode_ = ConnectionMode::Test;
+    const MasterStartResult result = masterController_.startTest(nicName_);
+    if (!result.ok) {
+        emitStartFailure(result, BusSessionCoordinator::Mode::Test);
+        return;
+    }
+
     updateConnectionState(true, result.slaveCount);
     monitorController_.startTest(masterController_.masterRef());
 }
 
 void EthercatBackend::stopTest()
 {
-    if (!masterController_.hasMaster() || !connected_) {
+    if (!isSession(BusSessionCoordinator::Mode::Test) || !masterController_.hasMaster() || !connected_) {
         return;
     }
 
@@ -211,16 +263,11 @@ void EthercatBackend::stopTest()
     }
 
     masterController_.stop();
-    resetConnectionState();
+    resetConnectionState(BusSessionCoordinator::Mode::Test);
 }
 
 void EthercatBackend::startCommunication()
 {
-    if (masterController_.hasMaster()) {
-        emit soemErrorOccurred(QStringLiteral("当前已有EtherCAT连接"));
-        return;
-    }
-
     if (!validateSelectedNic()) {
         emit soemErrorOccurred(QStringLiteral("请先选择网卡"));
         return;
@@ -230,13 +277,16 @@ void EthercatBackend::startCommunication()
         return;
     }
 
-    const MasterStartResult result = masterController_.startCommunication(nicName_, configFilePath_, deviceModel_);
-    if (!result.ok) {
-        emitStartFailure(result);
+    if (!acquireSession(BusSessionCoordinator::Mode::Communication)) {
         return;
     }
 
-    mode_ = ConnectionMode::Communication;
+    const MasterStartResult result = masterController_.startCommunication(nicName_, configFilePath_, deviceModel_);
+    if (!result.ok) {
+        emitStartFailure(result, BusSessionCoordinator::Mode::Communication);
+        return;
+    }
+
     updateConnectionState(true, result.slaveCount);
     emit motorStatusListChanged();
     monitorController_.startCommunication(masterController_.masterRef());
@@ -244,7 +294,7 @@ void EthercatBackend::startCommunication()
 
 void EthercatBackend::stopCommunication()
 {
-    if (!masterController_.hasMaster() || !connected_) {
+    if (!isSession(BusSessionCoordinator::Mode::Communication) || !masterController_.hasMaster() || !connected_) {
         return;
     }
 
@@ -253,7 +303,7 @@ void EthercatBackend::stopCommunication()
     }
 
     masterController_.stop();
-    resetConnectionState();
+    resetConnectionState(BusSessionCoordinator::Mode::Communication);
 }
 
 void EthercatBackend::clearMotorStatusList()
@@ -264,29 +314,27 @@ void EthercatBackend::clearMotorStatusList()
 
 void EthercatBackend::enterPreOpAll()
 {
-    if (masterController_.hasMaster()) {
-        emit soemErrorOccurred(QStringLiteral("当前已有EtherCAT连接"));
-        return;
-    }
-
     if (!validateSelectedNic()) {
         emit soemErrorOccurred(QStringLiteral("请先选择网卡"));
         return;
     }
 
-    const MasterStartResult result = masterController_.enterPreOp(nicName_);
-    if (!result.ok) {
-        emitStartFailure(result);
+    if (!acquireSession(BusSessionCoordinator::Mode::LegacyPreOp)) {
         return;
     }
 
-    mode_ = ConnectionMode::PreOp;
+    const MasterStartResult result = masterController_.enterPreOp(nicName_);
+    if (!result.ok) {
+        emitStartFailure(result, BusSessionCoordinator::Mode::LegacyPreOp);
+        return;
+    }
+
     updateConnectionState(true, result.slaveCount);
 }
 
 void EthercatBackend::exitPreOpAll()
 {
-    if (!masterController_.hasMaster() || !connected_) {
+    if (!isSession(BusSessionCoordinator::Mode::LegacyPreOp) || !masterController_.hasMaster() || !connected_) {
         return;
     }
 
@@ -296,35 +344,42 @@ void EthercatBackend::exitPreOpAll()
     }
 
     masterController_.closePreOp();
-    resetConnectionState();
+    resetConnectionState(BusSessionCoordinator::Mode::LegacyPreOp);
 }
 
 void EthercatBackend::enterMitSlaveDebugMode()
 {
-    if (masterController_.hasMaster()) {
-        emit soemErrorOccurred(QStringLiteral("当前已有EtherCAT连接"));
-        return;
-    }
-
     if (!validateSelectedNic()) {
         emit soemErrorOccurred(QStringLiteral("请先选择网卡"));
         return;
     }
 
-    const MasterStartResult result = masterController_.enterMitDebugMode(nicName_);
-    if (!result.ok) {
-        emitStartFailure(result);
+    if (!acquireSession(BusSessionCoordinator::Mode::MitDebug)) {
         return;
     }
 
-    mode_ = ConnectionMode::MitDebug;
+    const MasterStartResult result = masterController_.enterMitDebugMode(nicName_);
+    if (!result.ok) {
+        emitStartFailure(result, BusSessionCoordinator::Mode::MitDebug);
+        return;
+    }
+
     updateConnectionState(true, result.slaveCount);
     monitorController_.startCommunication(masterController_.masterRef());
 }
 
 void EthercatBackend::exitMitSlaveDebugMode()
 {
-    stopCommunication();
+    if (!isSession(BusSessionCoordinator::Mode::MitDebug) || !masterController_.hasMaster() || !connected_) {
+        return;
+    }
+
+    if (!ensureMonitorStopped()) {
+        return;
+    }
+
+    masterController_.stop();
+    resetConnectionState(BusSessionCoordinator::Mode::MitDebug);
 }
 
 void EthercatBackend::enableMitSlaveMotors()
@@ -368,22 +423,24 @@ bool EthercatBackend::applySDOConfigsQml(const QVariantList& list)
 
 void EthercatBackend::flashEEprom(int slaveId, const QString& filePath)
 {
-    if (connected_) {
-        emit soemErrorOccurred(QStringLiteral("请先断开EtherCAT连接再烧录"));
+    if (!acquireSession(BusSessionCoordinator::Mode::Flashing)) {
         return;
     }
 
-    flashService_.flashEEprom(nicName_, slaveId, filePath);
+    if (!flashService_.flashEEprom(nicName_, slaveId, filePath)) {
+        sessionCoordinator_.release(BusSessionCoordinator::Mode::Flashing);
+    }
 }
 
 void EthercatBackend::flashFirmware(int slaveId, const QString& filePath)
 {
-    if (connected_) {
-        emit soemErrorOccurred(QStringLiteral("请先断开EtherCAT连接再烧录"));
+    if (!acquireSession(BusSessionCoordinator::Mode::Flashing)) {
         return;
     }
 
-    flashService_.flashFirmware(nicName_, slaveId, filePath);
+    if (!flashService_.flashFirmware(nicName_, slaveId, filePath)) {
+        sessionCoordinator_.release(BusSessionCoordinator::Mode::Flashing);
+    }
 }
 
 void EthercatBackend::sendMitFrameQml(int canBus, int canId, const QVariantList& data)
@@ -402,7 +459,5 @@ void EthercatBackend::clearMitFrameQml(int canBus, int canId)
     }
 }
 
+
 } // namespace Backend
-#include <utility>
-
-

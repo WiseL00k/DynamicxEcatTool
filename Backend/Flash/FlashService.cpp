@@ -50,26 +50,26 @@ void FlashService::endFlash()
     flashBusy_.store(false);
 }
 
-void FlashService::flashEEprom(const std::string& nicName, int slaveId, const QString& filePath)
+bool FlashService::flashEEprom(const std::string& nicName, int slaveId, const QString& filePath)
 {
     if (nicName.empty()) {
         emit errorOccurred(QStringLiteral("请先选择网卡"));
-        return;
+        return false;
     }
 
     if (slaveId <= 0) {
         emit errorOccurred(QStringLiteral("从站地址错误"));
-        return;
+        return false;
     }
 
     if (filePath.isEmpty()) {
         emit logUpdated(QStringLiteral("请选择HEX文件!"));
         emit errorOccurred(QStringLiteral("请选择Hex文件!"));
-        return;
+        return false;
     }
 
     if (!beginFlash(QStringLiteral("eeprom"))) {
-        return;
+        return false;
     }
 
     const std::string hexFilePath = toLocalPath(filePath).toStdString();
@@ -120,28 +120,30 @@ void FlashService::flashEEprom(const std::string& nicName, int slaveId, const QS
         emit self->logUpdated(QStringLiteral("烧录完成，用时 %1 ms").arg(elapsedMs));
         emit self->flashFinished(QStringLiteral("eeprom"), true, QStringLiteral("OK (%1 ms)").arg(elapsedMs));
     });
+
+    return true;
 }
 
-void FlashService::flashFirmware(const std::string& nicName, int slaveId, const QString& filePath)
+bool FlashService::flashFirmware(const std::string& nicName, int slaveId, const QString& filePath)
 {
     if (nicName.empty()) {
         emit errorOccurred(QStringLiteral("请先选择网卡"));
-        return;
+        return false;
     }
 
     if (slaveId <= 0) {
         emit errorOccurred(QStringLiteral("从站地址错误"));
-        return;
+        return false;
     }
 
     if (filePath.isEmpty()) {
         emit logUpdated(QStringLiteral("请选择Bin文件!"));
         emit errorOccurred(QStringLiteral("请选择Bin文件!"));
-        return;
+        return false;
     }
 
     if (!beginFlash(QStringLiteral("firmware"))) {
-        return;
+        return false;
     }
 
     const std::string binFilePath = toLocalPath(filePath).toStdString();
@@ -208,6 +210,8 @@ void FlashService::flashFirmware(const std::string& nicName, int slaveId, const 
             ok,
             ok ? QStringLiteral("OK (%1 ms)").arg(elapsedMs) : QStringLiteral("FAIL (%1 ms)").arg(elapsedMs));
     });
+
+    return true;
 }
 
 } // namespace Backend

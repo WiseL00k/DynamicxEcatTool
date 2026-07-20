@@ -5,10 +5,12 @@ project(DynamicxEcatTool VERSION 0.1 LANGUAGES CXX)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(BUILD_TESTING OFF)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Quick QuickControls2)
 find_package(yaml-cpp CONFIG REQUIRED)
 
+include(CTest)
 if(TARGET yaml-cpp AND NOT TARGET yaml-cpp::yaml-cpp)
     add_library(yaml-cpp::yaml-cpp ALIAS yaml-cpp)
 endif()
@@ -22,6 +24,7 @@ set(APP_QML_FILES
     DebugPage.qml
     ParamsConfigPage.qml
     ErrorPopup.qml
+    BusConfigurationPage.qml
     panels/MITConfigPanel.qml
 )
 
@@ -34,6 +37,8 @@ set(DYNAMICX_BACKEND_SOURCES
     Backend/Config/DxSlaveConfigurationParser.h
     Backend/Config/EcatSlaveConfigurationParser.cpp
     Backend/Config/EcatSlaveConfigurationParser.h
+    Backend/Ethercat/BusSessionCoordinator.cpp
+    Backend/Ethercat/BusSessionCoordinator.h
     Backend/Ethercat/EthercatBackend.cpp
     Backend/Ethercat/EthercatBackend.h
     Backend/Ethercat/EthercatErrorMapper.cpp
@@ -48,6 +53,18 @@ set(DYNAMICX_BACKEND_SOURCES
     Backend/Ethercat/MitSlaveController.h
     Backend/Ethercat/SdoConfigMapper.cpp
     Backend/Ethercat/SdoConfigMapper.h
+    Backend/Explorer/EsiParser.cpp
+    Backend/Explorer/EsiParser.h
+    Backend/Explorer/EsiRepository.cpp
+    Backend/Explorer/EsiRepository.h
+    Backend/Explorer/EthercatExplorerController.cpp
+    Backend/Explorer/EthercatExplorerController.h
+    Backend/Explorer/ExplorerModels.cpp
+    Backend/Explorer/ExplorerModels.h
+    Backend/Explorer/ExplorerTypes.cpp
+    Backend/Explorer/ExplorerTypes.h
+    Backend/Explorer/PdoValueCodec.cpp
+    Backend/Explorer/PdoValueCodec.h
     Backend/Ethercat/Slaves/EcatSlaveFactory.cpp
     Backend/Ethercat/Slaves/EcatSlaveFactory.h
     Backend/Ethercat/Slaves/MitEcatSlave.cpp
@@ -78,7 +95,7 @@ target_include_directories(dynamicx_backend
 target_link_libraries(dynamicx_backend
     PUBLIC
         Qt6::Core
-        yaml-cpp::yaml-cpp
+        yaml-cpp
         soem_interface
 )
 
@@ -131,3 +148,32 @@ add_custom_command(TARGET DynamicxEcatTool POST_BUILD
         $<TARGET_FILE:soem_interface>
         $<TARGET_FILE_DIR:DynamicxEcatTool>/release
 )
+
+if(BUILD_TESTING)
+    find_package(Qt6 REQUIRED COMPONENTS Test)
+
+    add_executable(DynamicxExplorerTests
+        tests/ExplorerTests.cpp
+    )
+
+    target_include_directories(DynamicxExplorerTests
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
+    target_compile_definitions(DynamicxExplorerTests
+        PRIVATE
+            DYNAMICX_TEST_ESI_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/esi"
+    )
+
+    target_link_libraries(DynamicxExplorerTests
+        PRIVATE Qt6::Test dynamicx_backend
+    )
+    add_test(NAME DynamicxExplorerTests COMMAND DynamicxExplorerTests)
+    set_tests_properties(DynamicxExplorerTests PROPERTIES
+        ENVIRONMENT
+            "PATH=$<TARGET_FILE_DIR:Qt6::Core>\;$<TARGET_FILE_DIR:yaml-cpp::yaml-cpp>\;$<TARGET_FILE_DIR:soem_interface>\;C:/Windows/System32"
+    )
+
+
+endif()

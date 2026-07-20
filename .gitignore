@@ -90,14 +90,18 @@ qtcsettings.cmake
 /.cmake/
 /.qt/
 CMakeFiles/
+/tests/
 /Testing/
 /release/
 *_autogen/
 
 # CMake/Ninja generated files
 CMakeCache.txt
+CMakeCache.txt.*
 cmake_install.cmake
 **/cmake_install.cmake
+**/CTestTestfile.cmake
+DartConfiguration.tcl
 CPackConfig.cmake
 CPackSourceConfig.cmake
 build.ninja
@@ -109,3 +113,6 @@ compile_commands.json
 /meta_types/
 /qmltypes/
 *_qmltyperegistrations.cpp
+
+# # Local EtherCAT ESI repository selected at runtime
+# /esi/
