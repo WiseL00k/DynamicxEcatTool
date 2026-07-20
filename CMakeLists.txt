@@ -11,6 +11,9 @@ find_package(Qt6 REQUIRED COMPONENTS Core Quick QuickControls2)
 find_package(yaml-cpp CONFIG REQUIRED)
 
 include(CTest)
+if(TARGET yaml-cpp AND NOT TARGET yaml-cpp::yaml-cpp)
+    add_library(yaml-cpp::yaml-cpp ALIAS yaml-cpp)
+endif()
 
 add_subdirectory(SOEM)
 add_subdirectory(SOEM_interface)

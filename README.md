@@ -18,10 +18,11 @@ DynamicxEcatTool 是一个基于 **Qt6 + QML + C++** 的 EtherCAT 调试与测�
 ## 目录结构
 
 - `tutorial/`：**软件使用简单教程  <==**
-- `Backend/`：后端业务逻辑，按 `Config`、`Ethercat`、`Monitor`、`Flash`、`Models`、`Network`、`Commands` 分层组织
-- `SOEM_interface/`：对 SOEM 的封装接口
+- `App/`：应用启动逻辑，包括字体选择与 QML 上下文注册
+- `Backend/`：后端业务逻辑；`Config` 负责配置解析，`Ethercat` 负责主站、从站与 SDO 控制，`Monitor` 负责在线状态监控，`Flash` 负责 EEPROM/固件烧录，`Models`、`Network`、`Commands` 分别提供数据模型、网卡服务与电机命令封装
+- `SOEM_interface/`：对 SOEM 的主站总线、从站基类、错误处理与工具接口进行封装
 - `sample_config/`：示例 YAML 配置文件
-- `*.qml`：界面页面与组件、
+- `*.qml`、`panels/`：界面页面与参数面板组件
 
 ## 依赖环境
 
@@ -39,6 +40,8 @@ git submodule update --init --recursive
 cmake -S . -B build
 cmake --build build -j
 ```
+
+构建时，后端模块会先编译为 `dynamicx_backend` 静态库，再与 QML 应用和 `SOEM_interface` 链接生成 `DynamicxEcatTool`。
 
 ## 运行
 
