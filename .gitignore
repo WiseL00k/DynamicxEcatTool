@@ -113,6 +113,28 @@ compile_commands.json
 /meta_types/
 /qmltypes/
 *_qmltyperegistrations.cpp
+*.qmlc
+*.jsc
+
+# Compiler/preprocessor scratch files
+*.i
+*.pch
+*.tlog
+*.lastbuildstate
+
+# Local deployment and UI verification artifacts
+/deploy*/
+/dist*/
+/staging*/
+/_deploy*/
+/ui-preview*/
+/_ui-preview*/
+/test-results*/
+*.log
+
+# Local Codex workspace metadata
+/.agents/
+/.codex/
 
 # # Local EtherCAT ESI repository selected at runtime
 # /esi/

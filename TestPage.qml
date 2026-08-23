@@ -1,461 +1,495 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
 
 Item {
+    id: root
 
     property var theme
-    property bool isConnected: false
+    property var sessionUi
     signal connectionChanged(bool connected)
+    signal errorRequested(string message)
 
-    Rectangle {
-        anchors.fill: parent
-        color: theme.pageBackground
+    readonly property bool isConnected: sessionUi ? sessionUi.testConnected : false
+    readonly property bool sessionIdle: sessionUi ? sessionUi.idle : !EthercatBackend.sessionActive
+    readonly property bool flashBusy: firmwareBusy || eepromBusy
+                                      || (sessionUi ? sessionUi.flashingActive : false)
+    readonly property string selectedNicName: sessionUi
+                                               && sessionUi.selectedNicIndex >= 0
+                                               && sessionUi.selectedNicIndex < sessionUi.nicList.length
+                                               ? sessionUi.nicList[sessionUi.selectedNicIndex]
+                                               : qsTr("未选择网卡")
 
-        ColumnLayout {
-            anchors.fill: parent
-            anchors.margins: 16
-            spacing: 16
+    property url firmwareFile: ""
+    property url eepromFile: ""
+    property int firmwareProgress: 0
+    property int eepromProgress: 0
+    property bool firmwareBusy: false
+    property bool eepromBusy: false
+    property string firmwareResult: ""
+    property string eepromResult: ""
+    property string pendingFlashType: ""
+    property string pendingFlashFileName: ""
+    property int pendingFlashSlave: 0
+    property string awaitingFlashStart: ""
 
-            // ================= 顶部控制区 =================
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 170
-                radius: 10
-                color: theme.surface
-                border.color: theme.border
+    onIsConnectedChanged: connectionChanged(isConnected)
 
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.margins: 18
-                    spacing: 24
+    function displayFileName(fileUrl) {
+        const path = fileUrl ? fileUrl.toString() : ""
+        if (!path.length)
+            return "未选择文件"
+        const slash = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"))
+        return slash >= 0 ? path.substring(slash + 1) : path
+    }
 
-                    // ===== 网卡列表 =====
-                    ColumnLayout {
-                        Layout.fillHeight: true
-                        Layout.preferredWidth: 320
-                        spacing: 10
+    function requestFlash(type) {
+        const file = type === "firmware" ? firmwareFile : eepromFile
+        const slave = type === "firmware" ? firmwareSlaveIdBox.value : eepromSlaveIdBox.value
+        if (!file || !file.toString().length) {
+            errorRequested(type === "firmware" ? "请先选择固件 BIN 文件" : "请先选择 EEPROM HEX 文件")
+            return
+        }
+        if (!sessionUi || !sessionUi.nicReady) {
+            errorRequested("未发现可用网卡，请先刷新网卡列表")
+            return
+        }
+        if (!sessionIdle || flashBusy) {
+            errorRequested("总线当前正被其他任务占用")
+            return
+        }
 
-                        RowLayout {
-                            spacing: 10
+        pendingFlashType = type
+        pendingFlashFileName = displayFileName(file)
+        pendingFlashSlave = slave
+        flashConfirm.open()
+    }
 
-                            Button {
-                                text: "刷新网卡"
-                                onClicked: EthercatBackend.refreshNicsAsync()
-                            }
+    function startConfirmedFlash() {
+        const type = pendingFlashType
+        if (type !== "firmware" && type !== "eeprom")
+            return
+        if (!sessionUi || !sessionUi.nicReady) {
+            errorRequested("当前没有可用网卡")
+            return
+        }
+        if (!sessionIdle || flashBusy) {
+            errorRequested("总线当前正被其他任务占用")
+            return
+        }
 
-                            Label {
-                                text: "可用网卡"
-                                font.bold: true
-                            }
-                        }
-
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            radius: 6
-                            color: theme.inputBackground
-                            border.color: theme.borderStrong
-
-                            ListView {
-                                id: nicList
-                                anchors.fill: parent
-                                anchors.margins: 4
-                                model: EthercatBackend ? EthercatBackend.nicList : []
-                                clip: true
-
-                                delegate: Rectangle {
-                                    width: ListView.view.width
-                                    height: 36
-                                    radius: 6
-
-                                    color: ListView.isCurrentItem ? theme.selectedBackground : "transparent"
-                                    border.color: ListView.isCurrentItem ? theme.selectedBorder : "transparent"
-
-                                    Text {
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        anchors.left: parent.left
-                                        anchors.leftMargin: 12
-                                        text: modelData
-                                        color: theme.textPrimary
-                                        elide: Text.ElideRight
-                                    }
-
-                                    MouseArea {
-                                        anchors.fill: parent
-                                        onClicked: {
-                                            nicList.currentIndex = index
-                                            EthercatBackend.changedSelectedNic(
-                                                        index)
-                                        }
-                                    }
-                                }
-
-                                ScrollBar.vertical: ScrollBar {
-                                    policy: ScrollBar.AsNeeded
-                                    anchors.right: parent.right
-                                }
-                            }
-                        }
-                    }
-
-                    Item {
-                        Layout.fillWidth: true
-                    }
-
-                    // ===== 操作区 =====
-                    ColumnLayout {
-                        Layout.preferredWidth: 240
-                        spacing: 18
-
-                        Label {
-                            text: "EtherCAT 测试"
-                            font.bold: true
-                        }
-
-                        RowLayout {
-
-                            Layout.fillWidth: true
-                            spacing: 10
-
-                            Rectangle {
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: 40
-
-                                radius: 6
-                                color: isConnected ? theme.successBackground : theme.dangerBackground
-                                border.color: isConnected ? theme.successBorder : theme.dangerBorder
-
-                                RowLayout {
-                                    anchors.centerIn: parent
-                                    spacing: 8
-
-                                    Rectangle {
-                                        width: 10
-                                        height: 10
-                                        radius: 5
-                                        color: isConnected ? theme.success : theme.danger
-
-                                        Layout.alignment: Qt.AlignVCenter
-                                    }
-
-                                    Text {
-                                        id: connectionStatus
-                                        text: isConnected ? qsTr("已连接") : qsTr(
-                                                                "未连接")
-                                        font.bold: true
-                                        color: theme.textPrimary
-
-                                        Layout.alignment: Qt.AlignVCenter
-                                    }
-                                }
-                            }
-                        }
-
-                        RowLayout {
-                            Button {
-                                text: "连接"
-                                Layout.fillWidth: true
-                                onClicked: EthercatBackend.startTest()
-                            }
-
-                            Button {
-                                text: "停止"
-                                Layout.fillWidth: true
-                                onClicked: EthercatBackend.stopTest()
-                            }
-                        }
-                    }
-                }
-            }
-
-            // ================= 日志 + EEPROM =================
-            RowLayout {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                spacing: 16
-
-                // ===== 日志区 =====
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    radius: 10
-                    color: theme.surface
-                    border.color: theme.border
-
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: 12
-
-                        Label {
-                            text: "运行日志"
-                            font.bold: true
-                        }
-
-                        ScrollView {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-
-                            TextArea {
-                                id: logArea
-                                readOnly: true
-                                font.family: theme.fontFamily
-                            }
-                        }
-                    }
-                }
-
-                ColumnLayout {
-                    //====================================================
-                    // 固件烧录
-                    //====================================================
-                    Rectangle {
-                        Layout.preferredWidth: 320
-                        Layout.fillHeight: true
-                        radius: 10
-                        color: theme.surface
-                        border.color: theme.border
-
-                        ColumnLayout {
-                            anchors.fill: parent
-                            anchors.margins: 16
-                            spacing: 12
-
-                            Label {
-                                text: "固件烧录"
-                                font.bold: true
-                            }
-
-                            RowLayout {
-                                Label {
-                                    text: "从站地址:"
-                                }
-
-                                SpinBox {
-                                    id: firmwareSlaveIdBox
-                                    from: 1
-                                    to: 255
-                                    value: 1
-                                }
-                            }
-
-                            RowLayout {
-                                Button {
-                                    text: "选择 BIN"
-                                    onClicked: firmwareFileDialog.open()
-                                }
-
-                                Label {
-                                    id: firmwareFileLabel
-                                    text: "未选择"
-                                    elide: Label.ElideRight
-                                    Layout.fillWidth: true
-                                }
-                            }
-
-                            ColumnLayout {
-                                spacing: 4
-
-                                ProgressBar {
-                                    id: firmwareProgressBar
-                                    from: 0
-                                    to: 100
-                                    value: 0
-                                    Layout.fillWidth: true
-                                }
-
-                                Label {
-                                    text: firmwareProgressBar.value + "%"
-                                    horizontalAlignment: Text.AlignHCenter
-                                    Layout.fillWidth: true
-                                }
-                            }
-
-                            Label {
-                                id: firmwareLog
-                                text: ""
-                                color: theme.textSecondary
-                                wrapMode: Text.WordWrap
-                                Layout.fillWidth: true
-                            }
-
-                            // 按钮
-                            Button {
-                                text: "开始烧录"
-                                Layout.fillWidth: true
-                                enabled: !isConnected
-
-                                onClicked: {
-                                    firmwareProgressBar.value = 0
-
-                                    EthercatBackend.flashFirmware(
-                                                firmwareSlaveIdBox.value,
-                                                firmwareFileDialog.selectedFile)
-                                }
-                            }
-
-                            Item {
-                                Layout.fillHeight: true
-                            }
-                        }
-                    }
-
-                    // ===== EEPROM 烧录 =====
-                    Rectangle {
-                        Layout.preferredWidth: 320
-                        Layout.fillHeight: true
-                        radius: 10
-                        color: theme.surface
-                        border.color: theme.border
-
-                        ColumnLayout {
-                            anchors.fill: parent
-                            anchors.margins: 16
-                            spacing: 12
-
-                            Label {
-                                text: "EEPROM 烧录"
-                                font.bold: true
-                            }
-
-                            // 从站地址
-                            RowLayout {
-                                Label {
-                                    text: "从站地址:"
-                                }
-
-                                SpinBox {
-                                    id: slaveIdBox
-                                    from: 1
-                                    to: 255
-                                    value: 1
-                                }
-                            }
-
-                            // 文件选择
-                            RowLayout {
-                                Button {
-                                    text: "选择 HEX"
-                                    onClicked: eepromFileDialog.open()
-                                }
-
-                                Label {
-                                    id: fileLabel
-                                    text: "未选择"
-                                    elide: Label.ElideRight
-                                    Layout.fillWidth: true
-                                }
-                            }
-
-                            // 进度条
-                            ColumnLayout {
-                                spacing: 4
-
-                                ProgressBar {
-                                    id: eepromProgressBar
-                                    from: 0
-                                    to: 100
-                                    value: 0
-                                    Layout.fillWidth: true
-                                }
-
-                                Label {
-                                    text: eepromProgressBar.value + "%"
-                                    horizontalAlignment: Text.AlignHCenter
-                                    Layout.fillWidth: true
-                                }
-                            }
-
-                            // 结果
-                            Label {
-                                id: eepromLog
-                                text: ""
-                                color: theme.textSecondary
-                                wrapMode: Text.WordWrap
-                                Layout.fillWidth: true
-                            }
-
-                            // 按钮
-                            Button {
-                                text: "开始烧录"
-                                Layout.fillWidth: true
-                                enabled: !isConnected
-                                onClicked: {
-                                    eepromProgressBar.value = 0
-                                    EthercatBackend.flashEEprom(
-                                                slaveIdBox.value,
-                                                eepromFileDialog.selectedFile)
-                                }
-                            }
-
-                            Item {
-                                Layout.fillHeight: true
-                            }
-                        }
-                    }
-                }
-            }
+        awaitingFlashStart = type
+        flashStartGuard.restart()
+        if (type === "firmware") {
+            firmwareProgress = 0
+            firmwareResult = "正在提交固件烧录任务…"
+            firmwareBusy = true
+            EthercatBackend.flashFirmware(firmwareSlaveIdBox.value, firmwareFile)
+        } else {
+            eepromProgress = 0
+            eepromResult = "正在提交 EEPROM 烧录任务…"
+            eepromBusy = true
+            EthercatBackend.flashEEprom(eepromSlaveIdBox.value, eepromFile)
         }
     }
 
-    // ================= 文件选择 =================
-    FileDialog {
-        id: eepromFileDialog
-        nameFilters: ["HEX (*.hex)"]
-
-        onAccepted: {
-            fileLabel.text = selectedFile
+    Timer {
+        id: flashStartGuard
+        interval: 2000
+        repeat: false
+        onTriggered: {
+            if (root.sessionUi && root.sessionUi.flashingActive) {
+                if (root.awaitingFlashStart === "firmware")
+                    root.firmwareResult = "固件烧录任务已提交，等待设备响应…"
+                else if (root.awaitingFlashStart === "eeprom")
+                    root.eepromResult = "EEPROM 烧录任务已提交，等待设备响应…"
+                root.awaitingFlashStart = ""
+                return
+            }
+            if (root.awaitingFlashStart === "firmware") {
+                root.firmwareBusy = false
+                root.firmwareResult = "任务未启动，请查看错误提示后重试"
+            } else if (root.awaitingFlashStart === "eeprom") {
+                root.eepromBusy = false
+                root.eepromResult = "任务未启动，请查看错误提示后重试"
+            }
+            root.awaitingFlashStart = ""
         }
+    }
+
+    ScrollView {
+        id: pageScroll
+        anchors.fill: parent
+        clip: true
+        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+        ScrollBar.vertical.policy: ScrollBar.AsNeeded
+
+        ColumnLayout {
+            width: pageScroll.availableWidth
+            spacing: 14
+
+            PanelCard {
+                Layout.fillWidth: true
+                Layout.margins: 2
+                theme: root.theme
+                padding: 18
+
+                ColumnLayout {
+                    width: parent.width
+                    spacing: 14
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 12
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 4
+
+                            Label {
+                                text: "EtherCAT 链路测试"
+                                font.pixelSize: 20
+                                font.bold: true
+                                color: root.theme.textPrimary
+                            }
+
+                            Label {
+                                Layout.fillWidth: true
+                                text: "建立测试会话，观察工作计数器与过程数据交换是否稳定。"
+                                color: root.theme.textSecondary
+                                wrapMode: Text.WordWrap
+                            }
+                        }
+
+                        StatusBadge {
+                            theme: root.theme
+                            text: root.sessionUi ? root.sessionUi.statusText : (root.isConnected ? "测试已连接" : "总线空闲")
+                            tone: root.sessionUi ? root.sessionUi.statusTone : (root.isConnected ? "success" : "neutral")
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+
+                        Label {
+                            Layout.fillWidth: true
+                            text: root.isConnected
+                                  ? "测试会话运行中；停止后才能执行烧录任务。"
+                                  : (!root.sessionIdle ? "其他总线会话正在运行。" : "当前可启动链路测试或执行离线烧录。")
+                            color: !root.sessionIdle && !root.isConnected ? root.theme.dangerText : root.theme.textMuted
+                            wrapMode: Text.WordWrap
+                        }
+
+                        AppButton {
+                            theme: root.theme
+                            text: root.isConnected ? "停止测试" : "启动测试"
+                            variant: root.isConnected ? "danger" : "primary"
+                            actionEnabled: root.isConnected
+                                           || (root.sessionIdle
+                                               && !root.flashBusy
+                                               && root.sessionUi
+                                               && root.sessionUi.nicReady)
+                            onClicked: {
+                                if (root.isConnected)
+                                    EthercatBackend.stopTest()
+                                else
+                                    EthercatBackend.startTest()
+                            }
+                        }
+                    }
+                }
+            }
+
+            PanelCard {
+                Layout.fillWidth: true
+                Layout.margins: 2
+                theme: root.theme
+                padding: 18
+
+                ColumnLayout {
+                    width: parent.width
+                    spacing: 12
+
+                    RowLayout {
+                        Layout.fillWidth: true
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 3
+
+                            Label {
+                                text: "从站烧录"
+                                font.pixelSize: 18
+                                font.bold: true
+                                color: root.theme.textPrimary
+                            }
+                            Label {
+                                Layout.fillWidth: true
+                                text: "烧录会独占所选网卡。确认从站地址与文件后再开始。"
+                                color: root.theme.textSecondary
+                                wrapMode: Text.WordWrap
+                            }
+                        }
+
+                        StatusBadge {
+                            theme: root.theme
+                            text: root.flashBusy ? "烧录进行中" : "等待任务"
+                            tone: root.flashBusy ? "warning" : "neutral"
+                            compact: true
+                        }
+                    }
+
+                    TabBar {
+                        id: flashTabs
+                        Layout.fillWidth: true
+                        enabled: !root.flashBusy
+
+                        TabButton { text: "固件 BIN" }
+                        TabButton { text: "EEPROM HEX" }
+                    }
+
+                    StackLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 300
+                        currentIndex: flashTabs.currentIndex
+
+                        Item {
+                            ColumnLayout {
+                                anchors.fill: parent
+                                spacing: 12
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 10
+
+                                    Label {
+                                        text: "从站地址"
+                                        color: root.theme.textSecondary
+                                    }
+                                    SpinBox {
+                                        id: firmwareSlaveIdBox
+                                        from: 1
+                                        to: 255
+                                        value: 1
+                                        editable: true
+                                        enabled: !root.flashBusy
+                                    }
+                                    Item { Layout.fillWidth: true }
+                                }
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 10
+
+                                    TextField {
+                                        Layout.fillWidth: true
+                                        readOnly: true
+                                        text: root.displayFileName(root.firmwareFile)
+                                        color: root.firmwareFile.toString().length ? root.theme.textPrimary : root.theme.textMuted
+                                    }
+                                    AppButton {
+                                        theme: root.theme
+                                        text: "选择 BIN"
+                                        variant: "secondary"
+                                        actionEnabled: !root.flashBusy
+                                        onClicked: firmwareFileDialog.open()
+                                    }
+                                }
+
+                                ProgressBar {
+                                    Layout.fillWidth: true
+                                    from: 0
+                                    to: 100
+                                    value: root.firmwareProgress
+                                    indeterminate: root.firmwareBusy && root.firmwareProgress === 0
+                                }
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Label {
+                                        Layout.fillWidth: true
+                                        text: root.firmwareResult.length ? root.firmwareResult : "尚未执行固件烧录"
+                                        color: root.theme.textSecondary
+                                        wrapMode: Text.WordWrap
+                                    }
+                                    Label {
+                                        text: root.firmwareProgress + "%"
+                                        color: root.theme.textMuted
+                                    }
+                                }
+
+                                Item { Layout.fillHeight: true }
+
+                                AppButton {
+                                    Layout.alignment: Qt.AlignRight
+                                    theme: root.theme
+                                    text: "烧录固件"
+                                    busy: root.firmwareBusy
+                                    busyText: "固件烧录中"
+                                    variant: "primary"
+                                    actionEnabled: root.sessionIdle
+                                                   && !root.flashBusy
+                                                   && root.sessionUi
+                                                   && root.sessionUi.nicReady
+                                    onClicked: root.requestFlash("firmware")
+                                }
+                            }
+                        }
+
+                        Item {
+                            ColumnLayout {
+                                anchors.fill: parent
+                                spacing: 12
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 10
+
+                                    Label {
+                                        text: "从站地址"
+                                        color: root.theme.textSecondary
+                                    }
+                                    SpinBox {
+                                        id: eepromSlaveIdBox
+                                        from: 1
+                                        to: 255
+                                        value: 1
+                                        editable: true
+                                        enabled: !root.flashBusy
+                                    }
+                                    Item { Layout.fillWidth: true }
+                                }
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 10
+
+                                    TextField {
+                                        Layout.fillWidth: true
+                                        readOnly: true
+                                        text: root.displayFileName(root.eepromFile)
+                                        color: root.eepromFile.toString().length ? root.theme.textPrimary : root.theme.textMuted
+                                    }
+                                    AppButton {
+                                        theme: root.theme
+                                        text: "选择 HEX"
+                                        variant: "secondary"
+                                        actionEnabled: !root.flashBusy
+                                        onClicked: eepromFileDialog.open()
+                                    }
+                                }
+
+                                ProgressBar {
+                                    Layout.fillWidth: true
+                                    from: 0
+                                    to: 100
+                                    value: root.eepromProgress
+                                    indeterminate: root.eepromBusy && root.eepromProgress === 0
+                                }
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Label {
+                                        Layout.fillWidth: true
+                                        text: root.eepromResult.length ? root.eepromResult : "尚未执行 EEPROM 烧录"
+                                        color: root.theme.textSecondary
+                                        wrapMode: Text.WordWrap
+                                    }
+                                    Label {
+                                        text: root.eepromProgress + "%"
+                                        color: root.theme.textMuted
+                                    }
+                                }
+
+                                Item { Layout.fillHeight: true }
+
+                                AppButton {
+                                    Layout.alignment: Qt.AlignRight
+                                    theme: root.theme
+                                    text: "烧录 EEPROM"
+                                    busy: root.eepromBusy
+                                    busyText: "EEPROM 烧录中"
+                                    variant: "primary"
+                                    actionEnabled: root.sessionIdle
+                                                   && !root.flashBusy
+                                                   && root.sessionUi
+                                                   && root.sessionUi.nicReady
+                                    onClicked: root.requestFlash("eeprom")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Item { Layout.preferredHeight: 2 }
+        }
+    }
+
+    ConfirmDialog {
+        id: flashConfirm
+        theme: root.theme
+        titleText: root.pendingFlashType === "firmware" ? "确认固件烧录" : "确认 EEPROM 烧录"
+        message: qsTr("网卡：%1\n从站地址：%2\n文件：%3\n\n烧录期间请勿断电、拔线或切换网卡。")
+                 .arg(root.selectedNicName)
+                 .arg(root.pendingFlashSlave)
+                 .arg(root.pendingFlashFileName)
+        confirmText: "确认烧录"
+        tone: "danger"
+        onConfirmed: root.startConfirmedFlash()
     }
 
     FileDialog {
         id: firmwareFileDialog
-
         title: "选择固件 BIN 文件"
         nameFilters: ["BIN files (*.bin)"]
-
-        onAccepted: {
-            var path = selectedFile.toString()
-            firmwareFileLabel.text = path.substring(path.lastIndexOf("/") + 1)
-        }
+        onAccepted: root.firmwareFile = selectedFile
     }
 
-    // ================= 后端信号 =================
+    FileDialog {
+        id: eepromFileDialog
+        title: "选择 EEPROM HEX 文件"
+        nameFilters: ["HEX files (*.hex)"]
+        onAccepted: root.eepromFile = selectedFile
+    }
+
     Connections {
         target: EthercatBackend
 
-        function onLogUpdated(line) {
-            logArea.text = line
-        }
-
-        function onLogAppend(line) {
-            logArea.append(line)
-        }
-
-        function onConnectedUpdated(status) {
-            isConnected = status === 1
-                    && EthercatBackend.sessionMode === "测试"
-        }
-
-        // 进度更新
         function onFlashProgress(type, percent) {
-            if (type === "eeprom") {
-                eepromProgressBar.value = percent
-            } else if (type === "firmware") {
-                firmwareProgressBar.value = percent
+            if (root.awaitingFlashStart === type) {
+                root.awaitingFlashStart = ""
+                flashStartGuard.stop()
+            }
+            if (type === "firmware") {
+                root.firmwareBusy = true
+                root.firmwareProgress = percent
+                root.firmwareResult = "固件烧录进行中"
+            } else if (type === "eeprom") {
+                root.eepromBusy = true
+                root.eepromProgress = percent
+                root.eepromResult = "EEPROM 烧录进行中"
             }
         }
 
-        // 烧录结果
         function onFlashFinished(type, success, msg) {
-            if (type === "eeprom") {
-                eepromLog.text = success ? "EEPROM成功: " + msg : "EEPROM失败: " + msg
-            } else if (type === "firmware") {
-                firmwareLog.text = success ? "固件成功: " + msg : "固件失败: " + msg
+            if (root.awaitingFlashStart === type) {
+                root.awaitingFlashStart = ""
+                flashStartGuard.stop()
+            }
+            if (type === "firmware") {
+                root.firmwareBusy = false
+                root.firmwareProgress = success ? 100 : 0
+                root.firmwareResult = success ? "固件烧录成功：" + msg : "固件烧录失败：" + msg
+            } else if (type === "eeprom") {
+                root.eepromBusy = false
+                root.eepromProgress = success ? 100 : 0
+                root.eepromResult = success ? "EEPROM 烧录成功：" + msg : "EEPROM 烧录失败：" + msg
             }
         }
     }
 }
-
-

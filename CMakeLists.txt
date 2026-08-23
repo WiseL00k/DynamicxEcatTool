@@ -20,12 +20,34 @@ add_subdirectory(SOEM_interface)
 
 set(APP_QML_FILES
     Main.qml
+    DesignTokens.qml
+    AppButton.qml
+    PanelCard.qml
+    StatusBadge.qml
+    ConfirmDialog.qml
+    SideNavButton.qml
+    NicSelector.qml
+    ThemeModeControl.qml
+    LogDock.qml
+    SessionUiAdapter.qml
+    LogUiAdapter.qml
     TestPage.qml
     DebugPage.qml
     ParamsConfigPage.qml
     ErrorPopup.qml
     BusConfigurationPage.qml
     panels/MITConfigPanel.qml
+)
+
+set(APP_QML_RESOURCES
+    icons/logo-mark.svg
+    icons/test.svg
+    icons/debug.svg
+    icons/motor.svg
+    icons/bus.svg
+    icons/terminal.svg
+    icons/chevron-left.svg
+    icons/chevron-right.svg
 )
 
 set(DYNAMICX_BACKEND_SOURCES
@@ -112,6 +134,7 @@ qt_add_qml_module(DynamicxEcatTool
     URI DynamicxEcatToolQml
     VERSION 1.0
     QML_FILES ${APP_QML_FILES}
+    RESOURCES ${APP_QML_RESOURCES}
 )
 
 set_target_properties(DynamicxEcatTool PROPERTIES
