@@ -78,4 +78,11 @@ cmake --build build -j
 - 在测试/调试/参数界面先刷新并选择正确网卡；
 - 在调试界面，需先加载 `sample_config/` 下对应 YAML；
 - 确认连接状态后再执行测试流程、EEPROM 烧录或参数下发，并观察日志与状态信息。
-
+  
+## 一些问题
+在Ubuntu24下运行AppImage时，可能会遇到缺少FUSE库报错。此时运行以下命令可安装缺少的库
+```bash
+sudo apt update
+sudo apt install fuse
+```
+重新运行AppImage,即可
