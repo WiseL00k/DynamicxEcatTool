@@ -272,6 +272,15 @@ Item {
                                 }
                             }
 
+                            Label {
+                                id: firmwareLog
+                                text: ""
+                                color: theme.textSecondary
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                            }
+
+                            // 按钮
                             Button {
                                 text: "开始烧录"
                                 Layout.fillWidth: true
@@ -358,6 +367,15 @@ Item {
                                 }
                             }
 
+                            // 结果
+                            Label {
+                                id: eepromLog
+                                text: ""
+                                color: theme.textSecondary
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                            }
+
                             // 按钮
                             Button {
                                 text: "开始烧录"
@@ -416,7 +434,8 @@ Item {
         }
 
         function onConnectedUpdated(status) {
-            isConnected = (status === 1)
+            isConnected = status === 1
+                    && EthercatBackend.sessionMode === "测试"
         }
 
         // 进度更新
@@ -438,3 +457,5 @@ Item {
         }
     }
 }
+
+
