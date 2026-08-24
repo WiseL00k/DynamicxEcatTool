@@ -298,6 +298,19 @@ Item {
                                         actionEnabled: !root.flashBusy
                                         onClicked: firmwareFileDialog.open()
                                     }
+
+                                    AppButton {
+                                        theme: root.theme
+                                        text: "烧录固件"
+                                        busy: root.firmwareBusy
+                                        busyText: "固件烧录中"
+                                        variant: "primary"
+                                        actionEnabled: root.sessionIdle
+                                                       && !root.flashBusy
+                                                       && root.sessionUi
+                                                       && root.sessionUi.nicReady
+                                        onClicked: root.requestFlash("firmware")
+                                    }
                                 }
 
                                 ProgressBar {
@@ -320,22 +333,6 @@ Item {
                                         text: root.firmwareProgress + "%"
                                         color: root.theme.textMuted
                                     }
-                                }
-
-                                Item { Layout.fillHeight: true }
-
-                                AppButton {
-                                    Layout.alignment: Qt.AlignRight
-                                    theme: root.theme
-                                    text: "烧录固件"
-                                    busy: root.firmwareBusy
-                                    busyText: "固件烧录中"
-                                    variant: "primary"
-                                    actionEnabled: root.sessionIdle
-                                                   && !root.flashBusy
-                                                   && root.sessionUi
-                                                   && root.sessionUi.nicReady
-                                    onClicked: root.requestFlash("firmware")
                                 }
                             }
                         }
@@ -381,6 +378,19 @@ Item {
                                         actionEnabled: !root.flashBusy
                                         onClicked: eepromFileDialog.open()
                                     }
+
+                                    AppButton {
+                                        theme: root.theme
+                                        text: "烧录 EEPROM"
+                                        busy: root.eepromBusy
+                                        busyText: "EEPROM 烧录中"
+                                        variant: "primary"
+                                        actionEnabled: root.sessionIdle
+                                                       && !root.flashBusy
+                                                       && root.sessionUi
+                                                       && root.sessionUi.nicReady
+                                        onClicked: root.requestFlash("eeprom")
+                                    }
                                 }
 
                                 ProgressBar {
@@ -403,22 +413,6 @@ Item {
                                         text: root.eepromProgress + "%"
                                         color: root.theme.textMuted
                                     }
-                                }
-
-                                Item { Layout.fillHeight: true }
-
-                                AppButton {
-                                    Layout.alignment: Qt.AlignRight
-                                    theme: root.theme
-                                    text: "烧录 EEPROM"
-                                    busy: root.eepromBusy
-                                    busyText: "EEPROM 烧录中"
-                                    variant: "primary"
-                                    actionEnabled: root.sessionIdle
-                                                   && !root.flashBusy
-                                                   && root.sessionUi
-                                                   && root.sessionUi.nicReady
-                                    onClicked: root.requestFlash("eeprom")
                                 }
                             }
                         }
