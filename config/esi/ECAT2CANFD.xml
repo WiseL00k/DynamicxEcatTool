@@ -2428,7 +2428,7 @@
                     </Info>
                   </SubItem>
                   <SubItem>
-                    <Name>New array subitem</Name>
+                    <Name>can0_baud</Name>
                     <Info>
                       <DefaultValue>0</DefaultValue>
                     </Info>
@@ -2469,7 +2469,7 @@
                     </Info>
                   </SubItem>
                   <SubItem>
-                    <Name>New array subitem</Name>
+                    <Name>can1_baud</Name>
                     <Info>
                       <DefaultValue>0</DefaultValue>
                     </Info>
