@@ -87,6 +87,7 @@ qtcsettings.cmake
 .rcc/
 .uic/
 /build*/
+/test-build-fresh/
 /.cmake/
 /.qt/
 CMakeFiles/
