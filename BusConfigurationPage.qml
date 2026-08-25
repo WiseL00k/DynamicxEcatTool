@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
+import QtQml.Models
 
 Item {
     id: root
@@ -18,6 +19,8 @@ Item {
 
     property string pendingSdoStableId: ""
     property string pendingSdoValue: ""
+    property string objectDictionaryQuery: ""
+    property string objectDictionarySearchMode: "all"
 
     function alStateText(state) {
         switch (state) {
@@ -689,25 +692,410 @@ Item {
                     currentIndex: detailTabs.currentIndex
 
                     Item {
-                        ColumnLayout {
-                            anchors.fill: parent
-                            spacing: 5
+                        id: objectDictionaryPane
 
-                            RowLayout {
-                                Layout.fillWidth: true
+                        DelegateModel {
+                            id: filteredObjectDictionaryModel
 
-                                Label {
-                                    text: "索引 / 子索引"
-                                    color: root.theme.textMuted
-                                    font.pixelSize: 11
+                            readonly property int totalCount: items.count
+                            readonly property int filteredCount: visibleObjectItems.count
+                            property string query: root.objectDictionaryQuery
+                            property string searchMode: root.objectDictionarySearchMode
+
+                            model: root.explorer.objectDictionaryModel
+                            filterOnGroup: "visible"
+
+                            function normalized(value) {
+                                if (value === undefined || value === null)
+                                    return ""
+                                return String(value).trim().toLocaleLowerCase()
+                            }
+
+                            function acceptsItem(modelItem) {
+                                const needle = normalized(query)
+                                if (needle.length === 0)
+                                    return true
+
+                                const indexText = normalized(modelItem.indexText)
+                                const subIndexText = normalized(modelItem.subIndexText)
+                                const addressText = indexText + ":" + subIndexText
+                                const compactNeedle = needle.replace(/0x/g, "")
+                                const compactAddress = addressText.replace(/0x/g, "")
+                                const indexMatches = indexText.indexOf(needle) >= 0
+                                                     || subIndexText.indexOf(needle) >= 0
+                                                     || addressText.indexOf(needle) >= 0
+                                                     || compactAddress.indexOf(compactNeedle) >= 0
+                                const nameMatches = normalized(modelItem.name).indexOf(needle) >= 0
+
+                                if (searchMode === "index")
+                                    return indexMatches
+                                if (searchMode === "name")
+                                    return nameMatches
+                                return indexMatches || nameMatches
+                            }
+
+                            function updateFilter() {
+                                if (items.count > 0)
+                                    items.setGroups(0, items.count, "items")
+
+                                for (let row = 0; row < items.count; ++row) {
+                                    const item = items.get(row)
+                                    if (acceptsItem(item.model))
+                                        item.inVisible = true
+                                }
+                            }
+
+                            onQueryChanged: updateFilter()
+                            onSearchModeChanged: updateFilter()
+                            items.onChanged: filteredObjectDictionaryModel.updateFilter()
+                            Component.onCompleted: updateFilter()
+
+                            groups: DelegateModelGroup {
+                                id: visibleObjectItems
+                                name: "visible"
+                                includeByDefault: false
+                            }
+
+                            delegate: Rectangle {
+                                id: objectCard
+
+                                required property string stableId
+                                required property string indexText
+                                required property string subIndexText
+                                required property string name
+                                required property string dataType
+                                required property string access
+                                required property int bitLength
+                                required property string pdoMapping
+                                required property string displayValue
+                                required property bool readable
+                                required property bool writable
+
+                                width: ListView.view ? ListView.view.width : 0
+                                height: 88
+                                radius: root.theme.radiusMedium
+                                color: objectCardHover.hovered
+                                       ? root.theme.controlHover
+                                       : root.theme.surfaceMuted
+                                border.color: objectCardHover.hovered
+                                              ? root.theme.borderStrong
+                                              : root.theme.border
+
+                                Behavior on color {
+                                    ColorAnimation { duration: root.theme.animationFast }
                                 }
 
-                                Item { Layout.fillWidth: true }
+                                HoverHandler { id: objectCardHover }
 
-                                Label {
-                                    text: "SDO 写入需要确认"
-                                    color: root.theme.warningText
-                                    font.pixelSize: 11
+                                ColumnLayout {
+                                    anchors.fill: parent
+                                    anchors.margins: root.theme.space8
+                                    spacing: root.theme.space6
+
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        spacing: root.theme.space8
+
+                                        Rectangle {
+                                            Layout.preferredWidth: Math.max(104,
+                                                                            objectAddress.implicitWidth
+                                                                            + root.theme.space16)
+                                            Layout.preferredHeight: 28
+                                            radius: root.theme.radiusSmall
+                                            color: root.theme.selectedBackground
+                                            border.color: root.theme.selectedBorder
+
+                                            Label {
+                                                id: objectAddress
+                                                anchors.centerIn: parent
+                                                text: objectCard.indexText + ":"
+                                                      + objectCard.subIndexText
+                                                color: root.theme.accent
+                                                font.pixelSize: root.theme.fontBodySmall
+                                                font.bold: true
+                                            }
+                                        }
+
+                                        ColumnLayout {
+                                            Layout.fillWidth: true
+                                            Layout.minimumWidth: 80
+                                            spacing: 0
+
+                                            Label {
+                                                id: objectName
+                                                Layout.fillWidth: true
+                                                text: objectCard.name.length > 0
+                                                      ? objectCard.name
+                                                      : "未命名对象"
+                                                color: root.theme.textPrimary
+                                                font.pixelSize: root.theme.fontBodySmall
+                                                font.bold: true
+                                                elide: Text.ElideRight
+                                                ToolTip.visible: objectNameHover.hovered
+                                                                 && objectName.truncated
+                                                ToolTip.text: text
+
+                                                HoverHandler { id: objectNameHover }
+                                            }
+
+                                            Label {
+                                                id: objectMetadata
+                                                Layout.fillWidth: true
+                                                text: (objectCard.dataType.length > 0
+                                                       ? objectCard.dataType
+                                                       : "未知类型")
+                                                      + " · " + objectCard.bitLength + " bit"
+                                                      + (objectCard.pdoMapping.length > 0
+                                                         ? " · PDO " + objectCard.pdoMapping
+                                                         : "")
+                                                color: root.theme.textMuted
+                                                font.pixelSize: root.theme.fontCaption
+                                                elide: Text.ElideRight
+                                                ToolTip.visible: objectMetadataHover.hovered
+                                                                 && objectMetadata.truncated
+                                                ToolTip.text: text
+
+                                                HoverHandler { id: objectMetadataHover }
+                                            }
+                                        }
+
+                                        Rectangle {
+                                            Layout.preferredWidth: objectCard.access.length > 0
+                                                                   ? Math.max(38,
+                                                                              accessLabel.implicitWidth
+                                                                              + root.theme.space12)
+                                                                   : 0
+                                            Layout.preferredHeight: 24
+                                            visible: objectCard.access.length > 0
+                                            radius: 12
+                                            color: objectCard.writable
+                                                   ? root.theme.selectedBackground
+                                                   : objectCard.readable
+                                                     ? root.theme.successBackground
+                                                     : root.theme.controlBackground
+                                            border.color: objectCard.writable
+                                                          ? root.theme.selectedBorder
+                                                          : objectCard.readable
+                                                            ? root.theme.successBorder
+                                                            : root.theme.border
+
+                                            Label {
+                                                id: accessLabel
+                                                anchors.centerIn: parent
+                                                text: objectCard.access.toUpperCase()
+                                                color: objectCard.writable
+                                                       ? root.theme.accent
+                                                       : objectCard.readable
+                                                         ? root.theme.successText
+                                                         : root.theme.textMuted
+                                                font.pixelSize: root.theme.fontCaption
+                                                font.bold: true
+                                            }
+                                        }
+                                    }
+
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        spacing: root.theme.space6
+
+                                        Label {
+                                            text: "值"
+                                            color: root.theme.textMuted
+                                            font.pixelSize: root.theme.fontCaption
+                                        }
+
+                                        TextField {
+                                            id: odEditor
+                                            Layout.fillWidth: true
+                                            Layout.minimumWidth: 80
+                                            Layout.preferredHeight: root.theme.controlHeightSmall
+                                            readOnly: !objectCard.writable
+                                            selectByMouse: true
+                                            placeholderText: "尚未读取"
+
+                                            Binding {
+                                                target: odEditor
+                                                property: "text"
+                                                value: objectCard.displayValue
+                                                when: !odEditor.activeFocus
+                                                restoreMode: Binding.RestoreNone
+                                            }
+                                        }
+
+                                        Button {
+                                            Layout.preferredWidth: 48
+                                            Layout.preferredHeight: root.theme.controlHeightSmall
+                                            text: "读"
+                                            enabled: objectCard.readable
+                                                     && root.explorer.scanned
+                                                     && !root.explorer.busy
+                                            onClicked: root.explorer.readSdoValue(
+                                                           objectCard.stableId)
+                                        }
+
+                                        Button {
+                                            Layout.preferredWidth: 48
+                                            Layout.preferredHeight: root.theme.controlHeightSmall
+                                            text: "写"
+                                            enabled: objectCard.writable
+                                                     && root.explorer.scanned
+                                                     && !root.explorer.busy
+                                            onClicked: root.confirmSdoWrite(objectCard.stableId,
+                                                                            odEditor.text)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        ColumnLayout {
+                            anchors.fill: parent
+                            spacing: root.theme.space6
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: objectSearchContent.implicitHeight
+                                                        + root.theme.space16
+                                radius: root.theme.radiusMedium
+                                color: root.theme.surfaceMuted
+                                border.color: root.theme.border
+
+                                ColumnLayout {
+                                    id: objectSearchContent
+                                    anchors.fill: parent
+                                    anchors.margins: root.theme.space8
+                                    spacing: root.theme.space6
+
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        spacing: root.theme.space6
+
+                                        TextField {
+                                            id: objectSearchField
+                                            Layout.fillWidth: true
+                                            Layout.minimumWidth: 150
+                                            Layout.preferredHeight: root.theme.controlHeightSmall
+                                            text: root.objectDictionaryQuery
+                                            selectByMouse: true
+                                            placeholderText: root.objectDictionarySearchMode === "index"
+                                                             ? "搜索 Index（如 0x6040）"
+                                                             : root.objectDictionarySearchMode === "name"
+                                                               ? "搜索 Name"
+                                                               : "搜索 Index 或 Name"
+                                            onTextEdited: root.objectDictionaryQuery = text
+                                            Keys.onEscapePressed: root.objectDictionaryQuery = ""
+                                        }
+
+                                        Rectangle {
+                                            Layout.preferredWidth: 168
+                                            Layout.preferredHeight: root.theme.controlHeightSmall
+                                            radius: root.theme.radiusSmall
+                                            color: root.theme.inputBackground
+                                            border.color: root.theme.borderStrong
+
+                                            RowLayout {
+                                                anchors.fill: parent
+                                                anchors.margins: 2
+                                                spacing: 2
+
+                                                Repeater {
+                                                    model: [
+                                                        { "label": "全部", "value": "all" },
+                                                        { "label": "Index", "value": "index" },
+                                                        { "label": "Name", "value": "name" }
+                                                    ]
+
+                                                    delegate: Button {
+                                                        id: modeButton
+
+                                                        required property var modelData
+
+                                                        readonly property bool selected:
+                                                            root.objectDictionarySearchMode
+                                                            === modelData.value
+
+                                                        Layout.fillWidth: true
+                                                        Layout.fillHeight: true
+                                                        leftPadding: 0
+                                                        rightPadding: 0
+                                                        topPadding: 0
+                                                        bottomPadding: 0
+                                                        hoverEnabled: true
+                                                        text: modelData.label
+                                                        onClicked: root.objectDictionarySearchMode
+                                                                   = modelData.value
+
+                                                        background: Rectangle {
+                                                            radius: root.theme.radiusSmall - 1
+                                                            color: modeButton.selected
+                                                                   ? root.theme.selectedBackground
+                                                                   : modeButton.hovered
+                                                                     ? root.theme.controlHover
+                                                                     : "transparent"
+                                                        }
+
+                                                        contentItem: Label {
+                                                            text: modeButton.text
+                                                            color: modeButton.selected
+                                                                   ? root.theme.accent
+                                                                   : root.theme.textSecondary
+                                                            font.pixelSize: root.theme.fontCaption
+                                                            font.bold: modeButton.selected
+                                                            horizontalAlignment: Text.AlignHCenter
+                                                            verticalAlignment: Text.AlignVCenter
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        Button {
+                                            Layout.preferredWidth: 52
+                                            Layout.preferredHeight: root.theme.controlHeightSmall
+                                            visible: root.objectDictionaryQuery.length > 0
+                                            text: "清除"
+                                            onClicked: {
+                                                root.objectDictionaryQuery = ""
+                                                objectSearchField.forceActiveFocus()
+                                            }
+                                        }
+                                    }
+
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        spacing: root.theme.space6
+
+                                        Label {
+                                            text: root.objectDictionaryQuery.trim().length > 0
+                                                  ? filteredObjectDictionaryModel.filteredCount
+                                                    + " / "
+                                                    + filteredObjectDictionaryModel.totalCount
+                                                    + " 项匹配"
+                                                  : filteredObjectDictionaryModel.totalCount
+                                                    + " 项对象"
+                                            color: root.theme.textSecondary
+                                            font.pixelSize: root.theme.fontCaption
+                                        }
+
+                                        Item { Layout.fillWidth: true }
+
+                                        Rectangle {
+                                            Layout.preferredWidth: sdoWarningLabel.implicitWidth
+                                                                   + root.theme.space16
+                                            Layout.preferredHeight: 24
+                                            radius: 12
+                                            color: root.theme.warningBackground
+                                            border.color: root.theme.warningBorder
+
+                                            Label {
+                                                id: sdoWarningLabel
+                                                anchors.centerIn: parent
+                                                text: "SDO 写入需要确认"
+                                                color: root.theme.warningText
+                                                font.pixelSize: root.theme.fontCaption
+                                            }
+                                        }
+                                    }
                                 }
                             }
 
@@ -716,110 +1104,44 @@ Item {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
                                 clip: true
-                                spacing: 4
-                                model: root.explorer.objectDictionaryModel
-                                ScrollBar.vertical: ScrollBar { }
-
-                                delegate: Rectangle {
-                                    required property int index
-                                    required property string stableId
-                                    required property string indexText
-                                    required property string subIndexText
-                                    required property string name
-                                    required property string dataType
-                                    required property string access
-                                    required property int bitLength
-                                    required property string pdoMapping
-                                    required property string displayValue
-                                    required property bool readable
-                                    required property bool writable
-
-                                    width: ListView.view.width
-                                    height: 68
-                                    radius: 6
-                                    color: root.theme.surfaceMuted
-                                    border.color: root.theme.border
-
-                                    ColumnLayout {
-                                        anchors.fill: parent
-                                        anchors.margins: 6
-                                        spacing: 3
-
-                                        RowLayout {
-                                            Layout.fillWidth: true
-                                            spacing: 6
-
-                                            Label {
-                                                text: indexText + ":" + subIndexText
-                                                color: root.theme.accent
-                                                font.bold: true
-                                            }
-
-                                            Label {
-                                                Layout.fillWidth: true
-                                                text: name
-                                                color: root.theme.textPrimary
-                                                elide: Text.ElideRight
-                                            }
-
-                                            Label {
-                                                text: dataType + " · " + access
-                                                      + " · " + bitLength + " bit"
-                                                      + (pdoMapping.length > 0
-                                                         ? " · PDO " + pdoMapping
-                                                         : "")
-                                                color: root.theme.textMuted
-                                                font.pixelSize: 10
-                                            }
-                                        }
-
-                                        RowLayout {
-                                            Layout.fillWidth: true
-                                            spacing: 5
-
-                                            TextField {
-                                                id: odEditor
-                                                Layout.fillWidth: true
-                                                readOnly: !writable
-                                                selectByMouse: true
-                                                placeholderText: "值"
-
-                                                Binding {
-                                                    target: odEditor
-                                                    property: "text"
-                                                    value: displayValue
-                                                    when: !odEditor.activeFocus
-                                                    restoreMode: Binding.RestoreNone
-                                                }
-                                            }
-
-                                            Button {
-                                                text: "读"
-                                                enabled: readable
-                                                         && root.explorer.scanned
-                                                         && !root.explorer.busy
-                                                onClicked: root.explorer.readSdoValue(stableId)
-                                            }
-
-                                            Button {
-                                                text: "写"
-                                                enabled: writable
-                                                         && root.explorer.scanned
-                                                         && !root.explorer.busy
-                                                onClicked: root.confirmSdoWrite(stableId,
-                                                                                odEditor.text)
-                                            }
-                                        }
-                                    }
+                                spacing: root.theme.space6
+                                model: filteredObjectDictionaryModel
+                                boundsBehavior: Flickable.StopAtBounds
+                                ScrollBar.vertical: ScrollBar {
+                                    policy: ScrollBar.AsNeeded
                                 }
 
-                                Label {
+                                Column {
                                     anchors.centerIn: parent
+                                    width: Math.min(320, Math.max(180, parent.width - 32))
+                                    spacing: root.theme.space6
                                     visible: objectList.count === 0
-                                    text: root.explorer.selectedSlaveAddress > 0
-                                          ? "没有可显示的对象字典"
-                                          : "选择从站后查看对象字典"
-                                    color: root.theme.textMuted
+
+                                    Label {
+                                        width: parent.width
+                                        text: root.explorer.selectedSlaveAddress <= 0
+                                              ? "尚未选择从站"
+                                              : filteredObjectDictionaryModel.totalCount === 0
+                                                ? "没有对象字典数据"
+                                                : "没有匹配结果"
+                                        color: root.theme.textSecondary
+                                        font.pixelSize: root.theme.fontSubtitle
+                                        font.bold: true
+                                        horizontalAlignment: Text.AlignHCenter
+                                    }
+
+                                    Label {
+                                        width: parent.width
+                                        text: root.explorer.selectedSlaveAddress <= 0
+                                              ? "请先在从站列表中选择要查看的设备"
+                                              : filteredObjectDictionaryModel.totalCount === 0
+                                                ? "当前从站未提供可显示的对象"
+                                                : "尝试更换关键词或切换搜索范围"
+                                        color: root.theme.textMuted
+                                        font.pixelSize: root.theme.fontBodySmall
+                                        horizontalAlignment: Text.AlignHCenter
+                                        wrapMode: Text.WordWrap
+                                    }
                                 }
                             }
                         }

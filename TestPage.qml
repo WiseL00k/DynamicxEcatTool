@@ -31,6 +31,8 @@ Item {
     property bool eepromBusy: false
     property string firmwareResult: ""
     property string eepromResult: ""
+    property string firmwareUiState: "idle"
+    property string eepromUiState: "idle"
     property string pendingFlashType: ""
     property string pendingFlashFileName: ""
     property int pendingFlashSlave: 0
@@ -44,6 +46,26 @@ Item {
             return "未选择文件"
         const slash = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"))
         return slash >= 0 ? path.substring(slash + 1) : path
+    }
+
+    function flashStateText(state) {
+        if (state === "success")
+            return "烧录成功"
+        if (state === "error")
+            return "烧录失败"
+        if (state === "running")
+            return "烧录进行中"
+        return "等待任务"
+    }
+
+    function flashStateTone(state) {
+        if (state === "success")
+            return "success"
+        if (state === "error")
+            return "danger"
+        if (state === "running")
+            return "warning"
+        return "neutral"
     }
 
     function requestFlash(type) {
@@ -87,11 +109,13 @@ Item {
             firmwareProgress = 0
             firmwareResult = "正在提交固件烧录任务…"
             firmwareBusy = true
+            firmwareUiState = "running"
             EthercatBackend.flashFirmware(firmwareSlaveIdBox.value, firmwareFile)
         } else {
             eepromProgress = 0
             eepromResult = "正在提交 EEPROM 烧录任务…"
             eepromBusy = true
+            eepromUiState = "running"
             EthercatBackend.flashEEprom(eepromSlaveIdBox.value, eepromFile)
         }
     }
@@ -112,9 +136,11 @@ Item {
             if (root.awaitingFlashStart === "firmware") {
                 root.firmwareBusy = false
                 root.firmwareResult = "任务未启动，请查看错误提示后重试"
+                root.firmwareUiState = "error"
             } else if (root.awaitingFlashStart === "eeprom") {
                 root.eepromBusy = false
                 root.eepromResult = "任务未启动，请查看错误提示后重试"
+                root.eepromUiState = "error"
             }
             root.awaitingFlashStart = ""
         }
@@ -237,8 +263,22 @@ Item {
 
                         StatusBadge {
                             theme: root.theme
-                            text: root.flashBusy ? "烧录进行中" : "等待任务"
-                            tone: root.flashBusy ? "warning" : "neutral"
+                            text: {
+                                const selectedState = flashTabs.currentIndex === 0
+                                                      ? root.firmwareUiState
+                                                      : root.eepromUiState
+                                return root.flashStateText(root.flashBusy && selectedState === "idle"
+                                                           ? "running"
+                                                           : selectedState)
+                            }
+                            tone: {
+                                const selectedState = flashTabs.currentIndex === 0
+                                                      ? root.firmwareUiState
+                                                      : root.eepromUiState
+                                return root.flashStateTone(root.flashBusy && selectedState === "idle"
+                                                           ? "running"
+                                                           : selectedState)
+                            }
                             compact: true
                         }
                     }
@@ -254,17 +294,25 @@ Item {
 
                     StackLayout {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 300
                         currentIndex: flashTabs.currentIndex
 
-                        Item {
+                        GridLayout {
+                            id: firmwareTaskGrid
+                            Layout.fillWidth: true
+                            columns: width >= 760 ? 2 : 1
+                            columnSpacing: root.theme.space12
+                            rowSpacing: root.theme.space12
+
                             ColumnLayout {
-                                anchors.fill: parent
-                                spacing: 12
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 0
+                                Layout.preferredWidth: 420
+                                Layout.alignment: Qt.AlignTop
+                                spacing: root.theme.space8
 
                                 RowLayout {
                                     Layout.fillWidth: true
-                                    spacing: 10
+                                    spacing: root.theme.space8
 
                                     Label {
                                         text: "从站地址"
@@ -272,6 +320,7 @@ Item {
                                     }
                                     SpinBox {
                                         id: firmwareSlaveIdBox
+                                        Layout.preferredWidth: 132
                                         from: 1
                                         to: 255
                                         value: 1
@@ -283,13 +332,16 @@ Item {
 
                                 RowLayout {
                                     Layout.fillWidth: true
-                                    spacing: 10
+                                    spacing: root.theme.space8
 
                                     TextField {
                                         Layout.fillWidth: true
+                                        Layout.minimumWidth: 0
                                         readOnly: true
                                         text: root.displayFileName(root.firmwareFile)
-                                        color: root.firmwareFile.toString().length ? root.theme.textPrimary : root.theme.textMuted
+                                        color: root.firmwareFile.toString().length
+                                               ? root.theme.textPrimary
+                                               : root.theme.textMuted
                                     }
                                     AppButton {
                                         theme: root.theme
@@ -298,7 +350,6 @@ Item {
                                         actionEnabled: !root.flashBusy
                                         onClicked: firmwareFileDialog.open()
                                     }
-
                                     AppButton {
                                         theme: root.theme
                                         text: "烧录固件"
@@ -312,39 +363,39 @@ Item {
                                         onClicked: root.requestFlash("firmware")
                                     }
                                 }
+                            }
 
-                                ProgressBar {
-                                    Layout.fillWidth: true
-                                    from: 0
-                                    to: 100
-                                    value: root.firmwareProgress
-                                    indeterminate: root.firmwareBusy && root.firmwareProgress === 0
-                                }
-
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    Label {
-                                        Layout.fillWidth: true
-                                        text: root.firmwareResult.length ? root.firmwareResult : "尚未执行固件烧录"
-                                        color: root.theme.textSecondary
-                                        wrapMode: Text.WordWrap
-                                    }
-                                    Label {
-                                        text: root.firmwareProgress + "%"
-                                        color: root.theme.textMuted
-                                    }
-                                }
+                            FlashProgressView {
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 0
+                                Layout.preferredWidth: 320
+                                Layout.alignment: Qt.AlignTop
+                                theme: root.theme
+                                taskName: "固件"
+                                progress: root.firmwareProgress
+                                busy: root.firmwareBusy
+                                state: root.firmwareUiState
+                                message: root.firmwareResult
                             }
                         }
 
-                        Item {
+                        GridLayout {
+                            id: eepromTaskGrid
+                            Layout.fillWidth: true
+                            columns: width >= 760 ? 2 : 1
+                            columnSpacing: root.theme.space12
+                            rowSpacing: root.theme.space12
+
                             ColumnLayout {
-                                anchors.fill: parent
-                                spacing: 12
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 0
+                                Layout.preferredWidth: 420
+                                Layout.alignment: Qt.AlignTop
+                                spacing: root.theme.space8
 
                                 RowLayout {
                                     Layout.fillWidth: true
-                                    spacing: 10
+                                    spacing: root.theme.space8
 
                                     Label {
                                         text: "从站地址"
@@ -352,6 +403,7 @@ Item {
                                     }
                                     SpinBox {
                                         id: eepromSlaveIdBox
+                                        Layout.preferredWidth: 132
                                         from: 1
                                         to: 255
                                         value: 1
@@ -363,13 +415,16 @@ Item {
 
                                 RowLayout {
                                     Layout.fillWidth: true
-                                    spacing: 10
+                                    spacing: root.theme.space8
 
                                     TextField {
                                         Layout.fillWidth: true
+                                        Layout.minimumWidth: 0
                                         readOnly: true
                                         text: root.displayFileName(root.eepromFile)
-                                        color: root.eepromFile.toString().length ? root.theme.textPrimary : root.theme.textMuted
+                                        color: root.eepromFile.toString().length
+                                               ? root.theme.textPrimary
+                                               : root.theme.textMuted
                                     }
                                     AppButton {
                                         theme: root.theme
@@ -378,7 +433,6 @@ Item {
                                         actionEnabled: !root.flashBusy
                                         onClicked: eepromFileDialog.open()
                                     }
-
                                     AppButton {
                                         theme: root.theme
                                         text: "烧录 EEPROM"
@@ -392,28 +446,19 @@ Item {
                                         onClicked: root.requestFlash("eeprom")
                                     }
                                 }
+                            }
 
-                                ProgressBar {
-                                    Layout.fillWidth: true
-                                    from: 0
-                                    to: 100
-                                    value: root.eepromProgress
-                                    indeterminate: root.eepromBusy && root.eepromProgress === 0
-                                }
-
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    Label {
-                                        Layout.fillWidth: true
-                                        text: root.eepromResult.length ? root.eepromResult : "尚未执行 EEPROM 烧录"
-                                        color: root.theme.textSecondary
-                                        wrapMode: Text.WordWrap
-                                    }
-                                    Label {
-                                        text: root.eepromProgress + "%"
-                                        color: root.theme.textMuted
-                                    }
-                                }
+                            FlashProgressView {
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 0
+                                Layout.preferredWidth: 320
+                                Layout.alignment: Qt.AlignTop
+                                theme: root.theme
+                                taskName: "EEPROM"
+                                progress: root.eepromProgress
+                                busy: root.eepromBusy
+                                state: root.eepromUiState
+                                message: root.eepromResult
                             }
                         }
                     }
@@ -463,10 +508,12 @@ Item {
                 root.firmwareBusy = true
                 root.firmwareProgress = percent
                 root.firmwareResult = "固件烧录进行中"
+                root.firmwareUiState = "running"
             } else if (type === "eeprom") {
                 root.eepromBusy = true
                 root.eepromProgress = percent
                 root.eepromResult = "EEPROM 烧录进行中"
+                root.eepromUiState = "running"
             }
         }
 
@@ -479,10 +526,12 @@ Item {
                 root.firmwareBusy = false
                 root.firmwareProgress = success ? 100 : 0
                 root.firmwareResult = success ? "固件烧录成功：" + msg : "固件烧录失败：" + msg
+                root.firmwareUiState = success ? "success" : "error"
             } else if (type === "eeprom") {
                 root.eepromBusy = false
                 root.eepromProgress = success ? 100 : 0
                 root.eepromResult = success ? "EEPROM 烧录成功：" + msg : "EEPROM 烧录失败：" + msg
+                root.eepromUiState = success ? "success" : "error"
             }
         }
     }
