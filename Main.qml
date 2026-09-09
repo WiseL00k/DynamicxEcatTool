@@ -1,63 +1,73 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtCore
 
 ApplicationWindow {
     id: root
-    width: 1200
-    height: 900
+
+    width: 1280
+    height: 720
+    minimumWidth: 960
+    minimumHeight: 640
     visible: true
     title: qsTr("Dynamicx EtherCAT Tool")
 
+    property int currentPageIndex: 0
+    readonly property var sessionUi: sessionAdapter
+    readonly property string currentPageKey: ["test", "debug", "params", "bus"][currentPageIndex]
+    readonly property string currentPageTitle: [
+        qsTr("测试与烧录"),
+        qsTr("设备调试"),
+        qsTr("MIT 参数"),
+        qsTr("总线配置")
+    ][currentPageIndex]
+    readonly property bool compactWindow: width < 1120
+    readonly property bool navigationCollapsed: compactWindow || appearanceSettings.navigationCollapsed
 
-    function isDarkColor(c) {
-        return (0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b) < 0.5
+    function isDarkColor(colorValue) {
+        return (0.2126 * colorValue.r
+                + 0.7152 * colorValue.g
+                + 0.0722 * colorValue.b) < 0.5
     }
 
-    readonly property bool darkMode: isDarkColor(systemPalette.window)
-    readonly property QtObject theme: appTheme
+    function persistAppearance() {
+        appearanceSettings.sync()
+    }
 
     SystemPalette {
         id: systemPalette
         colorGroup: SystemPalette.Active
     }
 
-    QtObject {
+    Settings {
+        id: appearanceSettings
+        location: StandardPaths.writableLocation(StandardPaths.GenericConfigLocation)
+                  + "/DynamicxEcatTool-ui.ini"
+        category: "appearance"
+        property string themeMode: "system"
+        property bool navigationCollapsed: false
+        property bool logDockExpanded: false
+    }
+
+    DesignTokens {
         id: appTheme
+        themeMode: appearanceSettings.themeMode
+        systemDark: root.isDarkColor(systemPalette.window)
+        fontFamily: ApplicationFontFamily
+    }
 
-        readonly property bool dark: root.darkMode
+    SessionUiAdapter {
+        id: sessionAdapter
+        backend: EthercatBackend
+    }
 
-        readonly property color pageBackground: dark ? "#111827" : "#f4f6f8"
-        readonly property color surface: dark ? "#182231" : "#ffffff"
-        readonly property color surfaceMuted: dark ? "#202b3a" : "#fafafa"
-        readonly property color inputBackground: dark ? "#0f1724" : "#ffffff"
-        readonly property color controlBackground: dark ? "#253244" : "#f8fafc"
-
-        readonly property color border: dark ? "#344256" : "#e6e6e6"
-        readonly property color borderStrong: dark ? "#42516a" : "#e0e0e0"
-
-        readonly property color textPrimary: dark ? "#eef2f7" : "#1f2937"
-        readonly property color textSecondary: dark ? "#c2cad7" : "#4b5563"
-        readonly property color textMuted: dark ? "#93a0b3" : "#6b7280"
-
-        readonly property color selectedBackground: dark ? "#173553" : "#e3f2fd"
-        readonly property color selectedBorder: dark ? "#256a9f" : "#90caf9"
-        readonly property color accent: dark ? "#60a5fa" : "#2563eb"
-        readonly property color accentHover: dark ? "#3b82f6" : "#1d4ed8"
-        readonly property color accentText: dark ? "#bfdbfe" : "#1d4ed8"
-        readonly property color textOnAccent: dark ? "#0b1220" : "#ffffff"
-
-        readonly property color success: dark ? "#4ade80" : "#4caf50"
-        readonly property color successText: dark ? "#86efac" : "#2e7d32"
-        readonly property color successBackground: dark ? "#123321" : "#e8f5e9"
-        readonly property color successBorder: dark ? "#2d6a44" : "#81c784"
-
-        readonly property color danger: dark ? "#f87171" : "#f44336"
-        readonly property color dangerText: dark ? "#fca5a5" : "#d32f2f"
-        readonly property color dangerBackground: dark ? "#3b171a" : "#ffebee"
-        readonly property color dangerBorder: dark ? "#7f2d33" : "#e57373"
-
-        readonly property string fontFamily: ApplicationFontFamily
+    LogUiAdapter {
+        id: logAdapter
+        backend: EthercatBackend
+        contextKey: root.currentPageKey
+        sessionActive: sessionAdapter.sessionActive
+        sessionMode: sessionAdapter.sessionMode
     }
 
     palette.window: appTheme.pageBackground
@@ -70,11 +80,10 @@ ApplicationWindow {
     palette.highlight: appTheme.accent
     palette.highlightedText: appTheme.textOnAccent
     palette.placeholderText: appTheme.textMuted
-    palette.toolTipBase: appTheme.surface
+    palette.toolTipBase: appTheme.surfaceRaised
     palette.toolTipText: appTheme.textPrimary
     palette.link: appTheme.accent
     palette.linkVisited: appTheme.accent
-
     color: appTheme.pageBackground
 
     ErrorPopup {
@@ -82,253 +91,330 @@ ApplicationWindow {
         theme: appTheme
     }
 
-    QtObject {
-        id: errorManager
-        signal show(string msg)
-    }
-
-    Rectangle {
+    RowLayout {
         anchors.fill: parent
-        color: "transparent"
+        spacing: 0
 
-        ColumnLayout {
-            anchors.fill: parent
-            anchors.margins: 16
-            spacing: 12
+        Rectangle {
+            id: navigationRail
+            Layout.fillHeight: true
+            Layout.preferredWidth: root.navigationCollapsed
+                                   ? appTheme.navigationCollapsedWidth
+                                   : appTheme.navigationExpandedWidth
+            Layout.minimumWidth: Layout.preferredWidth
+            Layout.maximumWidth: Layout.preferredWidth
+            color: appTheme.surface
+            border.width: 0
+
+            Behavior on Layout.preferredWidth {
+                NumberAnimation {
+                    duration: appTheme.animationNormal
+                    easing.type: Easing.OutCubic
+                }
+            }
 
             Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 52
-                radius: 10
-                color: appTheme.surface
-                border.color: appTheme.border
+                anchors.right: parent.right
+                width: 1
+                height: parent.height
+                color: appTheme.border
+            }
 
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.margins: 10
-                    spacing: 10
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: appTheme.space12
+                spacing: appTheme.space8
 
-                    TabBar {
-                        id: tabBar
-                        Layout.fillWidth: true
+                Item {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 44
 
-                        background: Rectangle {
-                            color: "transparent"
+                    RowLayout {
+                        anchors.fill: parent
+                        spacing: appTheme.space10
+
+                        Image {
+                            source: Qt.resolvedUrl("icons/logo-mark.svg")
+                            sourceSize.width: 32
+                            sourceSize.height: 32
+                            Layout.preferredWidth: 32
+                            Layout.preferredHeight: 32
                         }
-
-                        TabButton {
-                            id: tabTextBtn
-                            text: qsTr("测试界面")
-
-                            font.pixelSize: Math.max(12, Math.min(16, height * 0.4))
-
-                            background: Rectangle {
-                                implicitHeight: 36
-                                radius: 6
-                                color: tabBar.currentIndex === 0 ? appTheme.selectedBackground : "transparent"
-                                border.color: tabBar.currentIndex === 0 ? appTheme.selectedBorder : "transparent"
-                            }
-
-                            contentItem: Text {
-                                text: tabTextBtn.text
-                                font: tabTextBtn.font
-                                color: tabBar.currentIndex === 0 ? appTheme.accentText : appTheme.textSecondary
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
-                            }
-                        }
-
-                        TabButton {
-                            id: tabDebugBtn
-                            text: qsTr("调试界面")
-
-                            font.pixelSize: Math.max(12, Math.min(16, height * 0.4))
-                            background: Rectangle {
-                                implicitHeight: 36
-                                radius: 6
-                                color: tabBar.currentIndex === 1 ? appTheme.selectedBackground : "transparent"
-                                border.color: tabBar.currentIndex === 1 ? appTheme.selectedBorder : "transparent"
-                            }
-
-                            contentItem: Text {
-                                text: tabDebugBtn.text
-                                font: tabDebugBtn.font
-                                color: tabBar.currentIndex === 1 ? appTheme.accentText : appTheme.textSecondary
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
-                            }
-                        }
-
-                        TabButton {
-                            id: tabParamsBtn
-                            text: qsTr("参数界面")
-
-                            font.pixelSize: Math.max(12, Math.min(16, height * 0.4))
-                            background: Rectangle {
-                                implicitHeight: 36
-                                radius: 6
-                                color: tabBar.currentIndex === 2 ? appTheme.selectedBackground : "transparent"
-                                border.color: tabBar.currentIndex === 2 ? appTheme.selectedBorder : "transparent"
-                            }
-
-                            contentItem: Text {
-                                text: tabParamsBtn.text
-                                font: tabParamsBtn.font
-                                color: tabBar.currentIndex === 2 ? appTheme.accentText : appTheme.textSecondary
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
-                            }
-                        }
-                        TabButton {
-                            id: tabBusBtn
-                            text: qsTr("总线配置")
-                            font.pixelSize: Math.max(12, Math.min(16, height * 0.4))
-
-                            background: Rectangle {
-                                implicitHeight: 36
-                                radius: 6
-                                color: tabBar.currentIndex === 3 ? appTheme.selectedBackground : "transparent"
-                                border.color: tabBar.currentIndex === 3 ? appTheme.selectedBorder : "transparent"
-                            }
-
-                            contentItem: Text {
-                                text: tabBusBtn.text
-                                font: tabBusBtn.font
-                                color: tabBar.currentIndex === 3 ? appTheme.accentText : appTheme.textSecondary
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
-                            }
-                        }
-
-                    }
-
-                    Rectangle {
-                        width: 120
-                        height: 28
-                        radius: 6
-                        visible: EthercatBackend.sessionActive
-                        color: appTheme.successBackground
-                        border.color: appTheme.successBorder
 
                         Text {
-                            anchors.centerIn: parent
-                            text: EthercatBackend.sessionMode
-                            font.pixelSize: 12
-                            color: appTheme.successText
+                            visible: !root.navigationCollapsed
+                            Layout.fillWidth: true
+                            text: qsTr("Dynamicx\nEtherCAT Tool")
+                            color: appTheme.textPrimary
+                            font.pixelSize: appTheme.fontBody
+                            font.weight: Font.DemiBold
+                            lineHeight: 0.9
+                            elide: Text.ElideRight
+                        }
+
+                        AppButton {
+                            visible: !root.navigationCollapsed
+                            theme: appTheme
+                            variant: "ghost"
+                            icon.source: Qt.resolvedUrl("icons/chevron-left.svg")
+                            accessibleName: qsTr("收起导航")
+                            actionEnabled: !root.compactWindow
+                            Layout.preferredWidth: 32
+                            implicitHeight: 32
+                            ToolTip.visible: hovered
+                            ToolTip.text: qsTr("收起导航")
+                            onClicked: {
+                                appearanceSettings.navigationCollapsed = true
+                                root.persistAppearance()
+                            }
                         }
                     }
                 }
-            }
 
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                radius: 10
-                color: appTheme.surface
-                border.color: appTheme.border
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 1
+                    color: appTheme.divider
+                }
 
-                StackLayout {
-                    id: pageStack
-                    anchors.fill: parent
-                    anchors.margins: 10
-                    currentIndex: tabBar.currentIndex
+                SideNavButton {
+                    Layout.fillWidth: true
+                    theme: appTheme
+                    text: qsTr("测试与烧录")
+                    iconSource: Qt.resolvedUrl("icons/test.svg")
+                    selected: root.currentPageIndex === 0
+                    sessionOwned: sessionAdapter.sessionActive && sessionAdapter.modeKey === "test"
+                    collapsed: root.navigationCollapsed
+                    onClicked: root.currentPageIndex = 0
+                }
 
-                    TestPage {
-                        theme: appTheme
+                SideNavButton {
+                    Layout.fillWidth: true
+                    theme: appTheme
+                    text: qsTr("设备调试")
+                    iconSource: Qt.resolvedUrl("icons/debug.svg")
+                    selected: root.currentPageIndex === 1
+                    sessionOwned: sessionAdapter.sessionActive && sessionAdapter.modeKey === "debug"
+                    collapsed: root.navigationCollapsed
+                    onClicked: root.currentPageIndex = 1
+                }
+
+                SideNavButton {
+                    Layout.fillWidth: true
+                    theme: appTheme
+                    text: qsTr("MIT 参数")
+                    iconSource: Qt.resolvedUrl("icons/motor.svg")
+                    selected: root.currentPageIndex === 2
+                    sessionOwned: sessionAdapter.sessionActive && sessionAdapter.modeKey === "params"
+                    collapsed: root.navigationCollapsed
+                    onClicked: root.currentPageIndex = 2
+                }
+
+                SideNavButton {
+                    Layout.fillWidth: true
+                    theme: appTheme
+                    text: qsTr("总线配置")
+                    iconSource: Qt.resolvedUrl("icons/bus.svg")
+                    selected: root.currentPageIndex === 3
+                    sessionOwned: sessionAdapter.sessionActive && sessionAdapter.modeKey === "bus"
+                    collapsed: root.navigationCollapsed
+                    onClicked: root.currentPageIndex = 3
+                }
+
+                Item { Layout.fillHeight: true }
+
+                StatusBadge {
+                    visible: !root.navigationCollapsed
+                    Layout.fillWidth: true
+                    theme: appTheme
+                    text: sessionAdapter.statusText
+                    tone: sessionAdapter.statusTone
+                }
+
+                AppButton {
+                    visible: root.navigationCollapsed && !root.compactWindow
+                    Layout.alignment: Qt.AlignHCenter
+                    Layout.preferredWidth: 40
+                    theme: appTheme
+                    variant: "ghost"
+                    icon.source: Qt.resolvedUrl("icons/chevron-right.svg")
+                    accessibleName: qsTr("展开导航")
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("展开导航")
+                    onClicked: {
+                        appearanceSettings.navigationCollapsed = false
+                        root.persistAppearance()
                     }
+                }
 
-                    DebugPage {
-                        theme: appTheme
-                    }
-
-                    ParamsConfigPage {
-                        theme: appTheme
-                    }
-                    BusConfigurationPage {
-                        theme: appTheme
-                    }
-
-
+                Text {
+                    visible: !root.navigationCollapsed
+                    Layout.fillWidth: true
+                    text: qsTr("Dynamicx EtherCAT Tool")
+                    color: appTheme.textMuted
+                    font.pixelSize: appTheme.fontCaption
+                    horizontalAlignment: Text.AlignHCenter
+                    elide: Text.ElideRight
                 }
             }
+        }
 
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 28
-                radius: 6
-                color: "transparent"
+        Item {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
 
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.margins: 6
-                    spacing: 10
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: appTheme.space12
+                spacing: appTheme.space8
 
-                    // 软件名
-                    Text {
-                        text: qsTr("Dynamicx EtherCAT Tool")
-                        font.pixelSize: 11
-                        color: appTheme.textMuted
-                        opacity: 0.55
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: appTheme.topBarHeight
+                    radius: appTheme.radiusLarge
+                    color: appTheme.surface
+                    border.width: 1
+                    border.color: appTheme.border
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: appTheme.space16
+                        anchors.rightMargin: appTheme.space12
+                        spacing: appTheme.space10
+
+                        ColumnLayout {
+                            spacing: 0
+
+                            Text {
+                                text: root.currentPageTitle
+                                color: appTheme.textPrimary
+                                font.pixelSize: appTheme.fontTitle
+                                font.weight: Font.DemiBold
+                            }
+
+                            Text {
+                                visible: root.width >= 1180
+                                text: qsTr("工程调试工作台")
+                                color: appTheme.textMuted
+                                font.pixelSize: appTheme.fontCaption
+                            }
+                        }
+
+                        StatusBadge {
+                            theme: appTheme
+                            text: sessionAdapter.statusText
+                            tone: sessionAdapter.statusTone
+                        }
+
+                        Item { Layout.fillWidth: true }
+
+                        NicSelector {
+                            Layout.preferredWidth: root.width < 1160 ? 270 : 330
+                            Layout.maximumWidth: 350
+                            theme: appTheme
+                            model: sessionAdapter.nicList
+                            currentIndex: sessionAdapter.selectedNicIndex
+                            actionEnabled: sessionAdapter.idle
+                            busy: sessionAdapter.nicRefreshPending
+                            onSelectionRequested: function(index) {
+                                sessionAdapter.selectNic(index)
+                            }
+                            onRefreshRequested: sessionAdapter.refreshNics()
+                        }
+
+                        ThemeModeControl {
+                            Layout.preferredWidth: 144
+                            theme: appTheme
+                            mode: appearanceSettings.themeMode
+                            onModeRequested: function(mode) {
+                                appearanceSettings.themeMode = mode
+                                root.persistAppearance()
+                            }
+                        }
                     }
+                }
 
-                    // 分隔
-                    Text {
-                        text: "|"
-                        color: appTheme.textMuted
-                        opacity: 0.25
-                        font.pixelSize: 11
-                    }
+                Item {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
 
-                    // 作者
-                    Text {
-                        text: "author: wiselook"
-                        font.pixelSize: 11
-                        color: appTheme.textMuted
-                        opacity: 0.35
-                    }
+                    StackLayout {
+                        anchors.fill: parent
+                        currentIndex: root.currentPageIndex
 
-                    // GitHub
-                    Text {
-                        text: "github: https://github.com/WiseL00k"
-                        font.pixelSize: 11
-                        color: appTheme.textMuted
-                        opacity: 0.35
-                    }
+                        TestPage {
+                            id: testPage
+                            theme: appTheme
+                            sessionUi: root.sessionUi
+                            onErrorRequested: function(message) {
+                                errorPopup.show(message)
+                            }
+                        }
 
-                    // 吃掉剩余空间
-                    Item {
-                        Layout.fillWidth: true
-                    }
+                        DebugPage {
+                            id: debugPage
+                            theme: appTheme
+                            sessionUi: root.sessionUi
+                            onErrorRequested: function(message) {
+                                errorPopup.show(message)
+                            }
+                        }
 
-                    // 连接状态（最右）
-                    Text {
-                        text: EthercatBackend.sessionActive ? qsTr("● ") + EthercatBackend.sessionMode : qsTr("● 未连接")
-                        font.pixelSize: 11
-                        color: EthercatBackend.sessionActive ? appTheme.success : appTheme.danger
-                        opacity: 0.9
+                        ParamsConfigPage {
+                            id: paramsPage
+                            theme: appTheme
+                            sessionUi: root.sessionUi
+                            onErrorRequested: function(message) {
+                                errorPopup.show(message)
+                            }
+                        }
+
+                        BusConfigurationPage {
+                            id: busPage
+                            theme: appTheme
+                            sessionUi: root.sessionUi
+                            onErrorRequested: function(message) {
+                                errorPopup.show(message)
+                            }
+                        }
                     }
+                }
+
+                LogDock {
+                    id: logDock
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: implicitHeight
+                    theme: appTheme
+                    contextName: root.currentPageTitle
+                    logText: logAdapter.currentText
+                    expanded: appearanceSettings.logDockExpanded
+                    expandedHeight: Math.max(120,
+                                             Math.min(appTheme.logDockExpandedHeight,
+                                                      root.height - 520))
+                    onToggleRequested: function(expanded) {
+                        appearanceSettings.logDockExpanded = expanded
+                        root.persistAppearance()
+                    }
+                    onClearRequested: logAdapter.clearCurrent()
                 }
             }
         }
     }
 
     Component.onCompleted: {
-        EthercatBackend.refreshNicsAsync()
+        if (["system", "light", "dark"].indexOf(appearanceSettings.themeMode) < 0) {
+            appearanceSettings.themeMode = "system"
+            root.persistAppearance()
+        }
+        sessionAdapter.refreshNics()
     }
 
     Connections {
         target: EthercatBackend
 
-        function onSoemErrorOccurred(msg) {
-            errorPopup.show(msg)
+        function onSoemErrorOccurred(message) {
+            errorPopup.show(message)
         }
     }
 
-    Connections {
-        target: errorManager
-
-        function onShow(msg) {
-            errorPopup.show(msg)
-        }
-    }
 }

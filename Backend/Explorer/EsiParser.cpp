@@ -278,7 +278,33 @@ void resolveObjectSubItems(ObjectDictionaryEntry& object,
 {
     const auto dataType = dataTypes.constFind(object.dataType);
     if (dataType != dataTypes.constEnd()) {
-        object.subItems = dataType->subItems;
+        for (const OdSubItem& subItem : dataType->subItems) {
+            const auto referencedType = dataTypes.constFind(subItem.dataType);
+            const bool expandableArray = referencedType != dataTypes.constEnd()
+                && referencedType->isArray()
+                && referencedType->arrayElementBitSize > 0
+                && referencedType->arrayLowerBound >= 0
+                && referencedType->arrayLowerBound <= 255
+                && referencedType->arrayElements
+                    <= 256 - referencedType->arrayLowerBound;
+            if (!expandableArray) {
+                object.subItems.push_back(subItem);
+                continue;
+            }
+
+            for (int element = 0; element < referencedType->arrayElements; ++element) {
+                OdSubItem expanded = subItem;
+                expanded.subIndex = static_cast<quint8>(
+                    referencedType->arrayLowerBound + element);
+                if (!referencedType->baseType.isEmpty()) {
+                    expanded.dataType = referencedType->baseType;
+                }
+                expanded.bitSize = referencedType->arrayElementBitSize;
+                expanded.bitOffset = subItem.bitOffset
+                    + element * referencedType->arrayElementBitSize;
+                object.subItems.push_back(std::move(expanded));
+            }
+        }
     }
 
     for (qsizetype i = 0; i < infoSubItems.size(); ++i) {

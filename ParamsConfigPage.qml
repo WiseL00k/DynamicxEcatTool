@@ -1,244 +1,114 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtQuick.Dialogs
 
 Item {
+    id: root
 
     property var theme
-    property bool isConnected: false
-    signal connectionChanged(bool connected)
+    property var sessionUi
+    readonly property bool isConnected: sessionUi
+                                                ? sessionUi.mitConnected
+                                                : EthercatBackend.connected
+                                                  && EthercatBackend.sessionMode === "MIT参数调试"
+    readonly property bool occupiedByOtherMode: sessionUi
+                                                ? sessionUi.sessionActive && !sessionUi.mitConnected
+                                                : EthercatBackend.sessionActive
+                                                  && EthercatBackend.sessionMode !== "MIT参数调试"
 
-    // 改为从站类型
-    property string selectedSlaveType: "MIT"
+    signal connectionChanged(bool connected)
+    signal errorRequested(string message)
+
+    onIsConnectedChanged: connectionChanged(isConnected)
 
     Rectangle {
         anchors.fill: parent
         color: theme.pageBackground
 
-        ColumnLayout {
+        ScrollView {
+            id: pageScroll
             anchors.fill: parent
-            anchors.margins: 16
-            spacing: 14
+            clip: true
+            contentWidth: availableWidth
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
-            // =========================
-            // 顶部控制区
-            // =========================
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 180
-                radius: 10
-                color: theme.surface
-                border.color: theme.border
+            ColumnLayout {
+                width: pageScroll.availableWidth
+                spacing: 12
 
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.margins: 14
-                    spacing: 20
+                PanelCard {
+                    Layout.fillWidth: true
+                    theme: root.theme
+                    padding: 16
 
-                    // =========================
-                    // 网卡选择
-                    // =========================
-                    ColumnLayout {
-                        Layout.preferredWidth: 260
-                        spacing: 8
+                    GridLayout {
+                        anchors.fill: parent
+                        columns: root.width >= 760 ? 2 : 1
+                        columnSpacing: 20
+                        rowSpacing: 12
 
-                        RowLayout {
-                            spacing: 8
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 4
 
-                            Button {
-                                text: "刷新网卡"
-                                onClicked: EthercatBackend.refreshNicsAsync()
+                            Label {
+                                text: qsTr("MIT 电机控制")
+                                color: theme.textPrimary
+                                font.pixelSize: 18
+                                font.bold: true
                             }
 
                             Label {
-                                text: "可用网卡"
-                                font.bold: true
+                                Layout.fillWidth: true
+                                text: qsTr("当前模式固定连接地址 1 的单块 MIT 从站。参数与原始帧在切换页面后仍会保留。")
+                                color: theme.textSecondary
+                                font.pixelSize: 12
+                                wrapMode: Text.WordWrap
                             }
                         }
 
-                        Rectangle {
+                        RowLayout {
                             Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            radius: 6
-                            color: theme.inputBackground
-                            border.color: theme.borderStrong
+                            Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                            spacing: 10
 
-                            ListView {
-                                id: nicList
-                                anchors.fill: parent
-                                anchors.margins: 4
-                                spacing: 4
-                                clip: true
-
-                                model: EthercatBackend ? EthercatBackend.nicList : []
-
-                                ScrollBar.vertical: ScrollBar {}
-
-                                delegate: Rectangle {
-                                    width: ListView.view.width
-                                    height: 32
-                                    radius: 6
-
-                                    color: ListView.isCurrentItem
-                                           ? theme.selectedBackground
-                                           : "transparent"
-
-                                    border.color: ListView.isCurrentItem
-                                                  ? theme.selectedBorder
-                                                  : "transparent"
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: modelData
-                                        color: theme.textPrimary
-                                        elide: Text.ElideRight
-                                    }
-
-                                    MouseArea {
-                                        anchors.fill: parent
-                                        onClicked: {
-                                            nicList.currentIndex = index
-                                            EthercatBackend.changedSelectedNic(index)
-                                        }
-                                    }
-                                }
+                            StatusBadge {
+                                theme: root.theme
+                                text: root.isConnected ? qsTr("MIT 已连接")
+                                                       : root.occupiedByOtherMode
+                                                         ? qsTr("总线被其他任务占用")
+                                                         : qsTr("未连接")
+                                tone: root.isConnected ? "success"
+                                                       : root.occupiedByOtherMode ? "warning" : "danger"
                             }
-                        }
-                    }
 
-                    // =========================
-                    // 从站类型选择
-                    // =========================
-                    ColumnLayout {
-                        Layout.preferredWidth: 220
-                        spacing: 8
-
-                        Label {
-                            text: "从站类型"
-                            font.bold: true
-                        }
-
-                        ComboBox {
-                            id: slaveTypeBox
-                            model: ["MIT"]
-                            currentIndex: 0
-
-                            onCurrentTextChanged: {
-                                selectedSlaveType = currentText
-                                updatePanel()
-                            }
-                        }
-
-                        // 提示信息
-                        Label {
-                            text: "参数界面只能有一块从站"
-                            color: theme.dangerText
-                            font.pixelSize: 12
-                            wrapMode: Text.WordWrap
-                        }
-                    }
-
-                    Item {
-                        Layout.fillWidth: true
-                    }
-
-                    // =========================
-                    // 连接状态
-                    // =========================
-                    ColumnLayout {
-                        Layout.preferredWidth: 180
-                        spacing: 12
-
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 40
-                            radius: 6
-
-                            color: isConnected ? theme.successBackground : theme.dangerBackground
-                            border.color: isConnected ? theme.successBorder : theme.dangerBorder
-
-                            RowLayout {
-                                anchors.centerIn: parent
-                                spacing: 6
-
-                                Rectangle {
-                                    width: 10
-                                    height: 10
-                                    radius: 5
-                                    color: isConnected ? theme.success : theme.danger
+                            AppButton {
+                                theme: root.theme
+                                text: root.isConnected ? qsTr("断开连接") : qsTr("连接主站")
+                                variant: root.isConnected ? "secondary" : "primary"
+                                actionEnabled: root.isConnected
+                                               || (!root.occupiedByOtherMode
+                                                   && root.sessionUi
+                                                   && root.sessionUi.nicReady)
+                                onClicked: {
+                                    if (root.isConnected)
+                                        EthercatBackend.exitMitSlaveDebugMode()
+                                    else
+                                        EthercatBackend.enterMitSlaveDebugMode()
                                 }
-
-                                Text {
-                                    id: connectionStatus
-                                    text: isConnected ? "已连接" : "未连接"
-                                    font.bold: true
-                                    color: theme.textPrimary
-                                }
-                            }
-                        }
-
-                        Button {
-                            text: isConnected ? "断开连接" : "连接主站"
-                            Layout.fillWidth: true
-
-                            onClicked: {
-                                if (!isConnected)
-                                    EthercatBackend.enterMitSlaveDebugMode()
-                                else
-                                    EthercatBackend.exitMitSlaveDebugMode()
                             }
                         }
                     }
                 }
-            }
 
-            // =========================
-            // MIT 控制面板
-            // =========================
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                radius: 10
-                color: theme.surface
-                border.color: theme.border
-
-                Loader {
-                    id: configLoader
-                    anchors.fill: parent
-                    anchors.margins: 12
+                MITConfigPanel {
+                    Layout.fillWidth: true
+                    Layout.minimumHeight: implicitHeight
+                    theme: root.theme
+                    isConnected: root.isConnected
+                    onErrorRequested: message => root.errorRequested(message)
                 }
             }
         }
-    }
-
-    function updatePanel() {
-        configLoader.setSource(
-            "panels/MITConfigPanel.qml",
-            {
-                "slaveType": selectedSlaveType,
-                "isConnected": isConnected,
-                "theme": theme
-            }
-        )
-    }
-
-    Connections {
-        target: EthercatBackend
-
-        function onConnectedUpdated(status) {
-            isConnected = status === 1
-                    && EthercatBackend.sessionMode === "MIT参数调试"
-
-            connectionStatus.text =
-                isConnected ? "已连接" : "未连接"
-
-            connectionChanged(isConnected)
-            updatePanel()
-        }
-    }
-
-    Component.onCompleted: {
-        updatePanel()
     }
 }

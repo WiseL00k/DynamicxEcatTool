@@ -1,400 +1,312 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
 
 Item {
+    id: root
 
     property var theme
-    property bool isConnected: false
+    property var sessionUi
+    property string yamlPath: ""
+    property bool connectionRequestPending: false
     signal connectionChanged(bool connected)
+    signal errorRequested(string message)
 
-    Rectangle {
+    readonly property bool isConnected: sessionUi ? sessionUi.debugConnected : false
+    readonly property bool sessionIdle: sessionUi ? sessionUi.idle : !EthercatBackend.sessionActive
+
+    onIsConnectedChanged: connectionChanged(isConnected)
+
+    function toggleConnection() {
+        if (connectionRequestPending)
+            return
+        connectionRequestPending = true
+        connectionRequestTimer.start()
+    }
+
+    Timer {
+        id: connectionRequestTimer
+        interval: 1
+        repeat: false
+        onTriggered: {
+            if (root.isConnected)
+                EthercatBackend.stopCommunication()
+            else
+                EthercatBackend.startCommunication()
+            root.connectionRequestPending = false
+        }
+    }
+
+    ScrollView {
+        id: pageScroll
         anchors.fill: parent
-        color: theme.pageBackground
+        clip: true
+        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+        ScrollBar.vertical.policy: ScrollBar.AsNeeded
 
         ColumnLayout {
-            anchors.fill: parent
-            anchors.margins: 16
+            width: pageScroll.availableWidth
             spacing: 14
 
-            // =========================
-            // 顶部控制区
-            // =========================
-
-            Rectangle {
+            PanelCard {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 160
-                radius: 10
-                color: theme.surface
-                border.color: theme.border
+                Layout.margins: 2
+                theme: root.theme
+                padding: 18
 
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.margins: 18
-                    spacing: 24
+                ColumnLayout {
+                    width: parent.width
+                    spacing: 14
 
-                    ColumnLayout {
-                        Layout.fillHeight: true
-                        Layout.preferredWidth: 320
-                        spacing: 10
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 12
 
-                        RowLayout {
-                            spacing: 10
-
-                            Button {
-                                text: qsTr("刷新网卡")
-                                onClicked: EthercatBackend.refreshNicsAsync()
-                            }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 4
 
                             Label {
-                                text: qsTr("可用网卡")
+                                text: "配置调试通信"
+                                font.pixelSize: 20
                                 font.bold: true
-                                font.pixelSize: 14
+                                color: root.theme.textPrimary
+                            }
+                            Label {
+                                Layout.fillWidth: true
+                                text: "加载 YAML 从站配置并建立周期通信，在线状态会在下方按从站分组刷新。"
+                                color: root.theme.textSecondary
+                                wrapMode: Text.WordWrap
                             }
                         }
 
-                        Rectangle {
+                        StatusBadge {
+                            theme: root.theme
+                            text: root.sessionUi ? root.sessionUi.statusText : (root.isConnected ? "调试通信已连接" : "总线空闲")
+                            tone: root.sessionUi ? root.sessionUi.statusTone : (root.isConnected ? "success" : "neutral")
+                        }
+                    }
+
+                    GridLayout {
+                        Layout.fillWidth: true
+                        columns: root.width >= 760 ? 2 : 1
+                        columnSpacing: 16
+                        rowSpacing: 10
+
+                        ColumnLayout {
                             Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            radius: 6
-                            color: theme.inputBackground
-                            border.color: theme.borderStrong
+                            spacing: 6
 
-                            ListView {
+                            Label {
+                                text: "从站配置文件"
+                                font.bold: true
+                                color: root.theme.textPrimary
+                            }
 
-                                id: debugNicList
-                                anchors.fill: parent
-                                anchors.margins: 4
-                                spacing: 4
-                                clip: true
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 8
 
-                                model: EthercatBackend ? EthercatBackend.nicList : []
+                                TextField {
+                                    Layout.fillWidth: true
+                                    readOnly: true
+                                    text: root.yamlPath
+                                    placeholderText: "选择 YAML 配置文件"
+                                    color: root.yamlPath.length ? root.theme.textPrimary : root.theme.textMuted
+                                    selectByMouse: true
+                                }
 
-                                ScrollBar.vertical: ScrollBar {}
+                                AppButton {
+                                    theme: root.theme
+                                    text: "浏览"
+                                    variant: "secondary"
+                                    actionEnabled: !root.isConnected && !root.connectionRequestPending
+                                    onClicked: yamlFileDialog.open()
+                                }
+                            }
+                        }
 
-                                delegate: Rectangle {
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 6
 
-                                    width: ListView.view.width
-                                    height: 36
-                                    radius: 6
+                            Label {
+                                text: "主站会话"
+                                font.bold: true
+                                color: root.theme.textPrimary
+                            }
 
-                                    color: ListView.isCurrentItem ? theme.selectedBackground : "transparent"
-                                    border.color: ListView.isCurrentItem ? theme.selectedBorder : "transparent"
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 10
 
-                                    Text {
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        anchors.left: parent.left
-                                        anchors.leftMargin: 12
-                                        text: modelData
-                                        color: theme.textPrimary
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: root.isConnected
+                                          ? "通信运行中，可查看设备在线状态。"
+                                          : (!root.sessionIdle ? "其他总线会话正在运行。" : "配置就绪后可连接主站。")
+                                    color: !root.sessionIdle && !root.isConnected ? root.theme.dangerText : root.theme.textMuted
+                                    wrapMode: Text.WordWrap
+                                }
+
+                                AppButton {
+                                    theme: root.theme
+                                    text: root.isConnected ? "断开连接" : "连接主站"
+                                    variant: root.isConnected ? "danger" : "primary"
+                                    busy: root.connectionRequestPending
+                                    busyText: root.isConnected ? "正在断开" : "正在连接"
+                                    actionEnabled: root.isConnected
+                                                   || (root.sessionIdle
+                                                       && root.sessionUi
+                                                       && root.sessionUi.nicReady)
+                                    onClicked: root.toggleConnection()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            PanelCard {
+                Layout.fillWidth: true
+                Layout.margins: 2
+                theme: root.theme
+                padding: 14
+
+                ColumnLayout {
+                    width: parent.width
+                    spacing: 10
+
+                    RowLayout {
+                        Layout.fillWidth: true
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 3
+
+                            Label {
+                                text: "设备在线状态"
+                                font.pixelSize: 18
+                                font.bold: true
+                                color: root.theme.textPrimary
+                            }
+                            Label {
+                                text: root.isConnected
+                                      ? "状态由 EtherCAT PDO 周期监控刷新"
+                                      : "连接后显示配置中的电机与 IMU"
+                                color: root.theme.textSecondary
+                            }
+                        }
+
+                        StatusBadge {
+                            theme: root.theme
+                            text: root.isConnected ? (EthercatBackend.slaveCount + " 个从站") : "未连接"
+                            tone: root.isConnected ? "info" : "neutral"
+                            compact: true
+                        }
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 1
+                        color: root.theme.border
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 5
+
+                        Repeater {
+                            id: deviceRepeater
+                            model: EthercatBackend ? EthercatBackend.deviceStatusList : null
+
+                            delegate: Rectangle {
+                                id: deviceRow
+                                required property int index
+                                required property string type
+                                required property string name
+                                required property bool online
+                                required property int canBus
+                                required property int canId
+                                required property string slaveName
+
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: type === "slaveHeader" ? 34 : 46
+                                radius: 6
+                                color: type === "slaveHeader"
+                                       ? root.theme.selectedBackground
+                                       : (index % 2 === 0 ? root.theme.surfaceMuted : root.theme.surface)
+                                border.color: type === "slaveHeader" ? root.theme.selectedBorder : root.theme.border
+
+                                Label {
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    anchors.leftMargin: 10
+                                    anchors.rightMargin: 10
+                                    visible: deviceRow.type === "slaveHeader"
+                                    text: deviceRow.slaveName
+                                    font.bold: true
+                                    color: root.theme.accentText
+                                    elide: Text.ElideRight
+                                }
+
+                                RowLayout {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 10
+                                    anchors.rightMargin: 10
+                                    visible: deviceRow.type !== "slaveHeader"
+                                    spacing: 10
+
+                                    Label {
+                                        Layout.fillWidth: true
+                                        text: deviceRow.name
+                                        font.bold: true
+                                        color: root.theme.textPrimary
                                         elide: Text.ElideRight
                                     }
 
-                                    MouseArea {
-                                        anchors.fill: parent
-                                        onClicked: {
-                                            debugNicList.currentIndex = index
-                                            EthercatBackend.changedSelectedNic(debugNicList.currentIndex)
-                                        }
+                                    Label {
+                                        text: deviceRow.type === "motor"
+                                              ? "CAN" + deviceRow.canBus + " · ID " + deviceRow.canId
+                                              : "IMU · CAN" + deviceRow.canBus
+                                        color: root.theme.textMuted
+                                    }
+
+                                    StatusBadge {
+                                        theme: root.theme
+                                        text: deviceRow.online ? "在线" : "离线"
+                                        tone: deviceRow.online ? "success" : "danger"
+                                        compact: true
                                     }
                                 }
                             }
                         }
-                    }
 
-                    Item {
-                        Layout.preferredWidth: 80
-                        Layout.fillWidth: true
-                    }
-
-                    ColumnLayout {
-
-                        Layout.fillHeight: true
-                        Layout.preferredWidth: 260
-                        spacing: 14
-
-                        RowLayout {
-
+                        Label {
                             Layout.fillWidth: true
-                            spacing: 10
-
-                            Rectangle {
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: 40
-
-                                radius: 6
-                                color: isConnected ? theme.successBackground : theme.dangerBackground
-                                border.color: isConnected ? theme.successBorder : theme.dangerBorder
-
-                                RowLayout {
-                                    anchors.centerIn: parent
-                                    spacing: 8
-
-                                    Rectangle {
-                                        width: 10
-                                        height: 10
-                                        radius: 5
-                                        color: isConnected ? theme.success : theme.danger
-
-                                        Layout.alignment: Qt.AlignVCenter
-                                    }
-
-                                    Text {
-                                        id: connectionStatus
-                                        text: qsTr("未连接")
-                                        font.bold: true
-                                        color: theme.textPrimary
-
-                                        Layout.alignment: Qt.AlignVCenter
-                                    }
-                                }
-                            }
-
-                            Button {
-                                text: isConnected ? qsTr("断开连接") : qsTr("连接主站")
-
-                                onClicked: {
-                                    if (!isConnected)
-                                        EthercatBackend.startCommunication()
-                                    else
-                                        EthercatBackend.stopCommunication()
-                                }
-                            }
-                        }
-
-                        RowLayout {
-
-                            Layout.fillWidth: true
-                            spacing: 8
-
-                            TextField {
-                                id: yamlPathField
-                                readOnly: true
-                                Layout.fillWidth: true
-                                placeholderText: qsTr("选择 YAML 配置文件")
-                            }
-
-                            Button {
-                                text: qsTr("浏览")
-                                onClicked: fileDialog.open()
-                            }
+                            Layout.preferredHeight: 120
+                            visible: deviceRepeater.count === 0
+                            text: root.isConnected ? "配置中没有可显示的设备" : "尚未建立调试通信"
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                            color: root.theme.textMuted
                         }
                     }
                 }
             }
 
-            // =========================
-            // 日志 + 电机状态
-            // =========================
-
-            Rectangle {
-
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-
-                radius: 10
-                color: theme.surface
-                border.color: theme.border
-
-                RowLayout {
-
-                    anchors.fill: parent
-                    anchors.margins: 14
-                    spacing: 18
-
-                    Rectangle {
-
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-
-                        radius: 6
-                        color: theme.surfaceMuted
-                        border.color: theme.borderStrong
-
-                        ScrollView {
-
-                            anchors.fill: parent
-                            ScrollBar.vertical: ScrollBar {}
-
-                            TextArea {
-
-                                id: logArea
-                                readOnly: true
-                                wrapMode: TextArea.NoWrap
-
-                                font.family: theme.fontFamily
-                                font.pixelSize: 13
-
-                                padding: 10
-                                background: null
-                            }
-                        }
-                    }
-
-                    Rectangle {
-
-                        Layout.preferredWidth: 420
-                        Layout.fillHeight: true
-
-                        radius: 6
-                        color: theme.surfaceMuted
-                        border.color: theme.borderStrong
-
-                        ColumnLayout {
-
-                            anchors.fill: parent
-                            anchors.margins: 12
-                            spacing: 10
-
-                            Label {
-                                text: qsTr("设备在线状态")
-                                font.bold: true
-                                font.pixelSize: 14
-                            }
-
-                            ListView {
-
-                                id: deviceStatusList
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-
-                                clip: true
-                                spacing: 6
-
-                                model: EthercatBackend ? EthercatBackend.deviceStatusList : []
-
-                                ScrollBar.vertical: ScrollBar { id: vbar }
-
-                                delegate: Item {
-
-                                    width: ListView.view.width - (vbar.visible ? vbar.width : 0)
-
-                                    property var style:
-                                        type === "slaveHeader"
-                                        ? { bg:theme.selectedBackground, border:theme.selectedBorder, height:32 }
-                                        : { bg:theme.surface, border:theme.border, height:52 }
-
-                                    height: style.height
-
-                                    Rectangle {
-
-                                        anchors.fill: parent
-                                        radius: 6
-                                        color: style.bg
-                                        border.color: style.border
-
-                                        RowLayout {
-
-                                            anchors.fill: parent
-                                            anchors.margins: 10
-                                            spacing: 10
-
-                                            // motor 或 imu 共用布局
-                                            visible: type === "motor" || type === "imu"
-
-                                            Column {
-
-                                                Layout.fillWidth: true
-                                                spacing: 2
-
-                                                Label {
-                                                    text: name || ""
-                                                    font.bold: true
-                                                    color: theme.textPrimary
-                                                }
-
-                                                // 根据类型动态显示信息
-                                                Label {
-                                                    text: {
-                                                        if (type === "motor")
-                                                            return "CAN Bus: " + canBus + "   ID: " + canId
-                                                        else if (type === "imu")
-                                                            return "IMU | CAN Bus: " + canBus
-                                                        else
-                                                            return ""
-                                                    }
-                                                    font.pixelSize: 12
-                                                    color: theme.textSecondary
-                                                }
-                                            }
-
-                                            // 在线状态圆点
-                                            Rectangle {
-                                                width: 14
-                                                height: 14
-                                                radius: 7
-                                                color: online ? theme.success : theme.danger
-                                            }
-
-                                            // 在线状态文字
-                                            Label {
-                                                text: online ? qsTr("在线") : qsTr("离线")
-                                                color: online ? theme.success : theme.danger
-                                                font.bold: true
-                                            }
-                                        }
-
-                                        // Header
-                                        Label {
-
-                                            visible: type === "slaveHeader"
-
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            anchors.left: parent.left
-                                            anchors.leftMargin: 10
-
-                                            text: slaveName || ""
-                                            font.bold: true
-                                            color: theme.accentText
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            Item { Layout.preferredHeight: 2 }
         }
     }
 
     FileDialog {
-        id: fileDialog
+        id: yamlFileDialog
+        title: "选择 YAML 配置文件"
         nameFilters: ["YAML files (*.yaml *.yml)"]
-
-        onAccepted: {
-            yamlPathField.text = EthercatBackend.changeConfigFilePath(selectedFile)
-        }
-    }
-
-    Connections {
-
-        target: EthercatBackend
-
-        function onConnectedUpdated(status) {
-
-            switch (status) {
-
-            case 0:
-                isConnected = false
-                connectionStatus.text = "未连接"
-                break
-
-            case 1:
-                isConnected =
-                        EthercatBackend.sessionMode === "调试通信"
-                connectionStatus.text = "已连接"
-                break
-            }
-            connectionChanged(isConnected)
-        }
-
-        function onLogUpdated(line) {
-            logArea.text = line
-        }
-
-        function onLogAppend(line) {
-            logArea.append(line)
-        }
+        onAccepted: root.yamlPath = EthercatBackend.changeConfigFilePath(selectedFile)
     }
 }
