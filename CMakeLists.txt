@@ -32,6 +32,7 @@ set(APP_QML_FILES
     SessionUiAdapter.qml
     LogUiAdapter.qml
     TestPage.qml
+    FlashProgressView.qml
     DebugPage.qml
     ParamsConfigPage.qml
     ErrorPopup.qml
