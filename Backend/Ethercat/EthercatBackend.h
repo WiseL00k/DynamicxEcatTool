@@ -4,6 +4,7 @@
 #include "Backend/Ethercat/BusSessionCoordinator.h"
 #include "Backend/Ethercat/EthercatMasterController.h"
 #include "Backend/Ethercat/MitSlaveController.h"
+#include "Backend/Dc/DcTestController.h"
 #include "Backend/Explorer/EthercatExplorerController.h"
 #include "Backend/Flash/FlashService.h"
 #include "Backend/Models/DeviceStatusModel.h"
@@ -27,6 +28,7 @@ class EthercatBackend : public QObject
     Q_PROPERTY(bool sessionActive READ sessionActive NOTIFY sessionChanged)
     Q_PROPERTY(QString sessionMode READ sessionMode NOTIFY sessionChanged)
     Q_PROPERTY(EthercatExplorerController* busExplorer READ busExplorer CONSTANT)
+    Q_PROPERTY(DcTestController* dcTest READ dcTest CONSTANT)
     Q_PROPERTY(DeviceStatusModel* deviceStatusList READ motorStatusList CONSTANT)
 
 public:
@@ -39,6 +41,7 @@ public:
     bool sessionActive() const;
     QString sessionMode() const;
     EthercatExplorerController* busExplorer();
+    DcTestController* dcTest();
     DeviceStatusModel* motorStatusList()
     {
         return &deviceModel_;
@@ -71,6 +74,7 @@ signals:
     void slaveCountChanged();
     void logUpdated(const QString& line);
     void logAppend(const QString& line);
+    void dcLogAppended(const QString& line);
     void connectedUpdated(const int connected_status);
     void motorStatusListChanged();
     void soemErrorOccurred(QString message);
@@ -101,6 +105,7 @@ private:
     BusSessionCoordinator sessionCoordinator_;
     EthercatMasterController masterController_;
     EthercatExplorerController busExplorer_;
+    DcTestController dcTest_;
     EthercatMonitorController monitorController_;
     FlashService flashService_;
     MitSlaveController mitSlaveController_;

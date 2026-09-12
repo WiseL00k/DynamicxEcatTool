@@ -86,6 +86,8 @@ QString BusSessionCoordinator::displayName(Mode mode)
         return QStringLiteral("MIT参数调试");
     case Mode::Explorer:
         return QStringLiteral("总线配置");
+    case Mode::DcTest:
+        return QStringLiteral("DC测试");
     case Mode::Flashing:
         return QStringLiteral("固件或EEPROM烧录");
     }

@@ -5,6 +5,10 @@ project(soem_interface LANGUAGES CXX)
 add_library(soem_interface SHARED
     include/SOEM_interface/EcatMasterBus.h
     include/SOEM_interface/EcatSlaveBase.h
+    include/SOEM_interface/DcTestTypes.h
+    src/SOEM_interface/DcRuntime.h
+    src/SOEM_interface/DcRuntime.cpp
+    src/SOEM_interface/EcatMasterBusDc.cpp
     include/SOEM_interface/SoemUtils.h
     include/SOEM_interface/soem_interface_export.h
     src/SOEM_interface/EcatMasterBus.cpp

@@ -17,6 +17,7 @@ EthercatBackend::EthercatBackend(QObject* parent)
     : QObject(parent)
     , sessionCoordinator_(this)
     , busExplorer_(sessionCoordinator_, masterController_, this)
+    , dcTest_(sessionCoordinator_, masterController_, this)
     , monitorController_(this)
     , flashService_(this)
 {
@@ -58,6 +59,11 @@ EthercatExplorerController* EthercatBackend::busExplorer()
     return &busExplorer_;
 }
 
+DcTestController* EthercatBackend::dcTest()
+{
+    return &dcTest_;
+}
+
 bool EthercatBackend::setDeviceOnlineStatus(const QString& motorName, const bool& status)
 {
     return deviceModel_.setDeviceOnline(motorName, status);
@@ -79,6 +85,12 @@ void EthercatBackend::connectServices()
     connect(&sessionCoordinator_, &BusSessionCoordinator::sessionChanged, this, &EthercatBackend::sessionChanged);
     connect(&busExplorer_, &EthercatExplorerController::errorOccurred, this, &EthercatBackend::soemErrorOccurred);
     connect(&busExplorer_, &EthercatExplorerController::logAppended, this, &EthercatBackend::logAppend);
+    connect(&dcTest_, &DcTestController::logAppended,
+            this, &EthercatBackend::dcLogAppended);
+    connect(&dcTest_, &DcTestController::sessionConnected,
+            this, [this](int count) { updateConnectionState(true, count); });
+    connect(&dcTest_, &DcTestController::sessionReleased,
+            this, [this] { updateConnectionState(false, 0); });
 }
 
 bool EthercatBackend::validateSelectedNic() const
@@ -131,6 +143,7 @@ void EthercatBackend::refreshNics()
         QString errorMessage;
         if (adapterService_.selectAdapter(0, nicName_, errorMessage)) {
             busExplorer_.setNicName(nicName_);
+            dcTest_.setNicName(nicName_);
         }
     }
     emit nicListChanged();
@@ -161,6 +174,7 @@ void EthercatBackend::refreshNicsAsync()
                     if (self->adapterService_.selectAdapter(
                             0, self->nicName_, errorMessage)) {
                         self->busExplorer_.setNicName(self->nicName_);
+                        self->dcTest_.setNicName(self->nicName_);
                     }
                 }
                 emit self->nicListChanged();
@@ -178,6 +192,7 @@ void EthercatBackend::changedSelectedNic(const int& nicIndex)
     }
 
     busExplorer_.setNicName(nicName_);
+    dcTest_.setNicName(nicName_);
     emit logUpdated(QStringLiteral("选择了网卡: %1").arg(QString::fromStdString(nicName_)));
 }
 

@@ -1,5 +1,6 @@
 #include "SOEM_interface/EcatMasterBus.h"
 #include "SOEM_interface/EcatSlaveBase.h"
+#include "DcRuntime.h"
 
 #include <algorithm>
 #include <cassert>
@@ -42,7 +43,7 @@ std::string alStatusText(const uint16_t code)
 
 EcatMasterBus::EcatMasterBus(const std::string& ifname)
     : nic_name_(ifname), ioMap_(kIoMapCapacity, 0)
-{}
+{ initializeDcRuntime(); }
 
 EcatMasterBus::~EcatMasterBus()
 {
@@ -59,6 +60,7 @@ void EcatMasterBus::setNICName(const std::string& ifname)
 
 SoemInterfaceErrorCode EcatMasterBus::startTest()
 {
+    if (dcRuntime_->active()) return EcatInitFailed;
     if (running_) {
         return NoError;
     }
@@ -87,6 +89,7 @@ SoemInterfaceErrorCode EcatMasterBus::startTest()
 
 SoemInterfaceErrorCode EcatMasterBus::start()
 {
+    if (dcRuntime_->active()) return EcatInitFailed;
     if (running_) {
         return NoError;
     }
@@ -285,6 +288,7 @@ SoemInterfaceErrorCode EcatMasterBus::initMaster()
 
 SoemInterfaceErrorCode EcatMasterBus::closeMaster()
 {
+    stopDcTest();
     if (socket_open_ && operational_) {
         requestStateDetailed(EC_STATE_SAFE_OP);
     }
@@ -396,6 +400,12 @@ BusStateResult EcatMasterBus::leaveOperationalForSafeOp()
 }
 BusStateResult EcatMasterBus::requestStateDetailed(const uint16_t requestedState)
 {
+    if (dcRuntime_->active()) {
+        BusStateResult result;
+        result.requestedState = requestedState;
+        result.error = "State changes are unavailable during a DC test.";
+        return result;
+    }
     if (!isSupportedState(requestedState)) {
         BusStateResult result;
         result.requestedState = requestedState;
@@ -664,6 +674,7 @@ std::vector<ActivePdoEntry> EcatMasterBus::activePdoMappings() const
 
 bool EcatMasterBus::startProcessData()
 {
+    if (dcRuntime_->active()) return false;
     std::lock_guard<std::mutex> mailboxLock(mailboxMutex_);
     std::lock_guard<std::recursive_mutex> contextLock(contextMutex_);
     if (running_) {
@@ -1590,6 +1601,7 @@ bool EcatMasterBus::checkForSdoErrors(const uint16_t slave, const uint16_t index
 
 bool EcatMasterBus::sdoWrite(const uint16_t slave, const uint16_t index, const uint8_t subindex, const bool completeAccess, int size, void* buf)
 {
+    if (dcRuntime_->active()) return false;
     std::lock_guard<std::mutex> mailboxLock(mailboxMutex_);
     {
         std::lock_guard<std::recursive_mutex> contextLock(contextMutex_);
@@ -1624,6 +1636,7 @@ bool EcatMasterBus::sdoWrite(const uint16_t slave, const uint16_t index, const u
 
 bool EcatMasterBus::sdoRead(const uint16_t slave, const uint16_t index, const uint8_t subindex, const bool completeAccess, int size, void* buf)
 {
+    if (dcRuntime_->active()) return false;
     std::lock_guard<std::mutex> mailboxLock(mailboxMutex_);
     {
         std::lock_guard<std::recursive_mutex> contextLock(contextMutex_);
