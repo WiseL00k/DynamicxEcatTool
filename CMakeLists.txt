@@ -166,6 +166,9 @@ install(TARGETS DynamicxEcatTool
 )
 
 add_custom_command(TARGET DynamicxEcatTool POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        $<TARGET_FILE:soem_interface>
+        $<TARGET_FILE_DIR:DynamicxEcatTool>
     COMMAND ${CMAKE_COMMAND} -E make_directory
         $<TARGET_FILE_DIR:DynamicxEcatTool>/release
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
