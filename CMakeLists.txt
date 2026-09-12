@@ -19,26 +19,34 @@ add_subdirectory(SOEM)
 add_subdirectory(SOEM_interface)
 
 set(APP_QML_FILES
-    Main.qml
-    DesignTokens.qml
-    AppButton.qml
-    PanelCard.qml
-    StatusBadge.qml
-    ConfirmDialog.qml
-    SideNavButton.qml
-    NicSelector.qml
-    ThemeModeControl.qml
-    LogDock.qml
-    SessionUiAdapter.qml
-    LogUiAdapter.qml
-    TestPage.qml
-    FlashProgressView.qml
-    DebugPage.qml
-    ParamsConfigPage.qml
-    ErrorPopup.qml
-    BusConfigurationPage.qml
-    panels/MITConfigPanel.qml
+    qml/Main.qml
+    qml/adapters/LogUiAdapter.qml
+    qml/adapters/SessionUiAdapter.qml
+    qml/components/AppButton.qml
+    qml/components/FlashProgressView.qml
+    qml/components/LogDock.qml
+    qml/components/NicSelector.qml
+    qml/components/PanelCard.qml
+    qml/components/SideNavButton.qml
+    qml/components/StatusBadge.qml
+    qml/dialogs/ConfirmDialog.qml
+    qml/dialogs/ErrorPopup.qml
+    qml/pages/BusConfigurationPage.qml
+    qml/pages/DebugPage.qml
+    qml/pages/ParamsConfigPage.qml
+    qml/pages/TestPage.qml
+    qml/panels/MITConfigPanel.qml
+    qml/theme/DesignTokens.qml
+    qml/theme/ThemeModeControl.qml
 )
+
+# Keep the QML module root at qml/ so Main.qml and icon URLs stay stable.
+foreach(qml_file IN LISTS APP_QML_FILES)
+    string(REGEX REPLACE "^qml/" "" qml_resource_path "${qml_file}")
+    set_source_files_properties("${qml_file}" PROPERTIES
+        QT_RESOURCE_ALIAS "${qml_resource_path}"
+    )
+endforeach()
 
 set(APP_QML_RESOURCES
     icons/logo-mark.svg

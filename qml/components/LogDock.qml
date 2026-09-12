@@ -74,7 +74,7 @@ Rectangle {
                 spacing: root.theme.space8
 
                 Image {
-                    source: Qt.resolvedUrl("icons/terminal.svg")
+                    source: Qt.resolvedUrl("../icons/terminal.svg")
                     sourceSize.width: 16
                     sourceSize.height: 16
                     Layout.preferredWidth: 16

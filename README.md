@@ -22,7 +22,13 @@ DynamicxEcatTool 是一个基于 **Qt6 + QML + C++** 的 EtherCAT 调试与测�
 - `Backend/`：后端业务逻辑；`Config` 负责配置解析，`Ethercat` 负责主站、从站与 SDO 控制，`Monitor` 负责在线状态监控，`Flash` 负责 EEPROM/固件烧录，`Models`、`Network`、`Commands` 分别提供数据模型、网卡服务与电机命令封装
 - `SOEM_interface/`：对 SOEM 的主站总线、从站基类、错误处理与工具接口进行封装
 - `sample_config/`：示例 YAML 配置文件
-- `*.qml`、`panels/`：界面页面与参数面板组件
+- `qml/Main.qml`：主窗口与页面入口
+- `qml/pages/`：测试与烧录、设备调试、参数配置、总线配置页面
+- `qml/components/`：通用控件、导航、网卡选择、日志与烧录进度组件
+- `qml/dialogs/`：确认与错误对话框
+- `qml/theme/`：设计样式参数与主题切换控件
+- `qml/adapters/`：会话状态与日志的界面适配器
+- `qml/panels/`：MIT 电机参数面板
 
 ## 依赖环境
 

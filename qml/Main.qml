@@ -2,6 +2,11 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtCore
+import "components"
+import "pages"
+import "dialogs"
+import "theme"
+import "adapters"
 
 ApplicationWindow {
     id: root
