@@ -14,6 +14,7 @@ DynamicxEcatTool 是一个基于 **Qt6 + QML + C++** 的 EtherCAT 调试与测�
 - 测试界面、调试界面、参数配置界面（QML）
 - 基于 YAML 的设备/从站配置加载
 - 电机在线状态与日志输出
+- DC SYNC0 同步测试、从站配置回读及主机周期诊断
 
 ## 目录结构
 
@@ -51,6 +52,16 @@ cmake --build build -j
 
 ## 运行
 
+Windows 本地开发可使用 PowerShell 入口，自动构建、部署依赖并启动本次构建的程序：
+
+```powershell
+.\scripts\build-and-run.ps1 -RunTests
+```
+
+默认使用 Qt 6.8.3 MSVC x64、Visual Studio 2022 和本机 vcpkg 的 yaml-cpp；安装位置不同时可通过脚本参数 `QtRoot`、`VsEnvironment`、`YamlPackageDirectory` 和 `Ninja` 指定。构建目录固定在本仓库的 `build/codex-dc-release`，也可以用 `BuildDirectory` 覆盖。`-BuildOnly` 只构建，`-NoLaunch` 构建部署后不启动。
+
+脚本使用同一 Qt 安装中的 `windeployqt` 部署 QML/平台插件与编译器运行库，并校验 `soem_interface.dll`、`yaml-cpp.dll` 和 Npcap 依赖。启动后验证进程 EXE 与自有 DLL 的实际路径，在构建目录生成 `runtime-verification.json`。不要通过旧安装目录或仓库根目录中的历史 EXE 验证新功能。
+
 ***运行软件前，***
 
 ***给软件提供管理员权限（windows平台）***
@@ -78,6 +89,24 @@ cmake --build build -j
 - **从站与功能选择**：支持选择从站类型（当前为 MIT），并加载对应参数面板。
 - **MIT电机控制**：测试MIT电机控制，支持原生数据帧发送，参数配置发送。
 - **连接状态联动**：根据 EtherCAT 连接状态动态启用/禁用参数下发操作，避免离线误操作。
+
+### DC 测试
+
+在顶部选择测试网卡，打开“DC 测试”，设置周期和偏移后启动。默认周期为 2000 μs、偏移为 0 μs；支持周期 250～1,000,000 μs，偏移绝对值必须小于周期。测试占用独立总线会话，运行时参数锁定，可以停止或取消启动。
+
+测试根据在线 PDO 映射运行，不加载电机配置、不下发电机使能或厂商专用 SDO。它在 PRE-OP 中配置 SYNC0 并回读激活位和周期，再尝试进入 OP。需要额外厂商参数才能进入 DC 应用模式的设备，应先根据设备文档完成对应配置；失败时页面保留从站 AL 状态与原因。
+
+页面显示配置回读、参考时钟、DC 时间、WKC、周期与超期统计，以及各从站的 DC/SYNC0 状态。主机相位误差、周期偏差和遗漏周期反映普通操作系统的调度质量，不代表从站间同步精度或实际 SYNC0 引脚测量结果。
+
+停止后保留历史结果；“重置统计”只清除统计值。停止流程会尝试关闭 SYNC0，无法回读确认时明确显示未确认。实际同步信号可结合设备诊断或示波器验证。
+
+无硬件自动测试可运行：
+
+```powershell
+.\scripts\build-and-run.ps1 -RunTests -BuildOnly
+```
+
+Linux 可使用 `cmake -S . -B build -DBUILD_TESTING=ON`、`cmake --build build` 和 `ctest --test-dir build --output-on-failure`。QML 测试使用 offscreen 平台；自动测试不会连接真实 EtherCAT 从站。
 
 首次使用建议：
 

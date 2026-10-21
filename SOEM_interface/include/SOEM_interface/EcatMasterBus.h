@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "SOEM_interface/soem_interface_export.h"
+#include "SOEM_interface/DcTestTypes.h"
 #include <SOEM_interface/SoemUtils.h>
 
 extern "C" {
@@ -19,6 +20,8 @@ extern "C" {
 }
 
 namespace soem_interface {
+
+namespace detail { class DcRuntime; class DcSoemWire; }
 
 class EcatSlaveBase;
 using EcatSlaveBasePtr = std::shared_ptr<EcatSlaveBase>;
@@ -147,6 +150,11 @@ public:
 
     SoemInterfaceErrorCode start();
     SoemInterfaceErrorCode startTest();
+    DcStartResult startDcTest(const DcTestOptions& options);
+    void requestDcStop();
+    void stopDcTest();
+    DcTestSnapshot dcTestSnapshot() const;
+    void resetDcStatistics();
     void stop();
     void stopTest() { stop(); }
     SoemInterfaceErrorCode initMaster();
@@ -207,6 +215,9 @@ public:
     bool applySDOConfigs(const std::vector<SDOConfig>& configs);
 
 private:
+    friend class detail::DcSoemWire;
+    void initializeDcRuntime();
+    std::unique_ptr<detail::DcRuntime> dcRuntime_;
     void cyclicTask();
     void checkTask();
     std::string getErrorString(ec_errort error);

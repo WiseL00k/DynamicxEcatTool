@@ -9,7 +9,7 @@ QtObject {
     property string sessionMode: ""
     property int maximumLines: 500
     property int revision: 0
-    property var buffers: ({ "test": [], "debug": [], "params": [], "bus": [] })
+    property var buffers: ({ "test": [], "dc": [], "debug": [], "params": [], "bus": [] })
 
     readonly property string currentText: {
         const dependency = revision
@@ -19,6 +19,7 @@ QtObject {
 
     function keyForMode(mode) {
         if (mode === "测试" || mode === "固件或EEPROM烧录") return "test"
+        if (mode === "DC测试") return "dc"
         if (mode === "调试通信") return "debug"
         if (mode === "MIT参数调试") return "params"
         if (mode === "总线配置") return "bus"
@@ -38,9 +39,12 @@ QtObject {
     }
 
     function appendCurrent(line) {
+        appendContext(destinationKey(), line)
+    }
+
+    function appendContext(key, line) {
         if (!line || line.length === 0)
             return
-        const key = destinationKey()
         if (!buffers[key])
             buffers[key] = []
         const normalized = String(line).replace(/\r\n/g, "\n").replace(/\r/g, "\n")
@@ -76,6 +80,10 @@ QtObject {
 
         function onLogAppend(line) {
             root.appendCurrent(line)
+        }
+
+        function onDcLogAppended(line) {
+            root.appendContext("dc", line)
         }
 
         function onSoemErrorOccurred(message) {

@@ -19,6 +19,7 @@ QtObject {
     readonly property bool busy: sessionActive
 
     readonly property bool testConnected: connected && sessionMode === "测试"
+    readonly property bool dcConnected: connected && sessionMode === "DC测试"
     readonly property bool debugConnected: connected && sessionMode === "调试通信"
     readonly property bool mitConnected: connected && sessionMode === "MIT参数调试"
     readonly property bool explorerActive: sessionActive && sessionMode === "总线配置"
@@ -26,6 +27,7 @@ QtObject {
 
     readonly property string modeKey: {
         if (sessionMode === "测试") return "test"
+        if (sessionMode === "DC测试") return "dc"
         if (sessionMode === "调试通信") return "debug"
         if (sessionMode === "MIT参数调试") return "params"
         if (sessionMode === "总线配置") return "bus"

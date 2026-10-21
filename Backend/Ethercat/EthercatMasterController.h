@@ -1,9 +1,11 @@
 #pragma once
 
+#include "SOEM_interface/DcTestTypes.h"
 #include "SOEM_interface/SoemUtils.h"
 
 #include <QString>
 #include <memory>
+#include <mutex>
 #include <string>
 
 class DeviceStatusModel;
@@ -44,10 +46,17 @@ public:
     MasterStartResult enterPreOp(const std::string& nicName);
     MasterStartResult enterMitDebugMode(const std::string& nicName);
     soem_interface::BusScanResult startExplorer(const std::string& nicName);
+    soem_interface::DcStartResult startDcTest(
+        const std::string& nicName,
+        const soem_interface::DcTestOptions& options);
 
     void stop();
     void closePreOp();
     void stopExplorer();
+    void requestDcStop();
+    void stopDcTest();
+    soem_interface::DcTestSnapshot dcTestSnapshot() const;
+    void resetDcStatistics();
     void reset();
 
 private:
@@ -56,6 +65,9 @@ private:
     std::shared_ptr<soem_interface::EcatMasterBus> master_;
     bool connected_{false};
     int configuredSlaveCount_{0};
+    mutable std::mutex dcMutex_;
+    soem_interface::DcTestSnapshot lastDcSnapshot_;
+    bool dcStopRequested_{false};
 };
 
 } // namespace Backend

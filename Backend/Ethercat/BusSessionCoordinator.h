@@ -18,6 +18,7 @@ public:
         LegacyPreOp,
         MitDebug,
         Explorer,
+        DcTest,
         Flashing
     };
     Q_ENUM(Mode)

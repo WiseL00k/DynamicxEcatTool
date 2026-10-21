@@ -4037,6 +4037,20 @@
           <CoE SdoInfo="true" PdoAssign="false" PdoConfig="false" PdoUpload="true" CompleteAccess="true" />
           <FoE/>
         </Mailbox>
+        <Dc>
+          <OpMode>
+            <Name>DcOn</Name>
+            <Desc>DC sync0</Desc>
+            <AssignActivate>#x0300</AssignActivate>
+            <CycleTimeSync0>1000000</CycleTimeSync0>
+            <ShiftTimeSync0>300000</ShiftTimeSync0>
+          </OpMode>
+          <OpMode>
+            <Name>DcOff</Name>
+            <Desc>DC unused</Desc>
+            <AssignActivate>#x0000</AssignActivate>
+          </OpMode>
+        </Dc>
         <Eeprom>
           <ByteSize>2048</ByteSize>
           <ConfigData>050600446400000000001A000000</ConfigData>

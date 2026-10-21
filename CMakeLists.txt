@@ -5,7 +5,7 @@ project(DynamicxEcatTool VERSION 0.1 LANGUAGES CXX)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(BUILD_TESTING OFF)
+option(BUILD_TESTING "Build the automated tests" OFF)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Quick QuickControls2)
 find_package(yaml-cpp CONFIG REQUIRED)
@@ -33,6 +33,7 @@ set(APP_QML_FILES
     qml/dialogs/ErrorPopup.qml
     qml/pages/BusConfigurationPage.qml
     qml/pages/DebugPage.qml
+    qml/pages/DcTestPage.qml
     qml/pages/ParamsConfigPage.qml
     qml/pages/TestPage.qml
     qml/panels/MITConfigPanel.qml
@@ -52,6 +53,7 @@ set(APP_QML_RESOURCES
     icons/logo-mark.svg
     icons/test.svg
     icons/debug.svg
+    icons/dc.svg
     icons/motor.svg
     icons/bus.svg
     icons/terminal.svg
@@ -60,6 +62,8 @@ set(APP_QML_RESOURCES
 )
 
 set(DYNAMICX_BACKEND_SOURCES
+    Backend/Dc/DcTestController.cpp
+    Backend/Dc/DcTestController.h
     Backend/Commands/MitMotorCommand.cpp
     Backend/Commands/MitMotorCommand.h
     Backend/Config/ConfigurationParserBase.cpp
@@ -126,7 +130,7 @@ target_include_directories(dynamicx_backend
 target_link_libraries(dynamicx_backend
     PUBLIC
         Qt6::Core
-        yaml-cpp
+        yaml-cpp::yaml-cpp
         soem_interface
 )
 
@@ -184,31 +188,22 @@ add_custom_command(TARGET DynamicxEcatTool POST_BUILD
         $<TARGET_FILE_DIR:DynamicxEcatTool>/release
 )
 
+if(WIN32)
+    get_target_property(YAML_LIBRARY_TYPE yaml-cpp::yaml-cpp TYPE)
+    if(YAML_LIBRARY_TYPE STREQUAL "SHARED_LIBRARY")
+        add_custom_command(TARGET DynamicxEcatTool POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                $<TARGET_FILE:yaml-cpp::yaml-cpp>
+                $<TARGET_FILE_DIR:DynamicxEcatTool>
+        )
+    endif()
+
+    # Used by the local launcher to verify exactly which build and DLLs it runs.
+    file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/local-runtime-$<CONFIG>.json" CONTENT
+"{\n  \"sourceDirectory\": \"${CMAKE_SOURCE_DIR}\",\n  \"executable\": \"$<TARGET_FILE:DynamicxEcatTool>\",\n  \"soemLibrary\": \"$<TARGET_FILE:soem_interface>\",\n  \"yamlLibrary\": \"$<TARGET_FILE:yaml-cpp::yaml-cpp>\",\n  \"qtBinDirectory\": \"$<TARGET_FILE_DIR:Qt6::Core>\"\n}\n")
+endif()
+
 if(BUILD_TESTING)
-    find_package(Qt6 REQUIRED COMPONENTS Test)
-
-    add_executable(DynamicxExplorerTests
-        tests/ExplorerTests.cpp
-    )
-
-    target_include_directories(DynamicxExplorerTests
-        PRIVATE
-            ${CMAKE_CURRENT_SOURCE_DIR}
-    )
-
-    target_compile_definitions(DynamicxExplorerTests
-        PRIVATE
-            DYNAMICX_TEST_ESI_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/esi"
-    )
-
-    target_link_libraries(DynamicxExplorerTests
-        PRIVATE Qt6::Test dynamicx_backend
-    )
-    add_test(NAME DynamicxExplorerTests COMMAND DynamicxExplorerTests)
-    set_tests_properties(DynamicxExplorerTests PROPERTIES
-        ENVIRONMENT
-            "PATH=$<TARGET_FILE_DIR:Qt6::Core>\;$<TARGET_FILE_DIR:yaml-cpp::yaml-cpp>\;$<TARGET_FILE_DIR:soem_interface>\;C:/Windows/System32"
-    )
-
-
+    find_package(Qt6 REQUIRED COMPONENTS Test QuickTest)
+    add_subdirectory(test)
 endif()

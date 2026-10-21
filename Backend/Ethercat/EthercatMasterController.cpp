@@ -107,6 +107,110 @@ soem_interface::BusScanResult EthercatMasterController::startExplorer(const std:
     return result;
 }
 
+soem_interface::DcStartResult EthercatMasterController::startDcTest(
+    const std::string& nicName,
+    const soem_interface::DcTestOptions& options)
+{
+    std::shared_ptr<soem_interface::EcatMasterBus> master;
+    bool stopRequested = false;
+    {
+        std::lock_guard lock(dcMutex_);
+        if (master_) {
+            return {false, false, "An EtherCAT master session is already active."};
+        }
+        master = std::make_shared<soem_interface::EcatMasterBus>(nicName);
+        master_ = master;
+        connected_ = false;
+        configuredSlaveCount_ = 0;
+        lastDcSnapshot_ = {};
+        stopRequested = dcStopRequested_;
+    }
+    if (stopRequested) {
+        master->requestDcStop();
+    }
+
+    soem_interface::DcStartResult result = master->startDcTest(options);
+    const soem_interface::DcTestSnapshot snapshot = master->dcTestSnapshot();
+    {
+        std::lock_guard lock(dcMutex_);
+        lastDcSnapshot_ = snapshot;
+        if (result.success) {
+            connected_ = true;
+            configuredSlaveCount_ = static_cast<int>(snapshot.slaves.size());
+        } else if (master_ == master) {
+            master_.reset();
+            connected_ = false;
+            configuredSlaveCount_ = 0;
+        }
+    }
+    return result;
+}
+
+void EthercatMasterController::requestDcStop()
+{
+    std::shared_ptr<soem_interface::EcatMasterBus> master;
+    {
+        std::lock_guard lock(dcMutex_);
+        dcStopRequested_ = true;
+        master = master_;
+    }
+    if (master) {
+        master->requestDcStop();
+    }
+}
+
+void EthercatMasterController::stopDcTest()
+{
+    std::shared_ptr<soem_interface::EcatMasterBus> master;
+    {
+        std::lock_guard lock(dcMutex_);
+        master = master_;
+    }
+    if (master) {
+        master->stopDcTest();
+    }
+
+    const soem_interface::DcTestSnapshot snapshot = master
+        ? master->dcTestSnapshot()
+        : soem_interface::DcTestSnapshot{};
+    {
+        std::lock_guard lock(dcMutex_);
+        if (master) {
+            lastDcSnapshot_ = snapshot;
+        }
+        if (!master || master_ == master) {
+            master_.reset();
+            connected_ = false;
+            configuredSlaveCount_ = 0;
+            dcStopRequested_ = false;
+        }
+    }
+}
+
+soem_interface::DcTestSnapshot EthercatMasterController::dcTestSnapshot() const
+{
+    std::shared_ptr<soem_interface::EcatMasterBus> master;
+    soem_interface::DcTestSnapshot retained;
+    {
+        std::lock_guard lock(dcMutex_);
+        master = master_;
+        retained = lastDcSnapshot_;
+    }
+    return master ? master->dcTestSnapshot() : retained;
+}
+
+void EthercatMasterController::resetDcStatistics()
+{
+    std::shared_ptr<soem_interface::EcatMasterBus> master;
+    {
+        std::lock_guard lock(dcMutex_);
+        master = master_;
+    }
+    if (master) {
+        master->resetDcStatistics();
+    }
+}
+
 MasterStartResult EthercatMasterController::startTest(const std::string& nicName)
 {
     if (master_) {

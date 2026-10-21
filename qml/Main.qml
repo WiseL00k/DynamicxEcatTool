@@ -20,9 +20,10 @@ ApplicationWindow {
 
     property int currentPageIndex: 0
     readonly property var sessionUi: sessionAdapter
-    readonly property string currentPageKey: ["test", "debug", "params", "bus"][currentPageIndex]
+    readonly property string currentPageKey: ["test", "dc", "debug", "params", "bus"][currentPageIndex]
     readonly property string currentPageTitle: [
         qsTr("测试与烧录"),
+        qsTr("DC 同步测试"),
         qsTr("设备调试"),
         qsTr("MIT 参数"),
         qsTr("总线配置")
@@ -196,10 +197,10 @@ ApplicationWindow {
                 SideNavButton {
                     Layout.fillWidth: true
                     theme: appTheme
-                    text: qsTr("设备调试")
-                    iconSource: Qt.resolvedUrl("icons/debug.svg")
+                    text: qsTr("DC 同步测试")
+                    iconSource: Qt.resolvedUrl("icons/dc.svg")
                     selected: root.currentPageIndex === 1
-                    sessionOwned: sessionAdapter.sessionActive && sessionAdapter.modeKey === "debug"
+                    sessionOwned: sessionAdapter.sessionActive && sessionAdapter.modeKey === "dc"
                     collapsed: root.navigationCollapsed
                     onClicked: root.currentPageIndex = 1
                 }
@@ -207,10 +208,10 @@ ApplicationWindow {
                 SideNavButton {
                     Layout.fillWidth: true
                     theme: appTheme
-                    text: qsTr("MIT 参数")
-                    iconSource: Qt.resolvedUrl("icons/motor.svg")
+                    text: qsTr("设备调试")
+                    iconSource: Qt.resolvedUrl("icons/debug.svg")
                     selected: root.currentPageIndex === 2
-                    sessionOwned: sessionAdapter.sessionActive && sessionAdapter.modeKey === "params"
+                    sessionOwned: sessionAdapter.sessionActive && sessionAdapter.modeKey === "debug"
                     collapsed: root.navigationCollapsed
                     onClicked: root.currentPageIndex = 2
                 }
@@ -218,12 +219,23 @@ ApplicationWindow {
                 SideNavButton {
                     Layout.fillWidth: true
                     theme: appTheme
-                    text: qsTr("总线配置")
-                    iconSource: Qt.resolvedUrl("icons/bus.svg")
+                    text: qsTr("MIT 参数")
+                    iconSource: Qt.resolvedUrl("icons/motor.svg")
                     selected: root.currentPageIndex === 3
-                    sessionOwned: sessionAdapter.sessionActive && sessionAdapter.modeKey === "bus"
+                    sessionOwned: sessionAdapter.sessionActive && sessionAdapter.modeKey === "params"
                     collapsed: root.navigationCollapsed
                     onClicked: root.currentPageIndex = 3
+                }
+
+                SideNavButton {
+                    Layout.fillWidth: true
+                    theme: appTheme
+                    text: qsTr("总线配置")
+                    iconSource: Qt.resolvedUrl("icons/bus.svg")
+                    selected: root.currentPageIndex === 4
+                    sessionOwned: sessionAdapter.sessionActive && sessionAdapter.modeKey === "bus"
+                    collapsed: root.navigationCollapsed
+                    onClicked: root.currentPageIndex = 4
                 }
 
                 Item { Layout.fillHeight: true }
@@ -356,6 +368,13 @@ ApplicationWindow {
                             }
                         }
 
+                        DcTestPage {
+                            id: dcPage
+                            theme: appTheme
+                            sessionUi: root.sessionUi
+                            controller: EthercatBackend.dcTest
+                        }
+
                         DebugPage {
                             id: debugPage
                             theme: appTheme
@@ -418,6 +437,14 @@ ApplicationWindow {
         target: EthercatBackend
 
         function onSoemErrorOccurred(message) {
+            errorPopup.show(message)
+        }
+    }
+
+    Connections {
+        target: sessionAdapter.backend ? sessionAdapter.backend.dcTest : null
+
+        function onErrorOccurred(message) {
             errorPopup.show(message)
         }
     }
