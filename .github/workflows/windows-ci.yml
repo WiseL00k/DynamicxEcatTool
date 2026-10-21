@@ -45,7 +45,7 @@ jobs:
           host: windows
           target: desktop
           arch: win64_msvc2022_64
-          modules: qtshadertools qtsvg
+          modules: qtshadertools
           cache: true
 
       - name: Cache yaml-cpp Release dependency

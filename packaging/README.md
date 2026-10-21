@@ -10,6 +10,8 @@
 
 使用标准 `windows-2022` runner。Actions 固定 SHA，yaml-cpp 固定提交，Qt 和 yaml-cpp 使用缓存；不需要个人访问令牌或仓库 Secret。`dependencies.json` 记录下载版本和哈希。云端 MSVC/Windows SDK 的补丁版本随 runner 更新，构建清单记录实际版本。
 
+主仓库锁定的 SOEM 提交 `d2b098f` 已发布到 `WiseL00k/SOEM` 的 `codex/windows-ci-dependency` 分支，供全新 checkout 获取；没有改动子模块版本或 SOEM 的 master。该提交在其他远程分支保留前，不应删除这个依赖分支。
+
 在 PR 的 Checks 中打开对应运行，或进入仓库 **Actions → Windows CI → 对应运行 → Artifacts**，下载 `DynamicxEcatTool-v0.4.0-windows-amd64-<提交>-<运行编号>-<尝试次数>`。解压后包含：
 
 - `DynamicxEcatTool-v0.4.0-amd64.exe`：安装器；内部程序仍叫 `DynamicxEcatTool.exe`。
