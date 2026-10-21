@@ -19,6 +19,9 @@ Compression=lzma2
 SolidCompression=yes
 UninstallDisplayIcon={app}\DynamicxEcatTool.exe
 
+[Tasks]
+Name: "installnpcap"; Description: "安装 Npcap（首次安装请勾选）"; GroupDescription: "若本机未安装 Npcap，可能会导致程序无法正常运行。"; Flags: checkedonce
+
 [Files]
 Source: "{#AppSource}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#VcRedistPath}"; DestDir: "{tmp}"; DestName: "vc_redist.x64.exe"; Flags: dontcopy
@@ -48,7 +51,7 @@ var
 begin
   Result := '';
   { Install the runtime first: Npcap and the application may need it.
-    App files are not installed until both prerequisites succeed. }
+    App files are not installed until the selected prerequisites succeed. }
   if not RuntimeInstalled then
   begin
     ExtractTemporaryFile('vc_redist.x64.exe');
@@ -66,7 +69,7 @@ begin
     if ExitCode = 3010 then RuntimeNeedsRestart := True;
     RuntimeInstalled := True;
   end;
-  Result := EnsureNpcap(NeedsRestart);
+  Result := EnsureNpcap(WizardIsTaskSelected('installnpcap'), NeedsRestart);
 end;
 
 function NeedRestart: Boolean;

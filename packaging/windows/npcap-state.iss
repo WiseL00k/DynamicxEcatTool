@@ -1,9 +1,10 @@
 // Shared embedded-installer exit handling; IO is supplied by the installer or tests.
-function EnsureNpcap(var NeedsRestart: Boolean): String;
+function EnsureNpcap(InstallNpcap: Boolean; var NeedsRestart: Boolean): String;
 var
   ExitCode: Integer;
 begin
   Result := '';
+  if not InstallNpcap then Exit;
   if not RunNpcap(ExitCode) then
   begin
     Result := '无法启动内嵌的 Npcap 安装程序。请重试或取消安装。';

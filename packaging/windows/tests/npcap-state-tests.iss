@@ -39,21 +39,29 @@ begin
   RunCalls := 0;
   RuntimeNeedsRestart := False;
   Restart := False;
-  Error := EnsureNpcap(Restart);
+  Error := EnsureNpcap(True, Restart);
   Check((Error = '') = ExpectSuccess, 'Unexpected success/error');
   Check(Restart = ExpectRestart, 'Unexpected blocking restart');
   Check(RuntimeNeedsRestart = ExpectFinalRestart, 'Unexpected final restart');
-  Check(RunCalls = 1, 'Embedded installer must be launched on every attempt');
+  Check(RunCalls = 1, 'Selected embedded installer must be launched');
   Cases := Cases + 1;
 end;
 
 function InitializeSetup: Boolean;
 var
   Report: String;
+  Restart: Boolean;
 begin
   Result := False; { Never perform an installation, even when a test fails. }
   Report := ExpandConstant('{param:Report}');
   try
+    RunCalls := 0;
+    RuntimeNeedsRestart := False;
+    Restart := False;
+    Check(EnsureNpcap(False, Restart) = '', 'Skipping Npcap must allow application installation');
+    Check(RunCalls = 0, 'Unselected Npcap must not launch the installer');
+    Check(not Restart and not RuntimeNeedsRestart, 'Skipping Npcap must not request a restart');
+    Cases := Cases + 1;
     Scenario(True, 0, True, False, False);
     Scenario(False, 0, False, False, False); { launch failure }
     Scenario(True, 1, False, False, False); { cancelled }
