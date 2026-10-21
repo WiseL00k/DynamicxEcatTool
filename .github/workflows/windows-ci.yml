@@ -6,6 +6,7 @@ on:
     types: [opened, synchronize, reopened]
   push:
     branches: [master]
+    tags: ['**']
   workflow_dispatch:
 
 permissions:

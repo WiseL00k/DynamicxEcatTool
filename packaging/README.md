@@ -4,7 +4,9 @@
 
 ## 自动构建
 
-向 `master` 创建、重新打开或更新 PR，合并后推送 `master`，以及手动运行 **Windows CI** 都会触发 **Windows Build and Package**。
+向 `master` 创建、重新打开或更新 PR，推送 `master`，推送任意名称的 tag，以及手动运行 **Windows CI** 都会触发 **Windows Build and Package**。
+
+tag 必须推送到 GitHub 才会触发构建，例如 `git tag v0.4.0` 后执行 `git push origin v0.4.0`；tag 指向的提交需包含本工作流。tag 构建同样执行测试、打包并上传附件，安装包版本仍以 `packaging/VERSION` 为准，发布前应使其与 tag 版本一致。
 
 流程：拉取源码和锁定的 SOEM 子模块 → MSVC x64 → Qt 6.8.3 → 构建 yaml-cpp 0.9.0 → Release 编译 → CTest 和安装状态机测试 → Qt 部署 → Inno Setup 6.7.1 → 上传安装包。
 
