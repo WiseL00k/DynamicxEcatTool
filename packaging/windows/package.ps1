@@ -5,6 +5,7 @@ param(
     [Parameter(Mandatory)][string]$OutputDirectory,
     [Parameter(Mandatory)][string]$IsccPath,
     [Parameter(Mandatory)][string]$VcRedistPath,
+    [Parameter(Mandatory)][string]$NpcapInstallerPath,
     [string]$SourceDirectory = (Join-Path $PSScriptRoot '../..'),
     [string]$Version,
     [switch]$CheckOnly
@@ -18,9 +19,12 @@ try {
     $OutputDirectory = [IO.Path]::GetFullPath($OutputDirectory)
     $IsccPath = [IO.Path]::GetFullPath($IsccPath)
     $VcRedistPath = [IO.Path]::GetFullPath($VcRedistPath)
+    $NpcapInstallerPath = [IO.Path]::GetFullPath($NpcapInstallerPath)
     if (-not $Version) { $Version = (Get-Content (Join-Path $PSScriptRoot '../VERSION') -Raw).Trim() }
     Assert-Version $Version
     $deps = Get-Content (Join-Path $PSScriptRoot 'dependencies.json') -Raw | ConvertFrom-Json
+    Assert-File $NpcapInstallerPath
+    Assert-Sha256 $NpcapInstallerPath $deps.npcap.sha256
     $runtimePath = Join-Path $BuildDirectory 'local-runtime-Release.json'
     Assert-File $runtimePath
     $runtime = Get-Content -LiteralPath $runtimePath -Raw | ConvertFrom-Json
@@ -85,12 +89,12 @@ try {
     }
     # The staging directory is an allowlisted copy, not the build directory.
     if (@(Get-ChildItem $stage -Recurse -File | Where-Object { $_.Name -match '^(npcap.*\.exe|wpcap\.dll|Packet\.dll)$' }).Count) {
-        throw 'Npcap binaries must never be embedded in the installer.'
+        throw 'Npcap must be embedded as a prerequisite, not copied into the application directory.'
     }
     Invoke-Checked $IsccPath @('/Qp', "/DAppVersion=$Version", "/DAppSource=$stage",
         "/DReleaseOutput=$publish", "/DAssetSource=$assets", "/DVcRedistPath=$VcRedistPath",
-        "/DNpcapVersion=$($deps.npcap.version)", "/DNpcapUrl=$($deps.npcap.url)",
-        "/DNpcapSHA256=$($deps.npcap.sha256)", (Join-Path $PSScriptRoot 'installer.iss'))
+        "/DNpcapVersion=$($deps.npcap.version)", "/DNpcapInstallerPath=$NpcapInstallerPath",
+        (Join-Path $PSScriptRoot 'installer.iss'))
     $name = "DynamicxEcatTool-v$Version-amd64.exe"
     $installer = Join-Path $publish $name
     Assert-File $installer
@@ -113,6 +117,10 @@ try {
         innoSetup = (Get-Item $IsccPath).VersionInfo.FileVersion; vcRedist = $redistInfo.FileVersion
         cmake = (& cmake --version | Select-Object -First 1); msvc = $env:VCToolsVersion
         dependencies = $deps; payload = $payload
+        embeddedPrerequisites = @(
+            [ordered]@{name = "npcap-$($deps.npcap.version).exe"; sha256 = (Get-FileHash $NpcapInstallerPath).Hash.ToLowerInvariant()}
+            [ordered]@{name = 'vc_redist.x64.exe'; sha256 = (Get-FileHash $VcRedistPath).Hash.ToLowerInvariant()}
+        )
     } | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $publish 'build-info.json') -Encoding UTF8
     if ($env:GITHUB_OUTPUT) {
         "version=$Version" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8

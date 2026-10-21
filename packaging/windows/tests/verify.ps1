@@ -42,5 +42,5 @@ $p = Start-Process -FilePath $testExe -ArgumentList @('/VERYSILENT', '/SUPPRESSM
     "/Report=`"$report`"", "/LOG=`"$WorkDirectory/state-tests.log`"") -WindowStyle Hidden -PassThru
 if (-not $p.WaitForExit(60000)) { $p.Kill(); throw 'Npcap state harness timed out.' }
 Assert-File $report
-if ((Get-Content $report -Raw) -ne 'PASS 12') { throw (Get-Content $report -Raw) }
-Write-Host 'PASS: script validation and 12 production Npcap state scenarios (no driver installed).'
+if ((Get-Content $report -Raw) -ne 'PASS 7') { throw (Get-Content $report -Raw) }
+Write-Host 'PASS: script validation and 7 embedded Npcap installer scenarios (no driver installed).'

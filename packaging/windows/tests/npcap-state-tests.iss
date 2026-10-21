@@ -1,4 +1,4 @@
-﻿[Setup]
+[Setup]
 AppName=Dynamicx Npcap State Tests
 AppVersion=1.0
 DefaultDirName={tmp}\DynamicxNpcapStateTests
@@ -11,20 +11,8 @@ OutputBaseFilename=npcap-state-tests
 [Code]
 var
   RuntimeNeedsRestart: Boolean;
-  ReadyBefore, ReadyAfter, LaunchWorks: Boolean;
-  DownloadError: String;
-  InstallerExit, FetchCalls, RunCalls, Cases: Integer;
-
-function HaveCompatibleNpcap: Boolean;
-begin
-  if RunCalls = 0 then Result := ReadyBefore else Result := ReadyAfter;
-end;
-
-function FetchNpcap: String;
-begin
-  FetchCalls := FetchCalls + 1;
-  Result := DownloadError;
-end;
+  LaunchWorks: Boolean;
+  InstallerExit, RunCalls, Cases: Integer;
 
 function RunNpcap(var ExitCode: Integer): Boolean;
 begin
@@ -40,19 +28,14 @@ begin
   if not Condition then RaiseException(Message);
 end;
 
-procedure Scenario(BeforeReady, AfterReady, Launch: Boolean; const DownloadFailure: String;
-  Code: Integer; ExpectSuccess, ExpectRestart, ExpectFinalRestart: Boolean;
-  ExpectedFetch, ExpectedRun: Integer);
+procedure Scenario(Launch: Boolean; Code: Integer;
+  ExpectSuccess, ExpectRestart, ExpectFinalRestart: Boolean);
 var
   Error: String;
   Restart: Boolean;
 begin
-  ReadyBefore := BeforeReady;
-  ReadyAfter := AfterReady;
   LaunchWorks := Launch;
-  DownloadError := DownloadFailure;
   InstallerExit := Code;
-  FetchCalls := 0;
   RunCalls := 0;
   RuntimeNeedsRestart := False;
   Restart := False;
@@ -60,9 +43,7 @@ begin
   Check((Error = '') = ExpectSuccess, 'Unexpected success/error');
   Check(Restart = ExpectRestart, 'Unexpected blocking restart');
   Check(RuntimeNeedsRestart = ExpectFinalRestart, 'Unexpected final restart');
-  Check(FetchCalls = ExpectedFetch, 'Unexpected download count');
-  Check(RunCalls = ExpectedRun, 'Unexpected installer launch count');
-  if DownloadFailure <> '' then Check(Error = DownloadFailure, 'Download error was lost');
+  Check(RunCalls = 1, 'Embedded installer must be launched on every attempt');
   Cases := Cases + 1;
 end;
 
@@ -73,18 +54,13 @@ begin
   Result := False; { Never perform an installation, even when a test fails. }
   Report := ExpandConstant('{param:Report}');
   try
-    Scenario(True, True, True, '', 0, True, False, False, 0, 0); { installed + offline }
-    Scenario(False, True, True, '', 0, True, False, False, 1, 1);
-    Scenario(False, False, True, 'network unavailable', 0, False, False, False, 1, 0);
-    Scenario(False, False, True, 'SHA256 mismatch', 0, False, False, False, 1, 0);
-    Scenario(False, False, True, 'download cancelled', 0, False, False, False, 1, 0);
-    Scenario(False, False, False, '', 0, False, False, False, 1, 1);
-    Scenario(False, False, True, '', 1, False, False, False, 1, 1); { cancelled }
-    Scenario(False, True, True, '', 2, False, False, False, 1, 1); { no false success }
-    Scenario(False, False, True, '', 0, False, False, False, 1, 1); { bad config }
-    Scenario(False, False, True, '', 350, False, True, False, 1, 1);
-    Scenario(False, True, True, '', 3010, True, False, True, 1, 1);
-    Scenario(False, False, True, '', 3010, False, True, True, 1, 1);
+    Scenario(True, 0, True, False, False);
+    Scenario(False, 0, False, False, False); { launch failure }
+    Scenario(True, 1, False, False, False); { cancelled }
+    Scenario(True, 2, False, False, False); { installation failure }
+    Scenario(True, 1618, False, False, False); { another installer running }
+    Scenario(True, 350, False, True, False);
+    Scenario(True, 3010, True, False, True);
     SaveStringToFile(Report, 'PASS ' + IntToStr(Cases), False);
   except
     SaveStringToFile(Report, 'FAIL: ' + GetExceptionMessage, False);

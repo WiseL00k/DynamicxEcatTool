@@ -22,6 +22,7 @@ UninstallDisplayIcon={app}\DynamicxEcatTool.exe
 [Files]
 Source: "{#AppSource}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#VcRedistPath}"; DestDir: "{tmp}"; DestName: "vc_redist.x64.exe"; Flags: dontcopy
+Source: "{#NpcapInstallerPath}"; DestDir: "{tmp}"; DestName: "npcap-{#NpcapVersion}.exe"; Flags: dontcopy
 
 [Icons]
 Name: "{group}\DynamicxEcatTool"; Filename: "{app}\DynamicxEcatTool.exe"; WorkingDir: "{app}"
@@ -29,77 +30,12 @@ Name: "{commondesktop}\DynamicxEcatTool"; Filename: "{app}\DynamicxEcatTool.exe"
 
 [Code]
 var
-  DownloadPage: TDownloadWizardPage;
-  NetworkInfoPage: TOutputMsgWizardPage;
   RuntimeNeedsRestart: Boolean;
   RuntimeInstalled: Boolean;
 
-function IsNpcapDll(const Path: String): Boolean;
-var
-  MS, LS: Cardinal;
-begin
-  Result := GetVersionNumbers(Path, MS, LS) and ((MS shr 16) = 5);
-end;
-
-function HaveCompatibleNpcap: Boolean;
-var
-  Compatible: Cardinal;
-begin
-  Result := RegKeyExists(HKLM64, 'SYSTEM\CurrentControlSet\Services\npcap') and
-    RegQueryDWordValue(HKLM64, 'SYSTEM\CurrentControlSet\Services\npcap\Parameters',
-      'WinPcapCompatible', Compatible) and (Compatible = 1) and
-    IsNpcapDll(ExpandConstant('{sysnative}\wpcap.dll')) and
-    IsNpcapDll(ExpandConstant('{sysnative}\Packet.dll'));
-end;
-
-procedure InitializeWizard;
-begin
-  NetworkInfoPage := CreateOutputMsgPage(wpWelcome, 'Npcap 网络依赖', '首次安装提示',
-    '此电脑首次安装本软件且尚未安装兼容的 Npcap 时，需要联网下载并安装 Npcap。' + #13#10#13#10 +
-    '下载完成后将自动打开 Npcap 安装程序，请按提示完成安装。' + #13#10#13#10 +
-    '请启用 WinPcap API-compatible Mode。若已安装兼容的 Npcap，可离线安装本软件。');
-  DownloadPage := CreateDownloadPage('下载 Npcap', '请保持网络连接，下载完成后将自动打开安装程序。', nil);
-  DownloadPage.ShowBaseNameInsteadOfUrl := True;
-end;
-
-function ShouldSkipPage(PageID: Integer): Boolean;
-begin
-  Result := (PageID = NetworkInfoPage.ID) and HaveCompatibleNpcap;
-end;
-
-function FetchNpcap: String;
-var
-  DownloadPath: String;
-begin
-  Result := '';
-  DownloadPath := ExpandConstant('{tmp}\npcap-{#NpcapVersion}.exe');
-  DownloadPage.Clear;
-  { Hash separately with Inno's native SHA256 API to distinguish integrity errors
-    from network errors without depending on translated exception strings. }
-  DownloadPage.Add('{#NpcapUrl}', 'npcap-{#NpcapVersion}.exe', '');
-  DownloadPage.Show;
-  try
-    try
-      DownloadPage.Download;
-      if CompareText(GetSHA256OfFile(DownloadPath), '{#NpcapSHA256}') <> 0 then
-      begin
-        DeleteFile(DownloadPath);
-        Result := 'Npcap 文件校验失败，已禁止运行。请重试或从官方网站安装 Npcap。';
-      end;
-    except
-      Log(GetExceptionMessage);
-      if DownloadPage.AbortedByUser then
-        Result := 'Npcap 下载已取消。请重试或取消本次安装。'
-      else
-        Result := '无法下载 Npcap。此电脑首次安装本软件且缺少 Npcap 时，需要联网安装。请检查网络连接后重试，或取消安装。';
-    end;
-  finally
-    DownloadPage.Hide;
-  end;
-end;
-
 function RunNpcap(var ExitCode: Integer): Boolean;
 begin
+  ExtractTemporaryFile('npcap-{#NpcapVersion}.exe');
   Result := Exec(ExpandConstant('{tmp}\npcap-{#NpcapVersion}.exe'),
     '/winpcap_mode=enforced', '', SW_SHOW, ewWaitUntilTerminated, ExitCode);
 end;

@@ -45,6 +45,7 @@ foreach ($name in @('wpcap.dll', 'Packet.dll')) {
     YAML_ROOT = $yamlInstall
     ISCC_PATH = (Join-Path $innoDir 'ISCC.exe')
     VC_REDIST_PATH = $redist
+    NPCAP_INSTALLER_PATH = $npcapInstaller
     NPCAP_TEST_RUNTIME = $testRuntime
 }.GetEnumerator() | ForEach-Object {
     "$($_.Key)=$($_.Value)" | Out-File $env:GITHUB_ENV -Append -Encoding utf8

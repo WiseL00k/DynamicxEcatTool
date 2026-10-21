@@ -22,22 +22,20 @@ tag 必须推送到 GitHub 才会触发构建，例如 `git tag v0.4.0` 后执�
 
 附件保留 14 天；未签名，不自动发布 GitHub Release。失败日志单独作为 diagnostics 附件保存。任何构建、测试、打包或上传失败均使检查失败。
 
-## 安装与联网要求
+## 安装流程
 
-安装包包含 Qt/QML、SOEM/yaml-cpp 动态库、默认 ESI、示例 YAML 和 Microsoft VC++ x64 运行库。**不包含 Npcap 安装器或其 DLL**。
+安装包包含 Qt/QML、SOEM/yaml-cpp 动态库、默认 ESI、示例 YAML、Microsoft VC++ x64 运行库和 **Npcap 1.87 官方安装器**。用户安装时无需联网下载依赖。
 
-安装程序先安装 VC++ 运行库，再检查 Npcap 服务登记、WinPcapCompatible 配置和原生 64 位系统目录中两个 Npcap DLL 的版本身份：
+安装程序先安装 VC++ 运行库，再从临时目录启动内嵌的 Npcap 官方安装程序并等待用户完成交互安装，随后复制应用文件。每次安装都会打开 Npcap 安装程序，不进行已有 Npcap 的自动检测；兼容模式使用 `/winpcap_mode=enforced`。
 
-- 已有兼容 Npcap：不访问网络、不重装或降级 Npcap，可离线安装本软件。
-- 没有兼容 Npcap：提前提示首次安装需要联网，从官方 HTTPS 地址下载锁定的 Npcap 1.87，校验 SHA256 后自动打开交互安装程序，要求 WinPcap API-compatible Mode。
-- 无法下载：显示联网提示，保留在安装准备阶段，可重试或取消。
-- 文件校验不通过：禁止执行并显示独立的校验错误。
-- 用户取消、安装失败或安装后检查仍不通过：不继续复制应用文件，不误报成功。
-- 需要重启：显示重启提示，不主动重启电脑。
+- Npcap 的许可与安装界面由用户确认，不使用静默安装参数。
+- 用户取消、启动失败或安装返回失败时，暂停应用安装，允许重试或取消。
+- 需要重启时提示用户，不自动重启电脑。
+- 没有网络状态检测、下载进度页或首次安装需联网的提示。
 
-“自动打开”不等同于静默安装。Npcap 的许可与选项仍由用户在官方安装界面确认。CI 只下载并提取用户态 DLL 到测试目录，不安装捕获驱动，也不把它们上传到发布附件。
+CI 在构建阶段从官方 HTTPS 地址下载固定版本并校验 SHA256，打包前再次校验。本地打包通过 `-NpcapInstallerPath` 提供同版本安装器。Npcap 二进制不提交到 Git 仓库；最终 EXE 内嵌安装器，构建清单的 `embeddedPrerequisites` 记录其哈希。测试提取的用户态 DLL 仅放在临时测试目录，不复制到应用目录；CI 不安装捕获驱动。
 
-参考：[Npcap 安装及退出码](https://npcap.com/guide/npcap-users-guide.html)、[Npcap 检测](https://npcap.com/guide/npcap-devguide.html)、[Inno 下载页面](https://jrsoftware.org/ishelp/topic_isxfunc_createdownloadpage.htm)。
+参考：[Npcap 安装选项及退出码](https://npcap.com/guide/npcap-users-guide.html)。
 
 ## 本地复现
 
@@ -57,7 +55,8 @@ tag 必须推送到 GitHub 才会触发构建，例如 `git tag v0.4.0` 后执�
   -BuildDirectory build/ci-local-windows `
   -OutputDirectory build/package-local `
   -IsccPath 'D:/Program Files/Inno Setup 6/ISCC.exe' `
-  -VcRedistPath 'C:/path/to/vc_redist.x64.exe'
+  -VcRedistPath 'C:/path/to/vc_redist.x64.exe' `
+  -NpcapInstallerPath 'C:/path/to/npcap-1.87.exe'
 ```
 
 输出位于指定目录的 `publish/`；其余是本次暂存文件和日志。加 `-CheckOnly` 只验证输入，不创建输出；也可用 `-Version 0.4.1` 临时验证版本。常规发布修改 `VERSION`，不手动更改多个文件。
@@ -66,11 +65,11 @@ tag 必须推送到 GitHub 才会触发构建，例如 `git tag v0.4.0` 后执�
 
 ## 更新依赖与验收
 
-修改 Npcap 版本时，同时更新 `windows/dependencies.json` 中的版本、官方 URL 和 SHA256；重新验证联网、离线、取消、损坏下载及兼容模式。不得只改 URL 而关闭校验。Inno Setup 和 yaml-cpp 同样通过该文件维护。
+修改 Npcap 版本时，同时更新 `windows/dependencies.json` 中的版本、官方 URL 和 SHA256；重新验证内嵌安装、取消、失败、重启及兼容模式。不得只改 URL 而关闭校验。Inno Setup 和 yaml-cpp 同样通过该文件维护。
 
-自动测试覆盖已有 CTest 与共享的真实 Inno 安装状态机（使用隔离 IO 模拟下载/进程/系统状态），不会在开发机安装驱动。下载函数及哈希校验另行测试。**不等于已验证真实驱动安装和升级**。
+自动测试覆盖已有 CTest 与共享的真实 Inno 安装状态机（使用隔离 IO 模拟内嵌安装器的进程与退出码），不会在开发机安装驱动。构建阶段的下载函数及哈希校验另行测试。**不等于已验证真实驱动安装和升级**。
 
-正式发布前在独立 Windows x64 测试机验证：首次联网安装、首次离线提示及重试、已有 Npcap 离线安装、取消安装、重启要求、0.3.1 升级、卸载、无 Qt 环境启动、图形显示、网卡枚举和真实 EtherCAT 通信。
+正式发布前在独立 Windows x64 测试机验证：首次离线安装、已有 Npcap 时的交互安装、取消安装、重启要求、0.3.1 升级、卸载、无 Qt 环境启动、图形显示、网卡枚举和真实 EtherCAT 通信。
 
 ## master 合并保护
 

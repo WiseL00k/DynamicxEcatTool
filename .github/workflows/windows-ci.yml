@@ -79,7 +79,8 @@ jobs:
         id: package
         run: |
           ./packaging/windows/package.ps1 -BuildDirectory 'build/ci-windows' `
-            -OutputDirectory 'build/ci-package' -IsccPath $env:ISCC_PATH -VcRedistPath $env:VC_REDIST_PATH
+            -OutputDirectory 'build/ci-package' -IsccPath $env:ISCC_PATH -VcRedistPath $env:VC_REDIST_PATH `
+            -NpcapInstallerPath $env:NPCAP_INSTALLER_PATH
 
       - name: Upload installer, checksum and provenance
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
