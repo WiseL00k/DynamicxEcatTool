@@ -5,7 +5,7 @@ on:
     branches: [master]
     types: [opened, synchronize, reopened]
   push:
-    branches: [master, codex/windows-ci-packaging]
+    branches: [master]
   workflow_dispatch:
 
 permissions:
