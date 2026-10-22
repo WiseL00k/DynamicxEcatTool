@@ -1,8 +1,33 @@
-# 构建安装包与 Windows CI
+# 构建安装包与 CI
 
-当前版本由 `VERSION` 维护：`0.4.0`。本目录是受 Git 管理的打包入口，旧构建目录中的 `windows-release` 保留不变。Windows 脚本集中在 `windows/`，后续 Ubuntu 24 的 AppImage/deb 可使用同一个版本文件，另建 Linux 入口。
+当前版本由 `VERSION` 维护：`0.4.0`。本目录是受 Git 管理的打包入口，旧构建目录中的 `windows-release` 保留不变。Windows 脚本集中在 `windows/`，Ubuntu AppImage/deb 脚本集中在 `linux/`，共用版本文件。
 
-## 自动构建
+## Ubuntu 20.04 / 24.04 LTS
+
+Ubuntu CI 与 Windows CI 使用相同的 PR、master 推送、tag 推送和手动触发条件。分别产生 amd64 安装包：
+
+| 构建环境与验证目标 | AppImage | deb |
+| --- | --- | --- |
+| Ubuntu 20.04 LTS | `DynamicxEcatTool-v0.4.0-ubuntu20.04-amd64.AppImage` | `DynamicxEcatTool-v0.4.0-ubuntu20.04-amd64.deb` |
+| Ubuntu 24.04 LTS | `DynamicxEcatTool-v0.4.0-ubuntu24.04-amd64.AppImage` | `DynamicxEcatTool-v0.4.0-ubuntu24.04-amd64.deb` |
+
+Ubuntu 24.04 原生构建的程序可能依赖较新 glibc 和 libstdc++，无法直接保证在 20.04 / 22.04 运行。AppImage 不消除这类 ABI 要求，因此保留两套带系统版本后缀的产物，不将 24.04 包声明为兼容 20～24。22.04 尚未列为验证目标。
+
+GitHub 已退役 Ubuntu 20.04 托管 runner；两套任务均由 `ubuntu-24.04` runner 启动对应 Ubuntu 容器。Qt 6.8.3 与 yaml-cpp 0.9.0 分别在目标容器从固定源码提交构建，缓存不跨 Ubuntu 版本复用。Qt、QML、业务动态库、ESI 与示例配置一并打包；Linux 使用 SOEM 的原生 raw socket，无需 Npcap。
+
+流程：安装依赖 → 构建或恢复本系统的 Qt/yaml-cpp → Release 编译 → 现有 6 项 CTest → linuxdeploy 扫描 `qml/` 部署 → AppImage 与 deb → 上传安装包、`SHA256SUMS` 和 `build-info.json` → 干净同版本容器安装 deb、验证两种载荷启动和 deb 卸载。离屏启动不执行 EtherCAT 实机通信。桌面显示、FUSE 挂载、网卡通信与升级仍需实机验收。
+
+从 **Actions → Ubuntu CI → 对应运行 → Artifacts** 下载带 `ubuntu20.04` 或 `ubuntu24.04` 的附件，保留 14 天。发布附件只包含两个安装包、校验文件与清单，不自动创建 GitHub Release。检查成功需同时查看 Build and Package 与 Clean Install Test；当前 master 必需检查仍为 Windows，未自动增加 Linux 合并门槛。
+
+deb 安装到 `/opt/dynamicx-ecat-tool`，提供 `dynamicx-ecat-tool` 启动命令和桌面入口；系统依赖由实际部署 ELF 的动态链接结果计算，并记录于构建清单。使用 `sudo apt install ./DynamicxEcatTool-v0.4.0-ubuntu24.04-amd64.deb` 安装对应版本，可通过 `sudo apt remove dynamicx-ecat-tool` 卸载。AppImage 加执行权限后运行；没有 FUSE 时可先执行 `./文件名.AppImage --appimage-extract`，再运行 `./squashfs-root/AppRun`。
+
+EtherCAT 网卡通信需要 root 或相应 raw socket 权限，安装过程不授予 setuid 或系统 capabilities。普通用户可以检查界面启动。Linux 图形部署使用 X11/XWayland，中文字体建议安装 `fonts-noto-cjk`。
+
+固定依赖与工具 URL、SHA256 维护于 `linux/dependencies.json`。工具下载校验失败时停止打包，不自动接受新哈希；包括上游只提供 continuous 发布的 AppImage runtime。维护依赖后应重新执行两套构建与安装验证。
+
+兼容性依据：[AppImage 官方实践](https://docs.appimage.org/reference/best-practices.html)、[Qt Linux 部署](https://doc.qt.io/qt-6.8/linux-deployment.html)、[GitHub Ubuntu 20.04 runner 退役公告](https://github.com/actions/runner-images/issues/11101)。
+
+## Windows 自动构建
 
 向 `master` 创建、重新打开或更新 PR，推送 `master`，推送任意名称的 tag，以及手动运行 **Windows CI** 都会触发 **Windows Build and Package**。
 

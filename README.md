@@ -7,6 +7,8 @@ DynamicxEcatTool 是一个基于 **Qt6 + QML + C++** 的 EtherCAT 调试与测�
 - Windows 11
 - Ubuntu 20.04
 
+Ubuntu 安装包按 20.04 LTS、24.04 LTS 分别构建，提供 AppImage 和 deb。请下载与系统版本对应的包；24.04 包不声明兼容 20.04 / 22.04。下载入口与安装说明见 [打包说明](packaging/README.md)。
+
 ## 主要功能
 
 - 网卡扫描与选择
@@ -101,10 +103,11 @@ DynamicxEcatTool 是一个基于 **Qt6 + QML + C++** 的 EtherCAT 调试与测�
 - 在调试界面，需先加载 `sample_config/` 下对应 YAML；
 - 确认连接状态后再执行测试流程、EEPROM 烧录或参数下发，并观察日志与状态信息。
   
-## 一些问题
-在Ubuntu24下运行AppImage时，可能会遇到缺少FUSE库报错。此时运行以下命令可安装缺少的库
+## AppImage 无法挂载时
+
+系统无法使用 FUSE 时，可以解压 AppImage 后运行：
+
 ```bash
-sudo apt update
-sudo apt install fuse
+./文件名.AppImage --appimage-extract
+./squashfs-root/AppRun
 ```
-重新运行AppImage,即可

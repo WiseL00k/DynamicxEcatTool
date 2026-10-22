@@ -1,0 +1,115 @@
+name: Ubuntu CI
+
+on:
+  pull_request:
+    branches: [master]
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [master]
+    tags: ['**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Ubuntu ${{ matrix.ubuntu }} Build and Package
+    runs-on: ubuntu-24.04
+    container: ubuntu:${{ matrix.ubuntu }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        ubuntu: ['20.04', '24.04']
+    defaults:
+      run:
+        shell: bash
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      GITHUB_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Bootstrap checkout tools
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates git
+      - name: Checkout source and SOEM
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          submodules: recursive
+          persist-credentials: false
+      - name: Install build dependencies
+        run: bash packaging/linux/bootstrap.sh
+      - name: Cache Qt and yaml-cpp built for this Ubuntu release
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: /opt/dynamicx
+          key: linux-deps-${{ matrix.ubuntu }}-${{ hashFiles('packaging/linux/dependencies.json', 'packaging/linux/build.py', 'packaging/linux/bootstrap.sh') }}
+      - name: Build pinned dependencies and application, run CTest
+        run: python3 packaging/linux/build.py --prefix /opt/dynamicx --work build/linux-work
+      - name: Build AppImage and deb, verify payload
+        id: package
+        run: python3 packaging/linux/package.py --prefix /opt/dynamicx --build build/linux-work/application --output build/linux-package
+      - name: Upload packages, checksums and build manifest
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: DynamicxEcatTool-v${{ steps.package.outputs.version }}-ubuntu${{ matrix.ubuntu }}-amd64-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: build/linux-package/publish/*
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+      - name: Upload diagnostic logs
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ubuntu${{ matrix.ubuntu }}-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            build/linux-work/**/*.log
+            build/linux-work/**/CMakeConfigureLog.yaml
+            build/linux-work/application/ctest-results.xml
+            build/linux-package/**/*.log
+          retention-days: 14
+
+  verify:
+    name: Ubuntu ${{ matrix.ubuntu }} Clean Install Test
+    needs: build
+    runs-on: ubuntu-24.04
+    container: ubuntu:${{ matrix.ubuntu }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        ubuntu: ['20.04', '24.04']
+    defaults:
+      run:
+        shell: bash
+    env:
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - name: Bootstrap validation tools
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates git python3
+      - name: Checkout validation scripts
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Download packages for this Ubuntu release
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: DynamicxEcatTool-v*-ubuntu${{ matrix.ubuntu }}-amd64-*
+          path: build/download
+          merge-multiple: true
+      - name: Verify checksums, install deb and launch both formats without hardware
+        run: python3 packaging/linux/verify.py --packages build/download
+      - name: Upload clean-install logs
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ubuntu${{ matrix.ubuntu }}-install-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: build/download/*.log
+          retention-days: 14
