@@ -41,12 +41,9 @@ CI 在构建阶段从官方 HTTPS 地址下载固定版本并校验 SHA256，打
 
 ## 本地复现
 
-先按仓库现有 `scripts/build-and-run.ps1` 完成 Release 构建，或在 MSVC x64 开发者终端配置 CMake。Qt、yaml-cpp、源码必须来自同一构建配置。
+先在 MSVC x64 开发者终端使用 CMake 完成 Release 构建。Qt、yaml-cpp、源码必须来自同一构建配置。
 
 ```powershell
-# 例如：已有本地工具环境的独立构建（原有脚本可传工具路径）
-./scripts/build-and-run.ps1 -BuildDirectory build/ci-local-windows -RunTests -BuildOnly
-
 # 不安装驱动的打包脚本与状态机测试
 ./packaging/windows/tests/verify.ps1 `
   -IsccPath 'D:/Program Files/Inno Setup 6/ISCC.exe' `
