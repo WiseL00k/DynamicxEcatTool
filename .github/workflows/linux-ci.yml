@@ -70,9 +70,10 @@ jobs:
       - name: Upload packages, checksums and build manifest
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: DynamicxEcatTool-v${{ steps.package.outputs.version }}-ubuntu${{ matrix.ubuntu }}-amd64-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: DynamicxEcatTool-v${{ steps.package.outputs.version }}-ubuntu${{ matrix.ubuntu }}-amd64-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_id }}
           path: build/linux-package/publish/*
           if-no-files-found: error
+          overwrite: true
           retention-days: 14
           compression-level: 0
       - name: Upload diagnostic logs

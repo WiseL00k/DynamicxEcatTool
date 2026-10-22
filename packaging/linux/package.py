@@ -88,8 +88,14 @@ def main():
         "--library", build / "SOEM_interface/libsoem_interface.so",
         "--desktop-file", Path(__file__).with_name("dynamicx-ecat-tool.desktop"),
         "--icon-file", icon, "--plugin", "qt", env=environment)
+    # linuxdeploy may create AppRun as a symlink to the application. Never
+    # follow that symlink when replacing it with the portable launcher.
+    (appdir / "AppRun").unlink(missing_ok=True)
     shutil.copy2(Path(__file__).with_name("AppRun"), appdir / "AppRun")
     (appdir / "AppRun").chmod(0o755)
+    with (appdir / "usr/bin/DynamicxEcatTool").open("rb") as stream:
+        if stream.read(4) != b"\x7fELF":
+            raise ValueError("Deployed application is not an ELF executable")
     (appdir / "usr/bin/qt.conf").write_text("[Paths]\nPrefix=..\nPlugins=plugins\nQmlImports=qml\n")
     for directory in ("esi", "sample_config"):
         shutil.copytree(ROOT / "config" / directory, appdir / "usr/bin" / directory)
@@ -138,7 +144,7 @@ def main():
                for p in sorted(appdir.rglob("*")) if p.is_file()]
     manifest = {
         "version": release, "ubuntu": ubuntu, "architecture": "amd64",
-        "commit": output("git", "-C", ROOT, "rev-parse", "HEAD"),
+        "commit": output("git", "-c", "safe.directory=" + str(ROOT), "-C", ROOT, "rev-parse", "HEAD"),
         "headCommit": os.environ.get("GITHUB_HEAD_SHA"), "runId": os.environ.get("GITHUB_RUN_ID"),
         "qt": DEPENDENCIES["qtVersion"], "compiler": output("g++", "-dumpfullversion"),
         "glibc": output("getconf", "GNU_LIBC_VERSION"), "dependencies": DEPENDENCIES,
