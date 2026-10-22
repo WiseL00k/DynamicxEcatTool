@@ -144,7 +144,7 @@ def main():
                for p in sorted(appdir.rglob("*")) if p.is_file()]
     manifest = {
         "version": release, "ubuntu": ubuntu, "architecture": "amd64",
-        "commit": output("git", "-c", "safe.directory=" + str(ROOT), "-C", ROOT, "rev-parse", "HEAD"),
+        "commit": output("git", "-C", ROOT, "rev-parse", "HEAD"),
         "headCommit": os.environ.get("GITHUB_HEAD_SHA"), "runId": os.environ.get("GITHUB_RUN_ID"),
         "qt": DEPENDENCIES["qtVersion"], "compiler": output("g++", "-dumpfullversion"),
         "glibc": output("getconf", "GNU_LIBC_VERSION"), "dependencies": DEPENDENCIES,
