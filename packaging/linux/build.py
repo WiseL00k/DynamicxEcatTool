@@ -10,6 +10,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--prefix", type=Path, required=True)
     parser.add_argument("--work", type=Path, required=True)
+    parser.add_argument("--dependencies-only", action="store_true")
     args = parser.parse_args()
     version()
     ubuntu = ubuntu_version()
@@ -40,6 +41,8 @@ def main():
         marker.write_text(json.dumps(expected))
     if output(qt / "bin/qmake", "-query", "QT_VERSION") != DEPENDENCIES["qtVersion"]:
         raise ValueError("Cached Qt version mismatch")
+    if args.dependencies_only:
+        return
     application = work / "application"
     run("cmake", "-S", ROOT, "-B", application, "-G", "Ninja",
         "-DCMAKE_BUILD_TYPE=Release", "-DBUILD_TESTING=ON", "-DCMAKE_BUILD_RPATH_USE_ORIGIN=ON",

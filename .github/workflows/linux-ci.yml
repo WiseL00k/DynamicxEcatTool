@@ -45,15 +45,28 @@ jobs:
       - name: Install build dependencies
         run: bash packaging/linux/bootstrap.sh
       - name: Cache Qt and yaml-cpp built for this Ubuntu release
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        id: dependencies
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: /opt/dynamicx
           key: linux-deps-${{ matrix.ubuntu }}-${{ hashFiles('packaging/linux/dependencies.json', 'packaging/linux/build.py', 'packaging/linux/bootstrap.sh') }}
-      - name: Build pinned dependencies and application, run CTest
-        run: python3 packaging/linux/build.py --prefix /opt/dynamicx --work build/linux-work
+      - name: Build pinned Qt and yaml-cpp dependencies
+        run: |
+          mkdir -p build
+          python3 packaging/linux/build.py --prefix /opt/dynamicx --work build/linux-work --dependencies-only 2>&1 | tee build/linux-dependencies.log
+      - name: Save completed dependency build before application validation
+        if: steps.dependencies.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: /opt/dynamicx
+          key: ${{ steps.dependencies.outputs.cache-primary-key }}
+      - name: Build application and run CTest
+        run: |
+          python3 -m unittest discover -s packaging/linux/tests -v
+          python3 packaging/linux/build.py --prefix /opt/dynamicx --work build/linux-work 2>&1 | tee build/linux-build.log
       - name: Build AppImage and deb, verify payload
         id: package
-        run: python3 packaging/linux/package.py --prefix /opt/dynamicx --build build/linux-work/application --output build/linux-package
+        run: python3 packaging/linux/package.py --prefix /opt/dynamicx --build build/linux-work/application --output build/linux-package 2>&1 | tee build/linux-package.log
       - name: Upload packages, checksums and build manifest
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
@@ -68,6 +81,7 @@ jobs:
         with:
           name: ubuntu${{ matrix.ubuntu }}-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
+            build/linux-*.log
             build/linux-work/**/*.log
             build/linux-work/**/CMakeConfigureLog.yaml
             build/linux-work/application/ctest-results.xml
