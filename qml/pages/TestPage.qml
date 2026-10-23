@@ -320,7 +320,8 @@ Item {
                                         text: "从站地址"
                                         color: root.theme.textSecondary
                                     }
-                                    SpinBox {
+                                    AppSpinBox {
+                                        theme: root.theme
                                         id: firmwareSlaveIdBox
                                         Layout.preferredWidth: 132
                                         from: 1
@@ -336,7 +337,8 @@ Item {
                                     Layout.fillWidth: true
                                     spacing: root.theme.space8
 
-                                    TextField {
+                                    AppTextField {
+                                        theme: root.theme
                                         Layout.fillWidth: true
                                         Layout.minimumWidth: 0
                                         readOnly: true
@@ -403,7 +405,8 @@ Item {
                                         text: "从站地址"
                                         color: root.theme.textSecondary
                                     }
-                                    SpinBox {
+                                    AppSpinBox {
+                                        theme: root.theme
                                         id: eepromSlaveIdBox
                                         Layout.preferredWidth: 132
                                         from: 1
@@ -419,7 +422,8 @@ Item {
                                     Layout.fillWidth: true
                                     spacing: root.theme.space8
 
-                                    TextField {
+                                    AppTextField {
+                                        theme: root.theme
                                         Layout.fillWidth: true
                                         Layout.minimumWidth: 0
                                         readOnly: true

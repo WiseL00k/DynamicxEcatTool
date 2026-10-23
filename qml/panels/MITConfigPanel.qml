@@ -68,7 +68,9 @@ ColumnLayout {
             && numericValue <= maximumValue && (!positiveOnly || numericValue > 0)
         spacing: fieldTheme.space4
         Label { text: field.labelText; color: field.fieldTheme.textSecondary; font.pixelSize: field.fieldTheme.fontBodySmall }
-        TextField {
+        AppTextField {
+            theme: field.fieldTheme
+            invalid: !field.valid
             id: editor
             objectName: field.fieldName
             Layout.fillWidth: true; Layout.minimumWidth: 80
@@ -79,12 +81,6 @@ ColumnLayout {
             rightPadding: unit.implicitWidth + field.fieldTheme.space16
             inputMethodHints: Qt.ImhFormattedNumbersOnly
             validator: RegularExpressionValidator { regularExpression: /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/ }
-            background: Rectangle {
-                radius: field.fieldTheme.radiusSmall
-                color: field.fieldTheme.inputBackground
-                border.width: editor.activeFocus ? 2 : 1
-                border.color: !field.valid ? field.fieldTheme.danger : editor.activeFocus ? field.fieldTheme.accent : field.fieldTheme.borderStrong
-            }
             Label {
                 id: unit
                 anchors.right: parent.right; anchors.rightMargin: field.fieldTheme.space8
@@ -106,7 +102,8 @@ ColumnLayout {
                 Row {
                     spacing: root.theme.space8
                     Label { height: root.theme.controlHeight; verticalAlignment: Text.AlignVCenter; text: qsTr("目标电机"); font.bold: true; color: root.theme.textPrimary }
-                    ComboBox {
+                    AppComboBox {
+                        theme: root.theme
                         id: canChannel; objectName: "dmCanChannel"
                         width: 110; implicitHeight: root.theme.controlHeight
                         model: ["CAN 0", "CAN 1"]; enabled: !root.targetLocked && !root.busy
@@ -115,13 +112,14 @@ ColumnLayout {
                 Row {
                     spacing: root.theme.space8
                     Label { height: root.theme.controlHeight; verticalAlignment: Text.AlignVCenter; text: root.canfd ? "ID (HEX)" : "ID"; color: root.theme.textSecondary }
-                    TextField {
+                    AppTextField {
+                        theme: root.theme
                         id: motorId; objectName: "dmMotorId"
                         width: 112; implicitHeight: root.theme.controlHeight
                         text: "1"; maximumLength: root.canfd ? 5 : 1; selectByMouse: true
                         enabled: !root.targetLocked && !root.busy
                         font.family: "Consolas"; color: root.theme.textPrimary
-                        background: Rectangle { radius: root.theme.radiusSmall; color: root.theme.inputBackground; border.color: root.idValid ? root.theme.borderStrong : root.theme.danger }
+                        invalid: !root.idValid
                     }
                 }
                 Label { height: root.theme.controlHeight; verticalAlignment: Text.AlignVCenter; text: root.canfd ? qsTr("000–7FF · 11 位 ID") : qsTr("1–9 · 固定槽位"); color: root.theme.textMuted; font.pixelSize: root.theme.fontBodySmall }
@@ -164,10 +162,12 @@ ColumnLayout {
                 NumericField { id: tmax; Layout.fillWidth: true; fieldTheme: root.theme; fieldName: "dmTmax"; labelText: "TMAX"; unitText: "N·m"; text: "10"; positiveOnly: true }
             }
             Rectangle {
+                id: previewCard
+                objectName: "dmFramePreviewCard"
                 Layout.fillWidth: true; implicitHeight: 44; radius: root.theme.radiusSmall
                 color: root.theme.surfaceMuted; border.color: root.theme.border
                 RowLayout {
-                    anchors.fill: parent; anchors.margins: root.theme.space8; spacing: root.theme.space12
+                    anchors.fill: previewCard; anchors.margins: root.theme.space8; spacing: root.theme.space12
                     Label { text: qsTr("8 B 控制帧"); color: root.theme.textSecondary; font.pixelSize: root.theme.fontBodySmall }
                     TextField {
                         objectName: "dmFramePreview"; Layout.fillWidth: true
@@ -187,7 +187,7 @@ ColumnLayout {
             Flow {
                 Layout.fillWidth: true; spacing: root.theme.space8
                 Switch { id: periodic; objectName: "dmPeriodicSwitch"; visible: root.canfd; text: qsTr("周期发送"); checked: false; enabled: !root.targetLocked && !root.busy }
-                SpinBox { id: interval; objectName: "dmIntervalInput"; visible: root.canfd && periodic.checked; from: 1; to: 1000000000; value: 2000; stepSize: root.cycleUs; editable: true; implicitWidth: 150; implicitHeight: root.theme.controlHeight; enabled: !root.targetLocked && !root.busy }
+                AppSpinBox { theme: root.theme; id: interval; objectName: "dmIntervalInput"; visible: root.canfd && periodic.checked; from: 1; to: 1000000000; value: 2000; stepSize: root.cycleUs; editable: true; implicitWidth: 150; implicitHeight: root.theme.controlHeight; enabled: !root.targetLocked && !root.busy }
                 Label { visible: root.canfd && periodic.checked; height: root.theme.controlHeight; verticalAlignment: Text.AlignVCenter; text: qsTr("μs · 实际 %1 μs").arg(root.actualIntervalUs); color: root.theme.textMuted; font.pixelSize: root.theme.fontBodySmall }
                 AppButton {
                     objectName: "dmSendControlButton"; theme: root.theme; variant: "primary"
@@ -239,7 +239,7 @@ ColumnLayout {
             }
             RowLayout {
                 visible: root.rawOpen; Layout.fillWidth: true; spacing: root.theme.space8
-                TextField { id: rawInput; objectName: "dmRawInput"; Layout.fillWidth: true; implicitHeight: root.theme.controlHeight; text: ""; placeholderText: "7F FF 7F F0 00 00 07 FF"; selectByMouse: true; font.family: "Consolas"; color: root.theme.textPrimary; background: Rectangle { radius: root.theme.radiusSmall; color: root.theme.inputBackground; border.color: rawInput.text.length > 0 && !root.rawValid ? root.theme.danger : root.theme.borderStrong } }
+                AppTextField { theme: root.theme; id: rawInput; objectName: "dmRawInput"; Layout.fillWidth: true; implicitHeight: root.theme.controlHeight; text: ""; placeholderText: "7F FF 7F F0 00 00 07 FF"; selectByMouse: true; font.family: "Consolas"; color: root.theme.textPrimary; invalid: rawInput.text.length > 0 && !root.rawValid }
                 AppButton { objectName: "dmSendRawButton"; theme: root.theme; variant: "primary"; text: root.canfd ? (periodic.checked ? qsTr("周期发送原始帧") : qsTr("发送原始帧")) : qsTr("写入原始帧"); actionEnabled: root.canTransmit && root.idValid && root.rawValid; onClicked: root.controller.sendRaw(canChannel.currentIndex, motorId.text.trim(), rawInput.text.trim(), root.canfd && periodic.checked, interval.value) }
             }
             Label { visible: root.rawOpen && rawInput.text.length > 0 && !root.rawValid; Layout.fillWidth: true; text: qsTr("请输入恰好 8 个两位十六进制字节，以空格分隔。"); color: root.theme.dangerText; font.pixelSize: root.theme.fontBodySmall }

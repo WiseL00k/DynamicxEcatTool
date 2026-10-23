@@ -211,6 +211,11 @@ TestCase {
             verify(item.width > 30, name + " has usable width")
             verify(origin.x >= -1 && origin.x + item.width <= page.width + 1, name + " fits horizontally")
         }
+        const previewCard = child("dmFramePreviewCard")
+        const preview = child("dmFramePreview")
+        const previewOrigin = preview.mapToItem(previewCard, 0, 0)
+        verify(previewOrigin.y >= 0 && previewOrigin.y + preview.height <= previewCard.height + 1,
+            "Frame preview stays inside its card")
         page.configurationOpen = true
         wait(30)
         verify(scroll.contentWidth <= scroll.availableWidth + 1)

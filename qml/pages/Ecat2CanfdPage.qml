@@ -226,12 +226,12 @@ Pane {
                             ColumnLayout {
                                 spacing: 2
                                 Label { text: qsTr("期望从站数"); color: root.theme.textSecondary }
-                                SpinBox { objectName: "canfdExpectedCount"; from: 1; to: 199; value: root.expectedCount; editable: true; enabled: !root.connected && !root.busy; onValueModified: root.expectedCount = value }
+                                AppSpinBox { theme: root.theme; objectName: "canfdExpectedCount"; from: 1; to: 199; value: root.expectedCount; editable: true; enabled: !root.connected && !root.busy; onValueModified: root.expectedCount = value }
                             }
                             ColumnLayout {
                                 spacing: 2
                                 Label { text: qsTr("EtherCAT 周期 (μs)"); color: root.theme.textSecondary }
-                                SpinBox { objectName: "canfdCycleInput"; from: 250; to: 100000; stepSize: 250; value: root.cycleUs; editable: true; enabled: !root.running && !root.busy; onValueModified: { root.cycleUs = value; if (Math.abs(root.shiftUs) >= value) root.shiftUs = 0 } ToolTip.visible: hovered; ToolTip.text: qsTr("最大周期 100 ms，为固件 200 ms 看门狗保留余量") }
+                                AppSpinBox { theme: root.theme; objectName: "canfdCycleInput"; from: 250; to: 100000; stepSize: 250; value: root.cycleUs; editable: true; enabled: !root.running && !root.busy; onValueModified: { root.cycleUs = value; if (Math.abs(root.shiftUs) >= value) root.shiftUs = 0 } ToolTip.visible: hovered; ToolTip.text: qsTr("最大周期 100 ms，为固件 200 ms 看门狗保留余量") }
                             }
                             ColumnLayout {
                                 spacing: 2
@@ -241,7 +241,7 @@ Pane {
                             ColumnLayout {
                                 spacing: 2
                                 Label { text: qsTr("相移 (μs)"); color: root.theme.textSecondary }
-                                SpinBox { from: -root.cycleUs + 1; to: root.cycleUs - 1; value: root.shiftUs; editable: true; enabled: root.dcEnabled && !root.running && !root.busy; onValueModified: root.shiftUs = value }
+                                AppSpinBox { theme: root.theme; from: -root.cycleUs + 1; to: root.cycleUs - 1; value: root.shiftUs; editable: true; enabled: root.dcEnabled && !root.running && !root.busy; onValueModified: root.shiftUs = value }
                             }
                         }
                         Label { Layout.fillWidth: true; text: qsTr("连接后停留在 PRE-OP；CAN 配置支持 PRE-OP 与 OP。运行前请完成配置回读。"); color: root.theme.textMuted; wrapMode: Text.Wrap }
@@ -250,7 +250,8 @@ Pane {
                 RowLayout {
                     Layout.fillWidth: true; spacing: root.theme.space8
                     Label { text: qsTr("通道配置"); color: root.theme.textPrimary; font.bold: true }
-                    ComboBox {
+                    AppComboBox {
+                        theme: root.theme
                         objectName: "canfdConfigurationSlave"; Layout.preferredWidth: 130
                         model: root.slaveChoices; textRole: "label"; valueRole: "position"
                         currentIndex: Math.max(0, root.slaveChoices.findIndex(function(item) { return item.position === root.selectedSlave }))
@@ -288,27 +289,27 @@ Pane {
                         ColumnLayout {
                             spacing: 2
                             Label { text: qsTr("从站"); color: root.theme.textSecondary; font.pixelSize: root.theme.fontBodySmall }
-                            ComboBox { id: sendSlave; objectName: "canfdSendSlave"; implicitWidth: 110; model: root.slaveChoices; textRole: "label"; valueRole: "position"; currentIndex: Math.max(0, root.slaveChoices.findIndex(function(item) { return item.position === root.sendSlavePosition })); enabled: !root.controller || !root.controller.periodicSending; onActivated: root.sendSlavePosition = currentValue }
+                            AppComboBox { theme: root.theme; id: sendSlave; objectName: "canfdSendSlave"; implicitWidth: 110; model: root.slaveChoices; textRole: "label"; valueRole: "position"; currentIndex: Math.max(0, root.slaveChoices.findIndex(function(item) { return item.position === root.sendSlavePosition })); enabled: !root.controller || !root.controller.periodicSending; onActivated: root.sendSlavePosition = currentValue }
                         }
                         ColumnLayout {
                             spacing: 2
                             Label { text: qsTr("通道"); color: root.theme.textSecondary; font.pixelSize: root.theme.fontBodySmall }
-                            ComboBox { id: sendChannel; objectName: "canfdSendChannel"; implicitWidth: 90; model: ["CAN 0", "CAN 1"]; enabled: !root.controller || !root.controller.periodicSending }
+                            AppComboBox { theme: root.theme; id: sendChannel; objectName: "canfdSendChannel"; implicitWidth: 90; model: ["CAN 0", "CAN 1"]; enabled: !root.controller || !root.controller.periodicSending }
                         }
                         ColumnLayout {
                             spacing: 2
                             Label { text: "CAN ID (HEX)"; color: root.theme.textSecondary; font.pixelSize: root.theme.fontBodySmall }
-                            TextField { id: idInput; objectName: "canfdIdInput"; implicitWidth: 110; text: "123"; placeholderText: "000–7FF"; selectByMouse: true; maximumLength: 5; enabled: !root.controller || !root.controller.periodicSending; font.family: "Consolas" }
+                            AppTextField { theme: root.theme; id: idInput; objectName: "canfdIdInput"; implicitWidth: 110; text: "123"; placeholderText: "000–7FF"; selectByMouse: true; maximumLength: 5; enabled: !root.controller || !root.controller.periodicSending; font.family: "Consolas" }
                         }
                         ColumnLayout {
                             spacing: 2
                             Label { text: "DLC"; color: root.theme.textSecondary; font.pixelSize: root.theme.fontBodySmall }
-                            SpinBox { id: dlcInput; objectName: "canfdDlcInput"; implicitWidth: 100; from: 0; to: 8; value: 8; editable: true; enabled: !root.controller || !root.controller.periodicSending }
+                            AppSpinBox { theme: root.theme; id: dlcInput; objectName: "canfdDlcInput"; implicitWidth: 100; from: 0; to: 8; value: 8; editable: true; enabled: !root.controller || !root.controller.periodicSending }
                         }
                         ColumnLayout {
                             spacing: 2
                             Label { text: qsTr("发送间隔 (μs)"); color: root.theme.textSecondary; font.pixelSize: root.theme.fontBodySmall }
-                            SpinBox { id: intervalInput; objectName: "canfdIntervalInput"; implicitWidth: 135; from: root.cycleUs; to: 10000000; value: 100000; stepSize: root.cycleUs; editable: true; enabled: !root.controller || !root.controller.periodicSending }
+                            AppSpinBox { theme: root.theme; id: intervalInput; objectName: "canfdIntervalInput"; implicitWidth: 135; from: root.cycleUs; to: 10000000; value: 100000; stepSize: root.cycleUs; editable: true; enabled: !root.controller || !root.controller.periodicSending }
                         }
                         ColumnLayout {
                             spacing: 2
@@ -329,7 +330,7 @@ Pane {
                     RowLayout {
                         Layout.fillWidth: true; spacing: root.theme.space8
                         Label { text: "Data (HEX)"; color: root.theme.textSecondary; font.pixelSize: root.theme.fontBodySmall }
-                        TextField { id: payload; objectName: "canfdPayloadInput"; Layout.fillWidth: true; Layout.minimumWidth: 120; text: "00 00 00 00 00 00 00 00"; placeholderText: qsTr("字节以空格分隔，与 DLC 一致"); selectByMouse: true; font.family: "Consolas"; enabled: !root.controller || !root.controller.periodicSending }
+                        AppTextField { theme: root.theme; id: payload; objectName: "canfdPayloadInput"; Layout.fillWidth: true; Layout.minimumWidth: 120; text: "00 00 00 00 00 00 00 00"; placeholderText: qsTr("字节以空格分隔，与 DLC 一致"); selectByMouse: true; font.family: "Consolas"; enabled: !root.controller || !root.controller.periodicSending }
                         Label { text: root.idValid && root.payloadValid ? qsTr("标准帧 · 0–8 B") : qsTr("请检查 ID / 数据长度"); color: root.idValid && root.payloadValid ? root.theme.textMuted : root.theme.warningText; font.pixelSize: root.theme.fontBodySmall }
                     }
                     Label { Layout.fillWidth: true; text: qsTr("实际发送间隔 %1 μs（按 EtherCAT 周期向上取整）").arg(root.actualIntervalUs); color: root.theme.textMuted; font.pixelSize: root.theme.fontCaption }
@@ -343,7 +344,7 @@ Pane {
                     TabButton { text: qsTr("接收报文") }
                     TabButton { text: qsTr("PDO 监视") }
                 }
-                ComboBox { objectName: "canfdPdoSlave"; visible: viewTabs.currentIndex === 1; Layout.preferredWidth: 120; model: root.slaveChoices; textRole: "label"; valueRole: "position"; currentIndex: Math.max(0, root.slaveChoices.findIndex(function(item) { return item.position === root.selectedSlave })); onActivated: root.selectSlave(currentValue) }
+                AppComboBox { theme: root.theme; objectName: "canfdPdoSlave"; visible: viewTabs.currentIndex === 1; Layout.preferredWidth: 120; model: root.slaveChoices; textRole: "label"; valueRole: "position"; currentIndex: Math.max(0, root.slaveChoices.findIndex(function(item) { return item.position === root.selectedSlave })); onActivated: root.selectSlave(currentValue) }
                 StatusBadge {
                     objectName: "canfdPdoQuality"; visible: viewTabs.currentIndex === 1; theme: root.theme; compact: true
                     text: root.snapshot.historical ? qsTr("历史快照") : root.snapshot.valid === false ? qsTr("本周期无效") : root.snapshot.valid ? qsTr("实时") : qsTr("未采样")

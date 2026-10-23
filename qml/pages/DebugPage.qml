@@ -111,7 +111,8 @@ Item {
                                 Layout.fillWidth: true
                                 spacing: 8
 
-                                TextField {
+                                AppTextField {
+                                    theme: root.theme
                                     Layout.fillWidth: true
                                     readOnly: true
                                     text: root.yamlPath

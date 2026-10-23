@@ -51,11 +51,11 @@ PanelCard {
         GridLayout {
             columns: 2; Layout.fillWidth: true; columnSpacing: root.theme.space12; rowSpacing: root.theme.space8
             Label { text: qsTr("帧格式"); color: root.theme.textSecondary }
-            ComboBox { id: format; objectName: "canfdFormat" + root.channel; Layout.fillWidth: true; model: ["Classic CAN", "CAN FD", "CAN FD + BRS"]; enabled: root.editable; onActivated: root.configurationEdited(root.values()) }
+            AppComboBox { theme: root.theme; id: format; objectName: "canfdFormat" + root.channel; Layout.fillWidth: true; model: ["Classic CAN", "CAN FD", "CAN FD + BRS"]; enabled: root.editable; onActivated: root.configurationEdited(root.values()) }
             Label { text: qsTr("仲裁速率"); color: root.theme.textSecondary }
-            ComboBox { id: nominal; Layout.fillWidth: true; model: ["100 kbit/s", "125 kbit/s", "250 kbit/s", "500 kbit/s", "1 Mbit/s"]; enabled: root.editable; onActivated: root.configurationEdited(root.values()) }
+            AppComboBox { theme: root.theme; id: nominal; Layout.fillWidth: true; model: ["100 kbit/s", "125 kbit/s", "250 kbit/s", "500 kbit/s", "1 Mbit/s"]; enabled: root.editable; onActivated: root.configurationEdited(root.values()) }
             Label { text: qsTr("数据速率"); color: root.theme.textSecondary }
-            ComboBox { id: dataRate; Layout.fillWidth: true; model: ["2.5 Mbit/s", "5 Mbit/s"]; enabled: root.editable && format.currentIndex === 2; onActivated: root.configurationEdited(root.values()) }
+            AppComboBox { theme: root.theme; id: dataRate; Layout.fillWidth: true; model: ["2.5 Mbit/s", "5 Mbit/s"]; enabled: root.editable && format.currentIndex === 2; onActivated: root.configurationEdited(root.values()) }
         }
         Flow {
             Layout.fillWidth: true; spacing: root.theme.space4

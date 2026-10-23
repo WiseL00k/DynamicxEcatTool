@@ -24,6 +24,9 @@ set(APP_QML_FILES
     qml/adapters/LogUiAdapter.qml
     qml/adapters/SessionUiAdapter.qml
     qml/components/AppButton.qml
+    qml/components/AppTextField.qml
+    qml/components/AppSpinBox.qml
+    qml/components/AppComboBox.qml
     qml/components/CanfdChannelConfig.qml
     qml/components/CanfdPdoView.qml
     qml/components/FlashProgressView.qml

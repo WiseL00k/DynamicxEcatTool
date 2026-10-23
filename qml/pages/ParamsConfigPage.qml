@@ -92,7 +92,8 @@ Pane {
             Layout.fillWidth: true; theme: root.theme; padding: root.theme.space8
             Flow {
                 width: parent.width; spacing: root.theme.space8
-                ComboBox {
+                AppComboBox {
+                    theme: root.theme
                     id: slaveType
                     objectName: "dmTypeSelector"; implicitWidth: 155; implicitHeight: root.theme.controlHeight
                     model: ["MIT 从站", "ECAT2CANFD 从站"]
@@ -166,7 +167,7 @@ Pane {
                                 ColumnLayout {
                                     spacing: root.theme.space4
                                     Label { text: qsTr("周期 (μs)"); color: root.theme.textSecondary; font.pixelSize: root.theme.fontBodySmall }
-                                    SpinBox { objectName: "dmCycleInput"; from: 250; to: 100000; stepSize: 250; value: root.cycleUs; editable: true; enabled: !root.running && !root.busy; onValueModified: { root.cycleUs = value; if (Math.abs(root.shiftUs) >= value) root.shiftUs = 0 } }
+                                    AppSpinBox { theme: root.theme; objectName: "dmCycleInput"; from: 250; to: 100000; stepSize: 250; value: root.cycleUs; editable: true; enabled: !root.running && !root.busy; onValueModified: { root.cycleUs = value; if (Math.abs(root.shiftUs) >= value) root.shiftUs = 0 } }
                                 }
                                 ColumnLayout {
                                     spacing: root.theme.space4
@@ -176,7 +177,7 @@ Pane {
                                 ColumnLayout {
                                     spacing: root.theme.space4
                                     Label { text: qsTr("相移 (μs)"); color: root.theme.textSecondary; font.pixelSize: root.theme.fontBodySmall }
-                                    SpinBox { objectName: "dmShiftInput"; from: -root.cycleUs + 1; to: root.cycleUs - 1; value: root.shiftUs; editable: true; enabled: root.dcEnabled && !root.running && !root.busy; onValueModified: root.shiftUs = value }
+                                    AppSpinBox { theme: root.theme; objectName: "dmShiftInput"; from: -root.cycleUs + 1; to: root.cycleUs - 1; value: root.shiftUs; editable: true; enabled: root.dcEnabled && !root.running && !root.busy; onValueModified: root.shiftUs = value }
                                 }
                             }
                             Label { Layout.fillWidth: true; text: qsTr("连接后停留在 PRE-OP；CAN 配置可在 PRE-OP 或 OP 中读写。电机控制需进入 OP。"); wrapMode: Text.Wrap; color: root.theme.textMuted; font.pixelSize: root.theme.fontBodySmall }
