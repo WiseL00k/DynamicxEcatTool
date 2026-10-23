@@ -11,6 +11,41 @@ function(configure_dc_test target)
     set_tests_properties(${target} PROPERTIES TIMEOUT 120)
 endfunction()
 
+add_executable(DynamicxSoemPortTests SoemPortTests.cpp)
+target_link_libraries(DynamicxSoemPortTests PRIVATE Qt6::Test soem)
+configure_dc_test(DynamicxSoemPortTests)
+
+add_executable(DynamicxApplicationRuntimeTests ApplicationRuntimeTests.cpp)
+target_include_directories(DynamicxApplicationRuntimeTests PRIVATE ${PROJECT_SOURCE_DIR}/SOEM_interface/src)
+target_link_libraries(DynamicxApplicationRuntimeTests PRIVATE Qt6::Test soem_interface)
+configure_dc_test(DynamicxApplicationRuntimeTests)
+
+# Manual hardware probe: intentionally excluded from add_test()/CI execution.
+add_executable(DynamicxCanfdHardwareProbe CanfdHardwareProbe.cpp)
+target_link_libraries(DynamicxCanfdHardwareProbe PRIVATE dynamicx_backend)
+if(WIN32)
+    target_link_options(DynamicxCanfdHardwareProbe PRIVATE /STACK:8388608)
+endif()
+
+add_executable(DynamicxCanfdTests ../Backend/Canfd/tests/CanfdTests.cpp)
+target_link_libraries(DynamicxCanfdTests PRIVATE Qt6::Test dynamicx_backend)
+configure_dc_test(DynamicxCanfdTests)
+
+add_executable(DynamicxDamiaoMitTests DamiaoMitTests.cpp)
+target_link_libraries(DynamicxDamiaoMitTests PRIVATE Qt6::Test dynamicx_backend)
+configure_dc_test(DynamicxDamiaoMitTests)
+
+add_executable(DynamicxErrorLocalizationTests ErrorLocalizationTests.cpp)
+target_link_libraries(DynamicxErrorLocalizationTests PRIVATE Qt6::Test dynamicx_backend)
+configure_dc_test(DynamicxErrorLocalizationTests)
+
+# Manual motor-free hardware probe; never executed by CTest.
+add_executable(DynamicxDamiaoHardwareProbe DamiaoHardwareProbe.cpp)
+target_link_libraries(DynamicxDamiaoHardwareProbe PRIVATE dynamicx_backend)
+if(WIN32)
+    target_link_options(DynamicxDamiaoHardwareProbe PRIVATE /STACK:8388608)
+endif()
+
 add_executable(DynamicxDcRuntimeTests DcRuntimeTests.cpp)
 target_include_directories(DynamicxDcRuntimeTests PRIVATE ${PROJECT_SOURCE_DIR}/SOEM_interface/src)
 target_link_libraries(DynamicxDcRuntimeTests PRIVATE Qt6::Test soem_interface)

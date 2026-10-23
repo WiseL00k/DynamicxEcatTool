@@ -18,6 +18,8 @@ EthercatBackend::EthercatBackend(QObject* parent)
     , sessionCoordinator_(this)
     , busExplorer_(sessionCoordinator_, masterController_, this)
     , dcTest_(sessionCoordinator_, masterController_, this)
+    , ecat2Canfd_(sessionCoordinator_, this)
+    , damiaoMit_(sessionCoordinator_, this)
     , monitorController_(this)
     , flashService_(this)
 {
@@ -64,6 +66,11 @@ DcTestController* EthercatBackend::dcTest()
     return &dcTest_;
 }
 
+Ecat2CanfdController* EthercatBackend::ecat2Canfd()
+{
+    return &ecat2Canfd_;
+}
+
 bool EthercatBackend::setDeviceOnlineStatus(const QString& motorName, const bool& status)
 {
     return deviceModel_.setDeviceOnline(motorName, status);
@@ -90,6 +97,24 @@ void EthercatBackend::connectServices()
     connect(&dcTest_, &DcTestController::sessionConnected,
             this, [this](int count) { updateConnectionState(true, count); });
     connect(&dcTest_, &DcTestController::sessionReleased,
+            this, [this] { updateConnectionState(false, 0); });
+    connect(&ecat2Canfd_, &Ecat2CanfdController::logAppended,
+            this, &EthercatBackend::ecat2CanfdLogAppended);
+    connect(&ecat2Canfd_, &Ecat2CanfdController::sessionConnected,
+            this, [this](int count) { updateConnectionState(true, count); });
+    connect(&ecat2Canfd_, &Ecat2CanfdController::sessionReleased,
+            this, [this] { updateConnectionState(false, 0); });
+    connect(&damiaoMit_, &DamiaoMitController::logAppended, this, &EthercatBackend::damiaoMitLogAppended);
+    connect(this, &EthercatBackend::soemErrorOccurred, &damiaoMit_, &DamiaoMitController::reportLegacyError);
+    connect(&damiaoMit_, &DamiaoMitController::legacyConnectRequested, this, &EthercatBackend::enterMitSlaveDebugMode);
+    connect(&damiaoMit_, &DamiaoMitController::legacyDisconnectRequested, this, &EthercatBackend::exitMitSlaveDebugMode);
+    connect(&damiaoMit_, &DamiaoMitController::legacySendRequested, this, &EthercatBackend::sendMitFrameQml);
+    connect(&damiaoMit_, &DamiaoMitController::legacyClearRequested, this, &EthercatBackend::clearMitFrameQml);
+    connect(&damiaoMit_, &DamiaoMitController::legacyEnableRequested, this, &EthercatBackend::enableMitSlaveMotors);
+    connect(&damiaoMit_, &DamiaoMitController::legacyDisableRequested, this, &EthercatBackend::disableMitSlaveMotors);
+    connect(damiaoMit_.canfd(), &Ecat2CanfdController::sessionConnected,
+            this, [this](int count) { updateConnectionState(true, count); });
+    connect(damiaoMit_.canfd(), &Ecat2CanfdController::sessionReleased,
             this, [this] { updateConnectionState(false, 0); });
 }
 
@@ -144,6 +169,8 @@ void EthercatBackend::refreshNics()
         if (adapterService_.selectAdapter(0, nicName_, errorMessage)) {
             busExplorer_.setNicName(nicName_);
             dcTest_.setNicName(nicName_);
+            ecat2Canfd_.setNicName(nicName_);
+            damiaoMit_.setNicName(nicName_);
         }
     }
     emit nicListChanged();
@@ -175,6 +202,8 @@ void EthercatBackend::refreshNicsAsync()
                             0, self->nicName_, errorMessage)) {
                         self->busExplorer_.setNicName(self->nicName_);
                         self->dcTest_.setNicName(self->nicName_);
+                        self->ecat2Canfd_.setNicName(self->nicName_);
+                        self->damiaoMit_.setNicName(self->nicName_);
                     }
                 }
                 emit self->nicListChanged();
@@ -193,6 +222,8 @@ void EthercatBackend::changedSelectedNic(const int& nicIndex)
 
     busExplorer_.setNicName(nicName_);
     dcTest_.setNicName(nicName_);
+    ecat2Canfd_.setNicName(nicName_);
+    damiaoMit_.setNicName(nicName_);
     emit logUpdated(QStringLiteral("选择了网卡: %1").arg(QString::fromStdString(nicName_)));
 }
 
@@ -209,6 +240,8 @@ void EthercatBackend::updateConnectionState(bool connected, int slaveCount)
 {
     connected_ = connected;
     slaveCount_ = slaveCount;
+    damiaoMit_.setLegacyConnected(connected && isSession(BusSessionCoordinator::Mode::MitDebug)
+                                  && masterController_.hasMaster() && masterController_.isConnected());
 
     emit connectedChanged();
     emit slaveCountChanged();
@@ -364,6 +397,9 @@ void EthercatBackend::exitPreOpAll()
 
 void EthercatBackend::enterMitSlaveDebugMode()
 {
+    if (damiaoMit_.slaveType() != QStringLiteral("mit")) {
+        emit soemErrorOccurred(QStringLiteral("当前选择 ECAT2CANFD，请使用达妙调试页的网关连接")); return;
+    }
     if (!validateSelectedNic()) {
         emit soemErrorOccurred(QStringLiteral("请先选择网卡"));
         return;
@@ -376,6 +412,7 @@ void EthercatBackend::enterMitSlaveDebugMode()
     const MasterStartResult result = masterController_.enterMitDebugMode(nicName_);
     if (!result.ok) {
         emitStartFailure(result, BusSessionCoordinator::Mode::MitDebug);
+        if (!result.detailMessage.isEmpty()) emit soemErrorOccurred(result.detailMessage);
         return;
     }
 
@@ -399,6 +436,10 @@ void EthercatBackend::exitMitSlaveDebugMode()
 
 void EthercatBackend::enableMitSlaveMotors()
 {
+    if (!isSession(BusSessionCoordinator::Mode::MitDebug) || !masterController_.isConnected()
+        || damiaoMit_.slaveType() != QStringLiteral("mit")) {
+        emit soemErrorOccurred(QStringLiteral("原 MIT 调试会话未连接")); return;
+    }
     QString errorMessage;
     if (!mitSlaveController_.enableMotors(masterController_.master(), errorMessage)) {
         emit soemErrorOccurred(errorMessage);
@@ -407,6 +448,10 @@ void EthercatBackend::enableMitSlaveMotors()
 
 void EthercatBackend::disableMitSlaveMotors()
 {
+    if (!isSession(BusSessionCoordinator::Mode::MitDebug) || !masterController_.isConnected()
+        || damiaoMit_.slaveType() != QStringLiteral("mit")) {
+        emit soemErrorOccurred(QStringLiteral("原 MIT 调试会话未连接")); return;
+    }
     QString errorMessage;
     if (!mitSlaveController_.disableMotors(masterController_.master(), errorMessage)) {
         emit soemErrorOccurred(errorMessage);
@@ -460,6 +505,10 @@ void EthercatBackend::flashFirmware(int slaveId, const QString& filePath)
 
 void EthercatBackend::sendMitFrameQml(int canBus, int canId, const QVariantList& data)
 {
+    if (!isSession(BusSessionCoordinator::Mode::MitDebug) || !masterController_.isConnected()
+        || damiaoMit_.slaveType() != QStringLiteral("mit")) {
+        emit soemErrorOccurred(QStringLiteral("原 MIT 调试会话未连接")); return;
+    }
     QString errorMessage;
     if (!mitSlaveController_.sendFrame(masterController_.master(), canBus, canId, data, errorMessage)) {
         emit soemErrorOccurred(errorMessage);
@@ -468,6 +517,10 @@ void EthercatBackend::sendMitFrameQml(int canBus, int canId, const QVariantList&
 
 void EthercatBackend::clearMitFrameQml(int canBus, int canId)
 {
+    if (!isSession(BusSessionCoordinator::Mode::MitDebug) || !masterController_.isConnected()
+        || damiaoMit_.slaveType() != QStringLiteral("mit")) {
+        emit soemErrorOccurred(QStringLiteral("原 MIT 调试会话未连接")); return;
+    }
     QString errorMessage;
     if (!mitSlaveController_.clearFrame(masterController_.master(), canBus, canId, errorMessage)) {
         emit soemErrorOccurred(errorMessage);

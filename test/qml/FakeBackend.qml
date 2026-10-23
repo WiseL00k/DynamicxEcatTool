@@ -15,6 +15,8 @@ QtObject {
     signal logUpdated(string line)
     signal logAppend(string line)
     signal dcLogAppended(string line)
+    signal ecat2CanfdLogAppended(string line)
+    signal damiaoMitLogAppended(string line)
     signal soemErrorOccurred(string message)
 
     function refreshNicsAsync() {}

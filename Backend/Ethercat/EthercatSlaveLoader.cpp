@@ -73,6 +73,7 @@ SlaveLoadResult EthercatSlaveLoader::loadFromFile(
     soem_interface::EcatMasterBus& master,
     DeviceStatusModel& deviceModel)
 {
+    std::string currentConfigPath = configFilePath;
     try {
         EcatSlaveConfigurationParser parser(configFilePath);
         const EcatDeviceConfiguration ecatConfiguration = parser.getConfiguration();
@@ -81,6 +82,7 @@ SlaveLoadResult EthercatSlaveLoader::loadFromFile(
         deviceModel.clear();
 
         for (const SlaveEntry& slave : slaves) {
+            currentConfigPath = slave.configuration_file_path;
             DxSlave::DxSlaveConfigurationParser dxParser(slave.configuration_file_path);
             const DxSlave::DxSlaveConfiguration dxConfiguration = dxParser.getConfiguration();
 
@@ -106,8 +108,11 @@ SlaveLoadResult EthercatSlaveLoader::loadFromFile(
         }
 
         return {true, static_cast<int>(slaves.size()), {}};
+    } catch (const YAML::Exception& ex) {
+        return {false, 0, QString::fromStdString(formatYamlDiagnostic(ex, currentConfigPath))};
     } catch (const std::exception& ex) {
-        return {false, 0, QString::fromLocal8Bit(ex.what())};
+        return {false, 0, QStringLiteral("加载从站配置失败（%1）：%2")
+                              .arg(QString::fromStdString(currentConfigPath), QString::fromUtf8(ex.what()))};
     } catch (...) {
         return {false, 0, QStringLiteral("未知配置解析错误")};
     }

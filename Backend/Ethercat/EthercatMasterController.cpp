@@ -2,6 +2,8 @@
 
 #include "Backend/Ethercat/EthercatSlaveLoader.h"
 #include "SOEM_interface/EcatMasterBus.h"
+#include <algorithm>
+#include <vector>
 
 namespace Backend {
 
@@ -91,7 +93,7 @@ soem_interface::BusScanResult EthercatMasterController::startExplorer(const std:
     soem_interface::BusScanResult result;
     if (master_) {
         result.errorCode = soem_interface::error::EcatInitFailed;
-        result.error = "An EtherCAT master session is already active.";
+        result.error = "已有 EtherCAT 主站会话正在运行。";
         return result;
     }
 
@@ -116,7 +118,7 @@ soem_interface::DcStartResult EthercatMasterController::startDcTest(
     {
         std::lock_guard lock(dcMutex_);
         if (master_) {
-            return {false, false, "An EtherCAT master session is already active."};
+            return {false, false, "已有 EtherCAT 主站会话正在运行。"};
         }
         master = std::make_shared<soem_interface::EcatMasterBus>(nicName);
         master_ = master;
@@ -288,6 +290,49 @@ MasterStartResult EthercatMasterController::enterPreOp(const std::string& nicNam
     return {true, configuredSlaveCount_};
 }
 
+MasterStartResult validateMitDebugScan(const soem_interface::BusScanResult& scan)
+{
+    if (!scan.success) return {false, 0, scan.errorCode, {}, QString::fromStdString(scan.error)};
+    if (scan.slaveCount != 1 || scan.slaves.size() != 1)
+        return {false, scan.slaveCount, soem_interface::error::InvalidSlave, {},
+                QStringLiteral("达妙电机调试仅允许一块从站，实际发现 %1 块；未进入 OP").arg(scan.slaveCount)};
+    const auto& slave = scan.slaves.front();
+    // Identity and packed 149-byte process images from the repository MIT ESI
+    // and MitEcatSlave implementation. Do not treat the CAN gateway as MIT.
+    if (!scan.mappingReady || !scan.activePdoComplete || slave.position != 1 || slave.vendorId != 0 ||
+        slave.productCode != 0xAB124 || slave.revision != 2 ||
+        slave.outputBits != 149 * 8 || slave.inputBits != 149 * 8)
+        return {false, 1, soem_interface::error::InvalidSlave, {},
+                QStringLiteral("从站身份或 PDO 长度与原 MIT 从站不匹配（需要 0/0xAB124/2、双向 149 字节）；未进入 OP")};
+    for (auto direction : {soem_interface::PdoDirection::Rx, soem_interface::PdoDirection::Tx}) {
+        std::vector<soem_interface::ActivePdoEntry> actual;
+        for (const auto& entry : scan.activePdos)
+            if (entry.slave == 1 && entry.direction == direction) actual.push_back(entry);
+        std::sort(actual.begin(), actual.end(), [](const auto& a, const auto& b) { return a.bitOffset < b.bitOffset; });
+        struct Entry { uint16_t index; uint8_t sub; uint16_t bits; uint32_t offset; };
+        std::vector<Entry> expected;
+        uint32_t offset = 0;
+        const auto add = [&](uint16_t index, uint8_t sub, uint16_t bits) {
+            expected.push_back({index, sub, bits, offset}); offset += bits;
+        };
+        const bool outputs = direction == soem_interface::PdoDirection::Rx;
+        if (outputs) add(0x6040, 0, 32);
+        for (int channel = 0; channel < 2; ++channel)
+            for (uint8_t slot = 1; slot <= 9; ++slot) add(uint16_t((outputs ? 0x7000 : 0x6000) + channel), slot, 64);
+        add(outputs ? 0x7002 : 0x600C, 0, 8);
+        if (!outputs) add(0x6041, 0, 32);
+        bool matches = actual.size() == expected.size();
+        for (size_t i = 0; matches && i < expected.size(); ++i)
+            matches = actual[i].index == expected[i].index && actual[i].subindex == expected[i].sub &&
+                      actual[i].bitLength == expected[i].bits && actual[i].bitOffset == expected[i].offset;
+        if (!matches)
+            return {false, 1, soem_interface::error::InvalidSlave, {},
+                    QStringLiteral("原 MIT 从站 %1PDO 字段布局不匹配九槽位协议；未进入 OP")
+                        .arg(outputs ? QStringLiteral("Rx") : QStringLiteral("Tx"))};
+    }
+    return {true, 1};
+}
+
 MasterStartResult EthercatMasterController::enterMitDebugMode(const std::string& nicName)
 {
     if (master_) {
@@ -295,6 +340,12 @@ MasterStartResult EthercatMasterController::enterMitDebugMode(const std::string&
     }
 
     master_ = std::make_shared<soem_interface::EcatMasterBus>(nicName);
+
+    const auto preflight = validateMitDebugScan(master_->scanForSlaves());
+    if (!preflight.ok) {
+        reset();
+        return preflight;
+    }
 
     const SlaveLoadResult loadResult = EthercatSlaveLoader::addMitDebugSlave(*master_);
     configuredSlaveCount_ = loadResult.slaveCount;
@@ -309,12 +360,6 @@ MasterStartResult EthercatMasterController::enterMitDebugMode(const std::string&
         const QString logMessage = QStringLiteral("初始化失败，无法连接到网卡 %1").arg(QString::fromStdString(nicName));
         reset();
         return {false, 0, errorCode, logMessage};
-    }
-
-    QString slaveCountError;
-    if (!validateSlaveCount(configuredSlaveCount_, slaveCountError)) {
-        reset();
-        return {false, 0, soem_interface::error::InvalidSlave, slaveCountError};
     }
 
     connected_ = true;

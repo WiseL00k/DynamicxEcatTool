@@ -216,21 +216,21 @@ void DcTestController::start(qint64 cycleUs, qint64 shiftUs)
                 snapshot = session->snapshot();
             } catch (const std::exception& exception) {
                 result = {false, false,
-                          std::string("DC session snapshot failed: ")
+                          std::string("DC 会话快照读取失败：")
                               + exception.what()};
             } catch (...) {
-                result = {false, false, "DC session snapshot failed."};
+                result = {false, false, "DC 会话快照读取失败。"};
             }
         } catch (const std::exception& exception) {
             result = {false, false,
-                      std::string("DC session start failed: ")
+                      std::string("DC 会话启动失败：")
                           + exception.what()};
             try {
                 snapshot = session->snapshot();
             } catch (...) {
             }
         } catch (...) {
-            result = {false, false, "DC session start failed."};
+            result = {false, false, "DC 会话启动失败。"};
             try {
                 snapshot = session->snapshot();
             } catch (...) {

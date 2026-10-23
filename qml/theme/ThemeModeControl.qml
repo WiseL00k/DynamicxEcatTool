@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import "../components"
 
 Control {
     id: root
@@ -23,8 +24,9 @@ Control {
             font.pixelSize: root.theme.fontBodySmall
         }
 
-        ComboBox {
+        AppComboBox {
             id: modeBox
+            theme: root.theme
             Layout.fillWidth: true
             textRole: "label"
             valueRole: "value"

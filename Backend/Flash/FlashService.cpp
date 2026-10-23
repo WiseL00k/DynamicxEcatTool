@@ -118,7 +118,7 @@ bool FlashService::flashEEprom(const std::string& nicName, int slaveId, const QS
         progress->store(100);
         emit self->flashProgress(QStringLiteral("eeprom"), 100);
         emit self->logUpdated(QStringLiteral("烧录完成，用时 %1 ms").arg(elapsedMs));
-        emit self->flashFinished(QStringLiteral("eeprom"), true, QStringLiteral("OK (%1 ms)").arg(elapsedMs));
+        emit self->flashFinished(QStringLiteral("eeprom"), true, QStringLiteral("成功（%1 ms）").arg(elapsedMs));
     });
 
     return true;
@@ -208,7 +208,7 @@ bool FlashService::flashFirmware(const std::string& nicName, int slaveId, const 
         emit self->flashFinished(
             QStringLiteral("firmware"),
             ok,
-            ok ? QStringLiteral("OK (%1 ms)").arg(elapsedMs) : QStringLiteral("FAIL (%1 ms)").arg(elapsedMs));
+            ok ? QStringLiteral("成功（%1 ms）").arg(elapsedMs) : QStringLiteral("失败（%1 ms）").arg(elapsedMs));
     });
 
     return true;

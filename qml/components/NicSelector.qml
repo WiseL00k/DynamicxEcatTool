@@ -31,8 +31,9 @@ Control {
             verticalAlignment: Text.AlignVCenter
         }
 
-        ComboBox {
+        AppComboBox {
             id: nicBox
+            theme: root.theme
             Layout.fillWidth: true
             Layout.minimumWidth: 150
             model: root.model

@@ -258,11 +258,12 @@ void EthercatExplorerController::completeScan(
     }
 
     for (const explorer::ParseDiagnostic& diagnostic : std::as_const(diagnostics)) {
-        appendLog(QStringLiteral("ESI%1: %2 (%3:%4)")
+        appendLog(QStringLiteral("ESI%1：%2（%3，第 %4 行，第 %5 列）")
                       .arg(diagnostic.severity == explorer::ParseDiagnostic::Severity::Error
                                ? QStringLiteral("错误") : QStringLiteral("警告"),
                            diagnostic.message, diagnostic.source)
-                      .arg(diagnostic.line));
+                      .arg(diagnostic.line)
+                      .arg(diagnostic.column));
     }
 
     if (!result.success) {
@@ -1163,7 +1164,7 @@ QString EthercatExplorerController::stateText(int state)
     case EC_STATE_PRE_OP: return QStringLiteral("PRE-OP");
     case EC_STATE_SAFE_OP: return QStringLiteral("SAFE-OP");
     case EC_STATE_OPERATIONAL: return QStringLiteral("OP");
-    default: return QStringLiteral("UNKNOWN");
+    default: return QStringLiteral("未知");
     }
 }
 

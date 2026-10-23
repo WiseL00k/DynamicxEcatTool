@@ -5,6 +5,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
 import QtQml.Models
+import "../components"
 import "../dialogs"
 
 Item {
@@ -132,7 +133,8 @@ Item {
                             font.bold: true
                         }
 
-                        TextField {
+                        AppTextField {
+                            theme: root.theme
                             Layout.fillWidth: true
                             Layout.minimumWidth: 180
                             text: root.explorer.esiDirectory
@@ -535,12 +537,13 @@ Item {
                             required property bool selectedWritable
 
                             width: ListView.view.width
-                            height: isArray ? 96 : 68
+                            height: pdoCardContent.implicitHeight + 12
                             radius: 6
                             color: root.theme.surfaceMuted
                             border.color: root.theme.border
 
                             ColumnLayout {
+                                id: pdoCardContent
                                 anchors.fill: parent
                                 anchors.margins: 6
                                 spacing: 4
@@ -599,7 +602,8 @@ Item {
                                         font.pixelSize: 11
                                     }
 
-                                    ComboBox {
+                                    AppComboBox {
+                                        theme: root.theme
                                         Layout.fillWidth: true
                                         model: elementLabels
                                         currentIndex: selectedElementIndex
@@ -618,8 +622,9 @@ Item {
                                         font.pixelSize: 11
                                     }
 
-                                    TextField {
+                                    AppTextField {
                                         id: pdoEditor
+                                        theme: root.theme
                                         Layout.fillWidth: true
                                         selectByMouse: true
                                         readOnly: !selectedWritable
@@ -773,7 +778,7 @@ Item {
                                 required property bool writable
 
                                 width: ListView.view ? ListView.view.width : 0
-                                height: 88
+                                height: objectCardContent.implicitHeight + root.theme.space16
                                 radius: root.theme.radiusMedium
                                 color: objectCardHover.hovered
                                        ? root.theme.controlHover
@@ -789,6 +794,7 @@ Item {
                                 HoverHandler { id: objectCardHover }
 
                                 ColumnLayout {
+                                    id: objectCardContent
                                     anchors.fill: parent
                                     anchors.margins: root.theme.space8
                                     spacing: root.theme.space6
@@ -905,11 +911,11 @@ Item {
                                             font.pixelSize: root.theme.fontCaption
                                         }
 
-                                        TextField {
+                                        AppTextField {
                                             id: odEditor
+                                            theme: root.theme
                                             Layout.fillWidth: true
                                             Layout.minimumWidth: 80
-                                            Layout.preferredHeight: root.theme.controlHeightSmall
                                             readOnly: !objectCard.writable
                                             selectByMouse: true
                                             placeholderText: "尚未读取"
@@ -971,11 +977,11 @@ Item {
                                         Layout.fillWidth: true
                                         spacing: root.theme.space6
 
-                                        TextField {
+                                        AppTextField {
                                             id: objectSearchField
+                                            theme: root.theme
                                             Layout.fillWidth: true
                                             Layout.minimumWidth: 150
-                                            Layout.preferredHeight: root.theme.controlHeightSmall
                                             text: root.objectDictionaryQuery
                                             selectByMouse: true
                                             placeholderText: root.objectDictionarySearchMode === "index"

@@ -44,6 +44,9 @@ private slots:
         engine->rootContext()->setContextProperty(
             QStringLiteral("DcUiCaptureDirectory"),
             QUrl::fromLocalFile(captureDirectory_));
+        engine->rootContext()->setContextProperty(
+            QStringLiteral("DcUiCaptureScale"),
+            qEnvironmentVariable("QT_SCALE_FACTOR", QStringLiteral("1")));
     }
 
 private:

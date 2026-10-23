@@ -20,16 +20,18 @@ QtObject {
 
     readonly property bool testConnected: connected && sessionMode === "测试"
     readonly property bool dcConnected: connected && sessionMode === "DC测试"
+    readonly property bool canfdConnected: connected && sessionMode === "ECAT2CANFD"
     readonly property bool debugConnected: connected && sessionMode === "调试通信"
-    readonly property bool mitConnected: connected && sessionMode === "MIT参数调试"
+    readonly property bool mitConnected: connected && sessionMode === "达妙电机MIT调试"
     readonly property bool explorerActive: sessionActive && sessionMode === "总线配置"
     readonly property bool flashingActive: sessionActive && sessionMode === "固件或EEPROM烧录"
 
     readonly property string modeKey: {
         if (sessionMode === "测试") return "test"
         if (sessionMode === "DC测试") return "dc"
+        if (sessionMode === "ECAT2CANFD") return "ecat2canfd"
         if (sessionMode === "调试通信") return "debug"
-        if (sessionMode === "MIT参数调试") return "params"
+        if (sessionMode === "达妙电机MIT调试") return "params"
         if (sessionMode === "总线配置") return "bus"
         if (sessionMode === "固件或EEPROM烧录") return "test"
         return "idle"
