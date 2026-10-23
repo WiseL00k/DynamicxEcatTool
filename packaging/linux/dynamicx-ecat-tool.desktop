@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Dynamicx EtherCAT Tool
+Comment=EtherCAT debugging and testing tool
+Exec=DynamicxEcatTool
+Icon=dynamicx-ecat-tool
+Categories=Development;Utility;
+Terminal=false

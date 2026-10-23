@@ -1,0 +1,5 @@
+*.py text eol=lf
+*.sh text eol=lf
+AppRun text eol=lf
+*.desktop text eol=lf
+*.json text eol=lf

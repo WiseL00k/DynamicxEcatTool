@@ -1,0 +1,105 @@
+name: Windows CI
+
+on:
+  pull_request:
+    branches: [master]
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [master]
+    tags: ['**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    name: Windows Build and Package
+    runs-on: windows-2022
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      GITHUB_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout source and SOEM
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Initialize MSVC 2022 x64
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
+        with:
+          arch: x64
+          vsversion: 2022
+
+      - name: Install Qt 6.8.3
+        uses: jurplel/install-qt-action@a9c63c7c123f3069cff414e7e482d95dfa9d8125 # v4
+        with:
+          version: '6.8.3'
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          modules: qtshadertools
+          cache: true
+
+      - name: Cache yaml-cpp Release dependency
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ runner.temp }}/dynamicx-deps/yaml-install
+          key: yaml-cpp-windows-2022-x64-${{ env.VCToolsVersion }}-${{ hashFiles('packaging/windows/dependencies.json', 'packaging/windows/prepare-ci.ps1') }}
+
+      - name: Prepare pinned build and test dependencies
+        run: ./packaging/windows/prepare-ci.ps1 -WorkDirectory "$env:RUNNER_TEMP/dynamicx-deps"
+
+      - name: Configure and compile Release
+        run: |
+          . ./packaging/windows/common.ps1
+          Invoke-Checked cmake @('-S', '.', '-B', 'build/ci-windows', '-G', 'Ninja',
+            '-DCMAKE_BUILD_TYPE=Release', '-DBUILD_TESTING=ON',
+            "-DCMAKE_PREFIX_PATH=$env:QT_ROOT_DIR;$env:YAML_ROOT")
+          Invoke-Checked cmake @('--build', 'build/ci-windows', '--parallel', '4')
+
+      - name: Test without capture driver or hardware
+        run: |
+          . ./packaging/windows/common.ps1
+          # These DLLs are for mock-based tests only, never the application stage.
+          Copy-Item "$env:NPCAP_TEST_RUNTIME/*.dll" 'build/ci-windows/test/'
+          Invoke-Checked ctest @('--test-dir', 'build/ci-windows', '-C', 'Release',
+            '--output-on-failure', '--no-tests=error', '--output-junit', 'ctest-results.xml')
+          ./packaging/windows/tests/verify.ps1 -IsccPath $env:ISCC_PATH -WorkDirectory "$env:RUNNER_TEMP/packaging-tests"
+
+      - name: Build and verify installer
+        id: package
+        run: |
+          ./packaging/windows/package.ps1 -BuildDirectory 'build/ci-windows' `
+            -OutputDirectory 'build/ci-package' -IsccPath $env:ISCC_PATH -VcRedistPath $env:VC_REDIST_PATH `
+            -NpcapInstallerPath $env:NPCAP_INSTALLER_PATH
+
+      - name: Upload installer, checksum and provenance
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: DynamicxEcatTool-v${{ steps.package.outputs.version }}-windows-amd64-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: build/ci-package/publish/*
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+      - name: Upload diagnostic logs
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            build/ci-windows/Testing/Temporary/*.log
+            build/ci-windows/ctest-results.xml
+            build/ci-windows/CMakeFiles/CMakeConfigureLog.yaml
+            build/ci-package/package.log
+            ${{ runner.temp }}/packaging-tests/*.log
+          retention-days: 14

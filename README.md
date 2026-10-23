@@ -7,6 +7,8 @@ DynamicxEcatTool 是一个基于 **Qt6 + QML + C++** 的 EtherCAT 调试与测�
 - Windows 11
 - Ubuntu 20.04
 
+Ubuntu 安装包按 20.04 LTS、24.04 LTS 分别构建，提供 AppImage 和 deb。请下载与系统版本对应的包；24.04 包不声明兼容 20.04 / 22.04。下载入口与安装说明见 [打包说明](packaging/README.md)。
+
 ## 主要功能
 
 - 网卡扫描与选择
@@ -33,34 +35,29 @@ DynamicxEcatTool 是一个基于 **Qt6 + QML + C++** 的 EtherCAT 调试与测�
 
 ## 依赖环境
 
-- CMake >= 3.16
-- C++17 编译器
-- Qt6（至少包含 `Core`、`Quick`、`QuickControls2`）
-- `yaml-cpp`
+### Windows 11（x64）
 
-> 注意： 仓库包含 `SOEM` 子模块，首次拉取后需要初始化子模块。
+- Git 及仓库锁定的 `SOEM` 子模块
+- CMake >= 3.28（`SOEM` 子模块要求）
+- Visual Studio 2022 的 MSVC C/C++ 编译工具和 Windows SDK，支持 C++17
+- Ninja 或 MSBuild
+- Qt6 MSVC x64 开发库，包含 `Core`、`Quick`、`QuickControls2`；当前 Windows CI 使用 Qt 6.8.3
+- `yaml-cpp` 开发库，编译器和架构需与 Qt、应用一致
+- 运行依赖：Microsoft Visual C++ x64 运行库、启用 WinPcap API-compatible Mode 的 Npcap
 
-## 构建步骤
+### Ubuntu 20.04 及以上
 
-```bash
-git submodule update --init --recursive
-cmake -S . -B build
-cmake --build build -j
-```
+- Git 及仓库锁定的 `SOEM` 子模块
+- CMake >= 3.28（`SOEM` 子模块要求）
+- 支持 C++17 的 GCC/G++ 编译工具
+- Ninja 或 Make
+- Qt6 开发库，包含 `Core`、`Quick`、`QuickControls2`
+- `yaml-cpp` 开发库
+- 系统提供的 POSIX 线程库与实时库（`pthread`、`rt`）
 
-构建时，后端模块会先编译为 `dynamicx_backend` 静态库，再与 QML 应用和 `SOEM_interface` 链接生成 `DynamicxEcatTool`。
+自动测试额外需要 Qt6 的 `Test` 和 `QuickTest` 模块。
 
 ## 运行
-
-Windows 本地开发可使用 PowerShell 入口，自动构建、部署依赖并启动本次构建的程序：
-
-```powershell
-.\scripts\build-and-run.ps1 -RunTests
-```
-
-默认使用 Qt 6.8.3 MSVC x64、Visual Studio 2022 和本机 vcpkg 的 yaml-cpp；安装位置不同时可通过脚本参数 `QtRoot`、`VsEnvironment`、`YamlPackageDirectory` 和 `Ninja` 指定。构建目录固定在本仓库的 `build/codex-dc-release`，也可以用 `BuildDirectory` 覆盖。`-BuildOnly` 只构建，`-NoLaunch` 构建部署后不启动。
-
-脚本使用同一 Qt 安装中的 `windeployqt` 部署 QML/平台插件与编译器运行库，并校验 `soem_interface.dll`、`yaml-cpp.dll` 和 Npcap 依赖。启动后验证进程 EXE 与自有 DLL 的实际路径，在构建目录生成 `runtime-verification.json`。不要通过旧安装目录或仓库根目录中的历史 EXE 验证新功能。
 
 ***运行软件前，***
 
@@ -100,24 +97,17 @@ Windows 本地开发可使用 PowerShell 入口，自动构建、部署依赖并
 
 停止后保留历史结果；“重置统计”只清除统计值。停止流程会尝试关闭 SYNC0，无法回读确认时明确显示未确认。实际同步信号可结合设备诊断或示波器验证。
 
-无硬件自动测试可运行：
-
-```powershell
-.\scripts\build-and-run.ps1 -RunTests -BuildOnly
-```
-
-Linux 可使用 `cmake -S . -B build -DBUILD_TESTING=ON`、`cmake --build build` 和 `ctest --test-dir build --output-on-failure`。QML 测试使用 offscreen 平台；自动测试不会连接真实 EtherCAT 从站。
-
 首次使用建议：
 
 - 在测试/调试/参数界面先刷新并选择正确网卡；
 - 在调试界面，需先加载 `sample_config/` 下对应 YAML；
 - 确认连接状态后再执行测试流程、EEPROM 烧录或参数下发，并观察日志与状态信息。
   
-## 一些问题
-在Ubuntu24下运行AppImage时，可能会遇到缺少FUSE库报错。此时运行以下命令可安装缺少的库
+## AppImage 无法挂载时
+
+系统无法使用 FUSE 时，可以解压 AppImage 后运行：
+
 ```bash
-sudo apt update
-sudo apt install fuse
+./文件名.AppImage --appimage-extract
+./squashfs-root/AppRun
 ```
-重新运行AppImage,即可
