@@ -1,4 +1,5 @@
 #include "SOEM_interface/EcatMasterBus.h"
+#include "SOEM_interface/ErrorText.h"
 #include "DcRuntime.h"
 #include "Sync0Support.h"
 #include <algorithm>
@@ -13,17 +14,17 @@ public:
     bool discover(DcTestSnapshot& s, std::string& error) override {
         std::lock_guard<std::mutex> mailbox(bus_.mailboxMutex_);
         std::lock_guard<std::recursive_mutex> context(bus_.contextMutex_);
-        if (bus_.socket_open_ || bus_.running_) { error = "The adapter is already in use."; return false; }
-        if (bus_.nic_name_.empty()) { error = "The network adapter name is empty."; return false; }
+        if (bus_.socket_open_ || bus_.running_) { error = "网卡已被占用。"; return false; }
+        if (bus_.nic_name_.empty()) { error = "网卡名称为空。"; return false; }
         bus_.registeredCallbacksEnabled_ = false;
         bus_.pendingPdoWrites_.clear();
         bus_.context_.manualstatechange = 1;
         if (ecx_init(&bus_.context_, bus_.nic_name_.c_str()) <= 0) {
-            error = "SOEM could not open the selected network adapter."; return false;
+            error = "SOEM 无法打开所选网卡。"; return false;
         }
         ownsSocket_ = true; bus_.socket_open_ = true;
         bus_.context_.manualstatechange = 1;
-        if (ecx_config_init(&bus_.context_) <= 0) { error = "No EtherCAT slaves were found."; return false; }
+        if (ecx_config_init(&bus_.context_) <= 0) { error = "未发现 EtherCAT 从站。"; return false; }
         bus_.master_init_ = true;
         for (int i = 1; i <= bus_.context_.slavecount; ++i) {
             auto& item = bus_.context_.slavelist[i];
@@ -39,7 +40,7 @@ public:
         std::lock_guard<std::mutex> mailbox(bus_.mailboxMutex_);
         std::lock_guard<std::recursive_mutex> context(bus_.contextMutex_);
         if (!bus_.mapProcessDataLocked(error)) return false;
-        if (bus_.ioMapSize_ <= 0 || bus_.expectedWKC <= 0) { error = "The bus has no mapped PDO data."; return false; }
+        if (bus_.ioMapSize_ <= 0 || bus_.expectedWKC <= 0) { error = "总线没有已映射的 PDO 数据。"; return false; }
         s.expectedWkc = bus_.expectedWKC;
         std::fill(bus_.ioMap_.begin(), bus_.ioMap_.end(), 0);
         // No application callbacks, vendor SDOs or cyclic mailboxes in the DC test.
@@ -59,8 +60,7 @@ public:
         for (auto& slave : s.slaves) {
             const auto& item = bus_.context_.slavelist[slave.address];
             slave.state = item.state; slave.alStatusCode = item.ALstatuscode;
-            const char* text = ec_ALstatuscode2string(item.ALstatuscode);
-            slave.alStatusText = text ? text : "";
+            slave.alStatusText = alStatusText(item.ALstatuscode);
         }
         bus_.updateStateFlagsLocked();
         return state != EC_STATE_NONE;
@@ -106,7 +106,7 @@ void EcatMasterBus::initializeDcRuntime() {
     dcRuntime_ = std::make_unique<detail::DcRuntime>(std::make_unique<detail::DcSoemWire>(*this));
 }
 DcStartResult EcatMasterBus::startDcTest(const DcTestOptions& options) {
-    if (running_ || socket_open_) return {false, false, "The EtherCAT adapter is already in use."};
+    if (running_ || socket_open_) return {false, false, "EtherCAT 网卡已被占用。"};
     return dcRuntime_->start(options);
 }
 void EcatMasterBus::requestDcStop() { dcRuntime_->requestStop(); }

@@ -12,7 +12,7 @@ void MitMotorCommand::setPVTMAX(double pmax, double vmax, double tmax)
 {
     if (!std::isfinite(pmax) || !std::isfinite(vmax) || !std::isfinite(tmax) ||
         pmax <= 0 || vmax <= 0 || tmax <= 0)
-        throw std::invalid_argument("MIT position/velocity/torque limits must be finite and positive");
+        throw std::invalid_argument("MIT 位置、速度和转矩范围必须为有限正数");
     pmax_ = pmax;
     vmax_ = vmax;
     tmax_ = tmax;
@@ -24,7 +24,7 @@ void MitMotorCommand::setCommand(double kp, double kd, double pos, double vel, d
         !std::isfinite(pos) || !std::isfinite(vel) || !std::isfinite(torque) ||
         kp < 0 || kp > 500 || kd < 0 || kd > 5 ||
         std::abs(pos) > pmax_ || std::abs(vel) > vmax_ || std::abs(torque) > tmax_)
-        throw std::invalid_argument("MIT command is outside its configured range");
+        throw std::invalid_argument("MIT 控制参数超出已配置的范围");
     const auto quantize = [](double value, double bound, unsigned maximum) {
         return static_cast<uint16_t>(std::clamp((value / bound + 1.0) * 0.5 * maximum,
                                                0.0, double(maximum)));

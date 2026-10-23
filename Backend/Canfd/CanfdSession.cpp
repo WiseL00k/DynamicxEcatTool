@@ -28,7 +28,7 @@ public:
                 const auto snapshot = bus->applicationSnapshot();
                 if (!failure && !snapshot.cleanupWarning.empty()) {
                     failure = std::make_exception_ptr(std::runtime_error(
-                        "EtherCAT shutdown was not fully confirmed: " + snapshot.cleanupWarning));
+                        "EtherCAT 停止状态未完全确认：" + snapshot.cleanupWarning));
                 }
             } catch (...) { if (!failure) failure = std::current_exception(); }
             // Always close the socket even if the application stop reports a failure.
@@ -43,7 +43,7 @@ public:
     {
         auto bus = current();
         return bus ? bus->startApplication(options, std::move(prepare), std::move(consume))
-                   : soem_interface::DcStartResult{false, false, "EtherCAT session is disconnected"};
+                   : soem_interface::DcStartResult{false, false, "EtherCAT 会话已断开"};
     }
     void requestStop() override { if (auto bus = current()) bus->requestApplicationStop(); }
     void stop() override { if (auto bus = current()) bus->stopApplication(); }
@@ -53,13 +53,13 @@ public:
     {
         auto bus = current();
         if (bus) return bus->sdoReadDetailed(quint16(slave), index, subindex, false, size, data);
-        soem_interface::SdoTransferResult r; r.error = "EtherCAT session is disconnected"; return r;
+        soem_interface::SdoTransferResult r; r.error = "EtherCAT 会话已断开"; return r;
     }
     soem_interface::SdoTransferResult writeSdo(int slave, quint16 index, quint8 subindex, const std::vector<quint8>& data) override
     {
         auto bus = current();
         if (bus) return bus->sdoWriteDetailed(quint16(slave), index, subindex, false, int(data.size()), data.data());
-        soem_interface::SdoTransferResult r; r.error = "EtherCAT session is disconnected"; return r;
+        soem_interface::SdoTransferResult r; r.error = "EtherCAT 会话已断开"; return r;
     }
 private:
     std::shared_ptr<soem_interface::EcatMasterBus> current() const
@@ -71,7 +71,7 @@ private:
 QString transferError(int slave, quint16 index, quint8 subindex,
                       const soem_interface::SdoTransferResult& result)
 {
-    return QStringLiteral("从站 %1 SDO 0x%2:%3 失败（WKC %4，Abort 0x%5）：%6")
+    return QStringLiteral("从站 %1 SDO 0x%2:%3 失败（WKC %4，终止码 0x%5）：%6")
         .arg(slave).arg(canfd::hex(index, 4)).arg(canfd::hex(subindex, 2))
         .arg(result.wkc).arg(canfd::hex(result.abortCode, 8)).arg(QString::fromStdString(result.error));
 }

@@ -28,13 +28,13 @@ QString stateName(quint16 state)
     case 8: name = QStringLiteral("OP"); break;
     default: name = QStringLiteral("未知"); break;
     }
-    return state & 0x10 ? name + QStringLiteral(" + ERROR") : name;
+    return state & 0x10 ? name + QStringLiteral(" + 错误") : name;
 }
 
 QString exceptionMessage()
 {
     try { throw; }
-    catch (const std::exception& e) { return QString::fromUtf8(e.what()); }
+    catch (const std::exception& e) { return QStringLiteral("通信操作异常：%1").arg(QString::fromUtf8(e.what())); }
     catch (...) { return QStringLiteral("通信操作发生未知异常"); }
 }
 } // namespace

@@ -7,6 +7,8 @@ add_library(soem_interface SHARED
     include/SOEM_interface/EcatSlaveBase.h
     include/SOEM_interface/DcTestTypes.h
     include/SOEM_interface/ApplicationTypes.h
+    include/SOEM_interface/ErrorText.h
+    src/SOEM_interface/ErrorText.cpp
     src/SOEM_interface/ApplicationRuntime.h
     src/SOEM_interface/ApplicationRuntime.cpp
     src/SOEM_interface/EcatMasterBusApplication.cpp
@@ -24,6 +26,10 @@ add_library(soem_interface SHARED
 )
 
 target_compile_features(soem_interface PUBLIC cxx_std_17)
+
+if(MSVC)
+    target_compile_options(soem_interface PRIVATE /utf-8)
+endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(soem_interface PRIVATE -Wall)

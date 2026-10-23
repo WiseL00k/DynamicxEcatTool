@@ -1,4 +1,5 @@
 #include "SOEM_interface/EcatMasterBus.h"
+#include "SOEM_interface/ErrorText.h"
 #include "ApplicationRuntime.h"
 #include "Sync0Support.h"
 
@@ -18,8 +19,7 @@ class ApplicationSoemWire final : public ApplicationWire {
             const auto& item = bus_.context_.slavelist[slave.address];
             slave.state = item.state;
             slave.alStatusCode = item.ALstatuscode;
-            const char* text = ec_ALstatuscode2string(item.ALstatuscode);
-            slave.alStatusText = text ? text : "";
+            slave.alStatusText = alStatusText(item.ALstatuscode);
         }
     }
 
@@ -32,21 +32,21 @@ public:
         std::lock_guard<std::recursive_mutex> context(bus_.contextMutex_);
         if (!bus_.master_init_ || !bus_.socket_open_ || !bus_.mapping_ready_ ||
             bus_.context_.slavecount <= 0 || bus_.running_) {
-            error = "A scanned, idle EtherCAT application session is required.";
+            error = "需要已完成扫描且空闲的 EtherCAT 应用会话。";
             return false;
         }
         if (ecx_readstate(&bus_.context_) != EC_STATE_PRE_OP) {
-            error = "All application slaves must be in PRE-OP before starting.";
+            error = "启动前，所有应用从站必须处于 PRE-OP。";
             return false;
         }
         for (int i = 1; i <= bus_.context_.slavecount; ++i) {
             if (bus_.context_.slavelist[i].state != EC_STATE_PRE_OP) {
-                error = "Slave " + std::to_string(i) + " is not in PRE-OP.";
+                error = "从站 " + std::to_string(i) + " 未处于 PRE-OP。";
                 return false;
             }
         }
         if (bus_.expectedWKC <= 0 || bus_.ioMapSize_ <= 0) {
-            error = "The application has no mapped process data.";
+            error = "应用没有已映射的过程数据。";
             return false;
         }
         // With blocked LRW, separate read/write paths can use twice the mapped
@@ -55,7 +55,7 @@ public:
         const size_t processFrames = static_cast<size_t>(group.nsegments) *
                                      (group.blockLRW ? 2u : 1u);
         if (processFrames == 0 || processFrames + 1u > EC_MAXBUF) {
-            error = "The PDO mapping exceeds SOEM's in-flight frame capacity (including SDO).";
+            error = "PDO 映射超出 SOEM 可同时处理的帧容量（包括 SDO）。";
             return false;
         }
 
@@ -74,7 +74,7 @@ public:
             image.inputs.resize((static_cast<size_t>(item.Ibits) + 7u) / 8u);
             if ((!image.outputs.empty() && !item.outputs) ||
                 (!image.inputs.empty() && !item.inputs)) {
-                error = "Slave " + std::to_string(i) + " has an incomplete IO map.";
+                error = "从站 " + std::to_string(i) + " 的 IO 映射不完整。";
                 return false;
             }
             if (!image.outputs.empty()) std::memset(item.outputs, 0, image.outputs.size());
@@ -93,8 +93,8 @@ public:
                 slave.shutdownAttempted = true;
                 slave.shutdownVerified = detail::disableSync0(bus_.context_, slave.address);
                 if (!slave.shutdownVerified) {
-                    error = "SYNC0 could not be disabled for slave " +
-                            std::to_string(slave.address) + ".";
+                    error = "无法关闭 SYNC0，从站 " +
+                            std::to_string(slave.address) + "。";
                     return false;
                 }
             }
@@ -144,14 +144,14 @@ public:
                 }
             }
             if (cycle_.slaves.size() != static_cast<size_t>(bus_.context_.slavecount))
-                throw std::runtime_error("The application callback changed the slave image count.");
+                throw std::runtime_error("应用回调改变了从站过程映像的数量。");
             for (size_t i = 0; i < cycle_.slaves.size(); ++i) {
                 const auto& image = cycle_.slaves[i];
                 auto& item = bus_.context_.slavelist[i + 1];
                 if (image.position != i + 1 ||
                     image.outputs.size() != (static_cast<size_t>(item.Obits) + 7u) / 8u ||
                     image.inputs.size() != (static_cast<size_t>(item.Ibits) + 7u) / 8u)
-                    throw std::runtime_error("The application callback changed a mapped image layout.");
+                    throw std::runtime_error("应用回调改变了已映射过程映像的布局。");
                 if (!image.outputs.empty())
                     std::memcpy(item.outputs, image.outputs.data(), image.outputs.size());
             }
@@ -213,7 +213,7 @@ void EcatMasterBus::initializeApplicationRuntime() {
 DcStartResult EcatMasterBus::startApplication(const ApplicationRunOptions& options,
                                              PrepareOutputs prepare, ConsumeInputs consume) {
     if (dcRuntime_->active() || running_)
-        return {false, false, "Another process-data run is already active."};
+        return {false, false, "已有其他过程数据任务正在运行。"};
     return applicationRuntime_->start(options, std::move(prepare), std::move(consume));
 }
 

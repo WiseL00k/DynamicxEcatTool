@@ -5,13 +5,13 @@ namespace soem_interface::detail {
 
 bool configureSync0(ecx_contextt& context, DcTestSnapshot& s, std::string& error) {
     if (!ecx_configdc(&context)) {
-        error = "No DC-capable slave was found.";
+        error = "未发现支持 DC 的从站。";
         return false;
     }
     s.referenceSlave = context.grouplist[0].DCnext;
     if (s.referenceSlave == 0 || s.referenceSlave > context.slavecount ||
         !context.slavelist[s.referenceSlave].hasdc) {
-        error = "SOEM did not select a valid DC reference slave.";
+        error = "SOEM 未选出有效的 DC 参考从站。";
         return false;
     }
     s.dcSlaveCount = 0;
@@ -37,8 +37,8 @@ bool configureSync0(ecx_contextt& context, DcTestSnapshot& s, std::string& error
         slave.sync0Verified = sync0ReadbackMatches(activationWkc, activation,
             cycleWkc, etohl(cycle), s.cycleNs);
         if (!slave.sync0Verified) {
-            error = "SYNC0 activation or period readback failed for slave " +
-                    std::to_string(slave.address) + ".";
+            error = "SYNC0 启用状态或周期回读失败，从站 " +
+                    std::to_string(slave.address) + "。";
             return false;
         }
     }

@@ -93,7 +93,7 @@ soem_interface::BusScanResult EthercatMasterController::startExplorer(const std:
     soem_interface::BusScanResult result;
     if (master_) {
         result.errorCode = soem_interface::error::EcatInitFailed;
-        result.error = "An EtherCAT master session is already active.";
+        result.error = "已有 EtherCAT 主站会话正在运行。";
         return result;
     }
 
@@ -118,7 +118,7 @@ soem_interface::DcStartResult EthercatMasterController::startDcTest(
     {
         std::lock_guard lock(dcMutex_);
         if (master_) {
-            return {false, false, "An EtherCAT master session is already active."};
+            return {false, false, "已有 EtherCAT 主站会话正在运行。"};
         }
         master = std::make_shared<soem_interface::EcatMasterBus>(nicName);
         master_ = master;

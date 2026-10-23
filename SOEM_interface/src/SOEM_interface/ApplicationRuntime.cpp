@@ -28,7 +28,7 @@ ApplicationRuntime::~ApplicationRuntime() { stop(); }
 DcStartResult ApplicationRuntime::start(const ApplicationRunOptions& options,
                                         PrepareOutputs prepare, ConsumeInputs consume) {
     std::unique_lock<std::mutex> lifecycle(lifecycleMutex_);
-    if (active_) return {false, false, "An application process-data run is already active."};
+    if (active_) return {false, false, "应用过程数据任务已在运行。"};
     if (thread_.joinable()) thread_.join();
     {
         std::lock_guard<std::mutex> lock(startedMutex_);
@@ -44,7 +44,7 @@ DcStartResult ApplicationRuntime::start(const ApplicationRunOptions& options,
         active_ = false;
         DcTestSnapshot s;
         s.finished = true;
-        s.error = ex.what();
+        s.error = std::string("无法启动应用过程数据线程：") + ex.what();
         publish(s);
         return {false, false, s.error};
     }
@@ -164,13 +164,13 @@ void ApplicationRuntime::run(ApplicationRunOptions options, PrepareOutputs prepa
     try {
         if (options.cycleUs < 250 || options.cycleUs > 1000000 ||
             options.shiftUs <= -options.cycleUs || options.shiftUs >= options.cycleUs) {
-            s.error = "Cycle must be 250..1000000 us and shift must be strictly inside +/-cycle.";
+            s.error = "周期必须为 250–1000000 μs，相移必须严格处于负周期与正周期之间。";
         } else if (!stopRequested_) {
             s.cycleNs = static_cast<uint32_t>(period);
             s.shiftNs = static_cast<int32_t>(options.shiftUs * 1000);
             attempted = true;
             configured = wire_->configure(options, s, s.error);
-            if (!configured && s.error.empty()) s.error = "Application process-data configuration failed.";
+            if (!configured && s.error.empty()) s.error = "应用过程数据配置失败。";
             if (configured && !stopRequested_) {
                 s.configured = true;
                 nextDeadline = clock_->nowNs();
@@ -184,12 +184,12 @@ void ApplicationRuntime::run(ApplicationRunOptions options, PrepareOutputs prepa
                 if (!stopRequested_) {
                     const bool ready = transition(kSafeOp, false, true);
                     if (!ready && !stopRequested_)
-                        s.error = "Not all slaves reached SAFE-OP before the deadline.";
+                        s.error = "部分从站未在规定时间内进入 SAFE-OP。";
                 }
                 if (!stopRequested_ && s.error.empty()) {
                     const bool ready = transition(kOp, false, true);
                     if (!ready && !stopRequested_)
-                        s.error = "Not all slaves reached OP before the deadline.";
+                        s.error = "部分从站未在规定时间内进入 OP。";
                 }
                 if (!stopRequested_ && s.error.empty()) {
                     s.operational = true;
@@ -208,20 +208,20 @@ void ApplicationRuntime::run(ApplicationRunOptions options, PrepareOutputs prepa
                             if (state != ApplicationPoll::Busy) nextStatePoll = now + 100000000;
                             if (state == ApplicationPoll::Failed ||
                                 (state == ApplicationPoll::Success && !allAt(s, kOp)))
-                                s.error = "A slave left OP or its AL state could not be read.";
+                                s.error = "有从站退出 OP，或无法读取其 AL 状态。";
                         }
                         if (s.error.empty() && badWkcSince >= 0 &&
                             now - badWkcSince >= std::max<int64_t>(1000000000, 3 * period))
-                            s.error = "The process-data WKC remained different from the expected value.";
+                            s.error = "过程数据的 WKC 持续与预期值不一致。";
                         publishCurrent();
                     }
                 }
             }
         }
     } catch (const std::exception& ex) {
-        s.error = std::string("Application runtime failed: ") + ex.what();
+        s.error = std::string("应用运行失败：") + ex.what();
     } catch (...) {
-        s.error = "Application runtime failed with an unknown exception.";
+        s.error = "应用运行失败，发生未知异常。";
     }
 
     s.cancelled = stopRequested_ && s.error.empty();
@@ -230,22 +230,22 @@ void ApplicationRuntime::run(ApplicationRunOptions options, PrepareOutputs prepa
     if (attempted) {
         try {
             if (configured && !transition(kSafeOp, true, true))
-                appendWarning(s, "SAFE-OP cleanup was not confirmed.");
-        } catch (...) { appendWarning(s, "SAFE-OP cleanup failed."); }
+                appendWarning(s, "退出清理时，未能确认已进入 SAFE-OP。");
+        } catch (...) { appendWarning(s, "退出清理时，切换至 SAFE-OP 失败。"); }
         for (auto& slave : s.slaves) if (slave.sync0Requested) {
             slave.shutdownAttempted = true;
             try { slave.shutdownVerified = wire_->disableSync0(slave.address); }
             catch (...) { slave.shutdownVerified = false; }
             if (!slave.shutdownVerified)
-                appendWarning(s, "SYNC0 shutdown was not verified for slave " +
-                                 std::to_string(slave.address) + ".");
+                appendWarning(s, "未能验证 SYNC0 已关闭，从站 " +
+                                 std::to_string(slave.address) + "。");
         }
         try {
             if (!s.slaves.empty() && !transition(kPreOp, true, false))
-                appendWarning(s, "PRE-OP cleanup was not confirmed.");
-        } catch (...) { appendWarning(s, "PRE-OP cleanup failed."); }
+                appendWarning(s, "退出清理时，未能确认已进入 PRE-OP。");
+        } catch (...) { appendWarning(s, "退出清理时，切换至 PRE-OP 失败。"); }
         try { wire_->finish(); }
-        catch (...) { appendWarning(s, "Process-data cleanup failed."); }
+        catch (...) { appendWarning(s, "过程数据清理失败。"); }
     }
     s.finished = true;
     s.dcTimeValid = false;

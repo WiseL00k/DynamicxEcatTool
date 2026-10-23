@@ -35,6 +35,10 @@ add_executable(DynamicxDamiaoMitTests DamiaoMitTests.cpp)
 target_link_libraries(DynamicxDamiaoMitTests PRIVATE Qt6::Test dynamicx_backend)
 configure_dc_test(DynamicxDamiaoMitTests)
 
+add_executable(DynamicxErrorLocalizationTests ErrorLocalizationTests.cpp)
+target_link_libraries(DynamicxErrorLocalizationTests PRIVATE Qt6::Test dynamicx_backend)
+configure_dc_test(DynamicxErrorLocalizationTests)
+
 # Manual motor-free hardware probe; never executed by CTest.
 add_executable(DynamicxDamiaoHardwareProbe DamiaoHardwareProbe.cpp)
 target_link_libraries(DynamicxDamiaoHardwareProbe PRIVATE dynamicx_backend)

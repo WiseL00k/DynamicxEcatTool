@@ -21,6 +21,38 @@ struct ObjectInfoSubItem
     QString defaultValue;
 };
 
+QString fileErrorDiagnostic(const QFileDevice& file)
+{
+    QString reason;
+    switch (file.error()) {
+    case QFileDevice::PermissionsError: reason = QStringLiteral("访问权限不足"); break;
+    case QFileDevice::OpenError: reason = QStringLiteral("文件无法打开，请检查路径、访问权限或文件占用情况"); break;
+    case QFileDevice::ReadError: reason = QStringLiteral("文件读取失败"); break;
+    case QFileDevice::ResourceError: reason = QStringLiteral("系统资源不足，无法访问文件"); break;
+    case QFileDevice::TimeOutError: reason = QStringLiteral("文件访问超时"); break;
+    case QFileDevice::AbortError: reason = QStringLiteral("文件访问已中止"); break;
+    default: reason = QStringLiteral("文件访问失败"); break;
+    }
+    return reason + QStringLiteral("；原始诊断：") + file.errorString();
+}
+
+QString xmlErrorDiagnostic(const QXmlStreamReader& xml)
+{
+    QString reason;
+    switch (xml.error()) {
+    case QXmlStreamReader::NotWellFormedError:
+        reason = QStringLiteral("XML 格式不正确，请检查标签、属性和字符编码"); break;
+    case QXmlStreamReader::PrematureEndOfDocumentError:
+        reason = QStringLiteral("XML 文档提前结束，请检查标签是否闭合及文件是否完整"); break;
+    case QXmlStreamReader::UnexpectedElementError:
+        reason = QStringLiteral("XML 包含当前位置不允许的元素"); break;
+    default:
+        reason = QStringLiteral("XML 解析失败"); break;
+    }
+    return QStringLiteral("%1（第 %2 行，第 %3 列）；原始诊断：%4")
+        .arg(reason).arg(xml.lineNumber()).arg(xml.columnNumber()).arg(xml.errorString());
+}
+
 void addDiagnostic(QVector<ParseDiagnostic>& diagnostics,
                    ParseDiagnostic::Severity severity,
                    const QString& source,
@@ -72,7 +104,7 @@ bool readUnsignedElement(QXmlStreamReader& xml,
                   ParseDiagnostic::Severity::Warning,
                   source,
                   xml,
-                  QStringLiteral("Invalid unsigned integer '%1'").arg(text));
+                  QStringLiteral("无效的无符号整数“%1”").arg(text));
     return false;
 }
 
@@ -180,7 +212,7 @@ void parseDataTypes(QXmlStreamReader& xml,
                               ParseDiagnostic::Severity::Warning,
                               source,
                               xml,
-                              QStringLiteral("Dictionary DataType has no name"));
+                              QStringLiteral("对象字典中的 DataType 缺少 Name"));
             } else {
                 device.dataTypes.insert(dataType.name, dataType);
             }
@@ -642,7 +674,7 @@ EsiParseResult EsiParser::parseFile(const QString& filePath) const
                                       filePath,
                                       0,
                                       0,
-                                      QStringLiteral("Cannot open ESI file: %1").arg(file.errorString())});
+                                      QStringLiteral("无法打开 ESI 文件：%1").arg(fileErrorDiagnostic(file))});
         return result;
     }
     return parse(&file, QFileInfo(filePath).absoluteFilePath());
@@ -656,7 +688,7 @@ EsiParseResult EsiParser::parse(QIODevice* device, const QString& sourceName) co
                                       sourceName,
                                       0,
                                       0,
-                                      QStringLiteral("ESI input device is null")});
+                                      QStringLiteral("ESI 输入设备为空")});
         return result;
     }
     if (!device->isOpen() && !device->open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -664,7 +696,7 @@ EsiParseResult EsiParser::parse(QIODevice* device, const QString& sourceName) co
                                       sourceName,
                                       0,
                                       0,
-                                      QStringLiteral("Cannot open ESI input device: %1")
+                                      QStringLiteral("无法打开 ESI 输入设备；原始诊断：%1")
                                           .arg(device->errorString())});
         return result;
     }
@@ -688,13 +720,13 @@ EsiParseResult EsiParser::parse(QIODevice* device, const QString& sourceName) co
                                       sourceName,
                                       static_cast<qint64>(xml.lineNumber()),
                                       static_cast<qint64>(xml.columnNumber()),
-                                      xml.errorString()});
+                                      xmlErrorDiagnostic(xml)});
     } else if (result.devices.isEmpty()) {
         result.diagnostics.push_back({ParseDiagnostic::Severity::Warning,
                                       sourceName,
                                       0,
                                       0,
-                                      QStringLiteral("ESI file contains no Device element")});
+                                      QStringLiteral("ESI 文件未包含 Device 元素")});
     }
     return result;
 }

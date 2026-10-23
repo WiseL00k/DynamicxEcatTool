@@ -66,7 +66,7 @@ DcRuntime::~DcRuntime() { stop(); }
 
 DcStartResult DcRuntime::start(const DcTestOptions& options) {
     std::unique_lock<std::mutex> lifecycle(lifecycleMutex_);
-    if (active_) return {false, false, "A DC run is already active."};
+    if (active_) return {false, false, "DC 测试已在运行。"};
     if (thread_.joinable()) thread_.join();
     {
         std::lock_guard<std::mutex> lock(startedMutex_);
@@ -78,7 +78,8 @@ DcStartResult DcRuntime::start(const DcTestOptions& options) {
     try { thread_ = std::thread(&DcRuntime::run, this, options); }
     catch (const std::exception& ex) {
         active_ = false;
-        DcTestSnapshot s; s.finished = true; s.error = ex.what(); publish(s);
+        DcTestSnapshot s; s.finished = true;
+        s.error = std::string("无法启动 DC 测试线程：") + ex.what(); publish(s);
         return {false, false, s.error};
     }
     std::unique_lock<std::mutex> startedLock(startedMutex_);
@@ -165,11 +166,11 @@ void DcRuntime::run(DcTestOptions options) {
             if (clock_->nowNs() >= nextStatePoll || newWkcMismatch) {
                 nextStatePoll = clock_->nowNs() + 100000000;
                 if (!wire_->readStates(s) || !allAt(s, kOp))
-                    s.error = "A slave left OP or its AL state could not be read.";
+                    s.error = "有从站退出 OP，或无法读取其 AL 状态。";
             }
             if (s.error.empty() && badWkcSince >= 0 &&
                 clock_->nowNs() - badWkcSince >= std::max<int64_t>(1000000000, 3 * period)) {
-                s.error = "The process-data WKC remained different from the expected value.";
+                s.error = "过程数据的 WKC 持续与预期值不一致。";
             }
         }
         publishCurrent();
@@ -201,7 +202,7 @@ void DcRuntime::run(DcTestOptions options) {
     try {
         if (options.cycleUs < 250 || options.cycleUs > 1000000 ||
             options.shiftUs <= -options.cycleUs || options.shiftUs >= options.cycleUs) {
-            s.error = "Cycle must be 250..1000000 us and shift must be strictly inside +/-cycle.";
+            s.error = "周期必须为 250–1000000 μs，相移必须严格处于负周期与正周期之间。";
         } else if (!cancelled()) {
             period = options.cycleUs * 1000;
             s.cycleNs = static_cast<uint32_t>(period);
@@ -209,23 +210,23 @@ void DcRuntime::run(DcTestOptions options) {
             nextDeadline = clock_->nowNs();
             transportAttempted = true;
             if (!wire_->discover(s, s.error)) {
-                if (s.error.empty()) s.error = "EtherCAT discovery failed.";
+                if (s.error.empty()) s.error = "EtherCAT 扫描失败。";
             } else if (!transition(kPreOp, false)) {
-                if (!cancelled()) s.error = "Not all slaves reached PRE-OP before the deadline.";
+                if (!cancelled()) s.error = "部分从站未在规定时间内进入 PRE-OP。";
             } else if (!cancelled()) {
                 if (!wire_->configure(s, s.error)) {
-                    if (s.error.empty()) s.error = "DC configuration or SYNC0 readback failed.";
+                    if (s.error.empty()) s.error = "DC 配置或 SYNC0 回读失败。";
                 } else if (s.dcSlaveCount <= 0 || s.referenceSlave == 0) {
-                    s.error = "No usable DC reference slave was found.";
+                    s.error = "未找到可用的 DC 参考从站。";
                 } else if (s.expectedWkc <= 0) {
-                    s.error = "The bus has no mapped PDO data.";
+                    s.error = "总线没有已映射的 PDO 数据。";
                 } else {
                     mapped = true; s.configured = true;
                     nextDeadline = clock_->nowNs();
                     const auto preheatEnd = nextDeadline + sync0PreheatNs(s.cycleNs);
                     while (!cancelled() && clock_->nowNs() < preheatEnd) { exchange(false); advance(false); }
-                    if (!cancelled() && !transition(kSafeOp, false)) s.error = "Not all slaves reached SAFE-OP before the deadline.";
-                    if (!cancelled() && s.error.empty() && !transition(kOp, false)) s.error = "Not all slaves reached OP before the deadline.";
+                    if (!cancelled() && !transition(kSafeOp, false)) s.error = "部分从站未在规定时间内进入 SAFE-OP。";
+                    if (!cancelled() && s.error.empty() && !transition(kOp, false)) s.error = "部分从站未在规定时间内进入 OP。";
                     if (!cancelled() && s.error.empty()) {
                         s.operational = true; reachedOp = true;
                         nextStatePoll = clock_->nowNs() + 100000000;
@@ -235,8 +236,8 @@ void DcRuntime::run(DcTestOptions options) {
                 }
             }
         }
-    } catch (const std::exception& ex) { s.error = std::string("DC runtime failed: ") + ex.what(); }
-      catch (...) { s.error = "DC runtime failed with an unknown exception."; }
+    } catch (const std::exception& ex) { s.error = std::string("DC 运行失败：") + ex.what(); }
+      catch (...) { s.error = "DC 运行失败，发生未知异常。"; }
 
     s.cancelled = cancelled() && s.error.empty();
     if (!s.error.empty()) failureSlaves = s.slaves;
@@ -244,20 +245,20 @@ void DcRuntime::run(DcTestOptions options) {
     // The worker cleans transport but never joins itself. The caller joins through stop/start.
     if (transportAttempted) {
         try {
-            if (mapped && !transition(kSafeOp, true)) appendWarning(s, "SAFE-OP cleanup was not confirmed.");
-        } catch (...) { appendWarning(s, "SAFE-OP cleanup failed."); }
+            if (mapped && !transition(kSafeOp, true)) appendWarning(s, "退出清理时，未能确认已进入 SAFE-OP。");
+        } catch (...) { appendWarning(s, "退出清理时，切换至 SAFE-OP 失败。"); }
         for (auto& slave : s.slaves) if (slave.sync0Requested) {
             slave.shutdownAttempted = true;
             try { slave.shutdownVerified = wire_->disableSync0(slave.address); }
             catch (...) { slave.shutdownVerified = false; }
-            if (!slave.shutdownVerified) appendWarning(s, "SYNC0 shutdown was not verified for slave " + std::to_string(slave.address) + ".");
+            if (!slave.shutdownVerified) appendWarning(s, "未能验证 SYNC0 已关闭，从站 " + std::to_string(slave.address) + "。");
         }
         try {
             // No further PDO is needed once SYNC0 is off; return all slaves to INIT before close.
             mapped = false;
-            if (!s.slaves.empty() && !transition(kInit, true)) appendWarning(s, "INIT cleanup was not confirmed.");
-        } catch (...) { appendWarning(s, "INIT cleanup failed."); }
-        try { wire_->close(); } catch (...) { appendWarning(s, "The EtherCAT adapter could not be closed."); }
+            if (!s.slaves.empty() && !transition(kInit, true)) appendWarning(s, "退出清理时，未能确认已进入 INIT。");
+        } catch (...) { appendWarning(s, "退出清理时，切换至 INIT 失败。"); }
+        try { wire_->close(); } catch (...) { appendWarning(s, "无法关闭 EtherCAT 网卡。"); }
     }
     s.operational = false; s.finished = true;
     s.dcTimeValid = false; s.phaseValid = false;
