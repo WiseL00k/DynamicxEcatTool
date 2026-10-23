@@ -78,6 +78,8 @@ set(DYNAMICX_BACKEND_SOURCES
     Backend/Dc/DcTestController.h
     Backend/Commands/MitMotorCommand.cpp
     Backend/Commands/MitMotorCommand.h
+    Backend/Commands/DamiaoMitController.cpp
+    Backend/Commands/DamiaoMitController.h
     Backend/Config/ConfigurationParserBase.cpp
     Backend/Config/ConfigurationParserBase.h
     Backend/Config/DxSlaveConfigurationParser.cpp

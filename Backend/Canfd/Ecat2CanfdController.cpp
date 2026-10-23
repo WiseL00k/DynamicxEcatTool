@@ -51,6 +51,7 @@ struct Ecat2CanfdController::RuntimeData {
     quint64 lastSequence{0}, received{0}, dropped{0}, submitted{0};
     qint64 epochNs{nowNs()};
     bool hasCycle{false}, transmissionInterrupted{false};
+    unsigned neutralCycles{0};
 };
 
 Ecat2CanfdController::Ecat2CanfdController(BusSessionCoordinator& coordinator, QObject* parent)
@@ -58,10 +59,16 @@ Ecat2CanfdController::Ecat2CanfdController(BusSessionCoordinator& coordinator, Q
 
 Ecat2CanfdController::Ecat2CanfdController(BusSessionCoordinator& coordinator,
                                          std::unique_ptr<CanfdSession> session, QObject* parent)
-    : QObject(parent), coordinator_(coordinator), session_(std::move(session)),
+    : Ecat2CanfdController(coordinator, std::move(session), BusSessionCoordinator::Mode::Ecat2Canfd, false, parent) {}
+
+Ecat2CanfdController::Ecat2CanfdController(BusSessionCoordinator& coordinator,
+                                         std::unique_ptr<CanfdSession> session,
+                                         BusSessionCoordinator::Mode ownerMode, bool strictSingleSlave, QObject* parent)
+    : QObject(parent), coordinator_(coordinator), ownerMode_(ownerMode), strictSingleSlave_(strictSingleSlave), session_(std::move(session)),
       runtime_(std::make_shared<RuntimeData>()), frames_(this)
 {
     Q_ASSERT(session_);
+    if (strictSingleSlave_) periodicIntervalUs_ = 2000;
     workers_.setMaxThreadCount(1);
     refreshTimer_.setInterval(33);
     connect(&refreshTimer_, &QTimer::timeout, this, &Ecat2CanfdController::refresh);
@@ -75,7 +82,7 @@ Ecat2CanfdController::~Ecat2CanfdController()
         workers_.start([session = session_.get()] { try { session->disconnectBus(); } catch (...) {} });
     }
     workers_.waitForDone();
-    if (ownsSession_) coordinator_.release(BusSessionCoordinator::Mode::Ecat2Canfd);
+    if (ownsSession_) coordinator_.release(ownerMode_);
 }
 
 QString Ecat2CanfdController::statusText() const
@@ -115,11 +122,12 @@ void Ecat2CanfdController::fail(const QString& error)
 void Ecat2CanfdController::connectBus(int expectedCount)
 {
     if (active() || busy()) { fail(QStringLiteral("请先断开当前 ECAT2CANFD 会话")); return; }
+    if (strictSingleSlave_ && expectedCount != 1) { fail(QStringLiteral("达妙电机调试只允许连接一块从站")); return; }
     if (nicName_.empty() || expectedCount < 1 || expectedCount >= EC_MAXSLAVE) {
         fail(QStringLiteral("请选择网卡，并设置 1–%1 个预期从站").arg(EC_MAXSLAVE - 1)); return;
     }
     QString error;
-    if (!coordinator_.tryAcquire(BusSessionCoordinator::Mode::Ecat2Canfd, error)) { fail(error); return; }
+    if (!coordinator_.tryAcquire(ownerMode_, error)) { fail(error); return; }
     ownsSession_ = true; connected_ = false; protocolValid_ = false; cancel_.store(false);
     errorText_.clear(); configs_.clear(); slaves_.clear(); diagnostics_.clear(); pdoSnapshot_.clear();
     selectedSlave_ = 0; clearFrames(); runtime_ = std::make_shared<RuntimeData>();
@@ -143,6 +151,7 @@ void Ecat2CanfdController::connectBus(int expectedCount)
                 configuration = readCanfdConfiguration(*session_, positions, cancel_);
                 if (!configuration.success) error = configuration.error;
             }
+            if (strictSingleSlave_ && (!valid || !configuration.success)) scan.success = false;
             if (!scan.success) session_->disconnectBus();
         } catch (...) {
             error = exceptionMessage(); scan.success = false;
@@ -188,7 +197,7 @@ void Ecat2CanfdController::finishDisconnect(quint64 generation, const QString& e
 {
     if (generation != generation_) return;
     refreshTimer_.stop(); clearOutgoing(); connected_ = false; protocolValid_ = false;
-    if (ownsSession_) coordinator_.release(BusSessionCoordinator::Mode::Ecat2Canfd);
+    if (ownsSession_) coordinator_.release(ownerMode_);
     ownsSession_ = false;
     setState(error.isEmpty() ? QStringLiteral("idle") : QStringLiteral("failed"), false);
     if (!pdoSnapshot_.isEmpty()) pdoSnapshot_["historical"] = true;
@@ -280,9 +289,18 @@ void Ecat2CanfdController::readConfiguration(int slave)
     workers_.start([this, self, generation, positions] {
         CanfdConfigResult result;
         try { result = readCanfdConfiguration(*session_, positions, cancel_); } catch (...) { result.error = exceptionMessage(); }
-        if (self) QMetaObject::invokeMethod(self, [self, generation, result = std::move(result), positions] {
+        if (self) QMetaObject::invokeMethod(self, [self, generation, result = std::move(result), positions]() mutable {
             if (!self || generation != self->generation_) return;
-            if (!result.success) for (auto& c : self->configs_) if (std::find(positions.begin(), positions.end(), c.slave) != positions.end()) c.verified = false;
+            if (!result.success) {
+                for (const int position : positions) self->clearOutgoing(position);
+                for (auto& c : self->configs_)
+                    if (std::find(positions.begin(), positions.end(), c.slave) != positions.end()) c.verified = false;
+                for (auto& c : result.configs) c.verified = false;
+            } else {
+                for (const auto& c : result.configs)
+                    if (!c.verified || !c.enabled || c.status != 0 || c.error != 0)
+                        self->clearOutgoing(c.slave, c.channel);
+            }
             self->busy_ = false; self->mergeConfigs(result.configs);
             if (!result.success) self->fail(result.error);
             else { self->errorText_.clear(); emit self->logAppended(QStringLiteral("CAN 配置回读完成")); emit self->resultsChanged(); }
@@ -410,6 +428,36 @@ void Ecat2CanfdController::stopPeriodic()
     if (periodicSending_) { periodicSending_ = false; emit stateChanged(); }
 }
 
+bool Ecat2CanfdController::submitExclusive(int slave, int channel, const QString& id,
+                                          const QString& data, bool periodic, int intervalUs, bool neutralBefore)
+{
+    canfd::Frame frame;
+    if (!makeFrame(slave, channel, id, 8, data, frame)) return false;
+    if (periodic && (intervalUs <= 0 || intervalUs > 1000000000)) {
+        fail(QStringLiteral("发送间隔必须为 1–1000000000 μs")); return false;
+    }
+    const qint64 rounded = periodic ? ((qint64(intervalUs) + cycleUs_ - 1) / cycleUs_) * cycleUs_ : 0;
+    {
+        std::lock_guard<std::mutex> lock(runtime_->mutex);
+        runtime_->outgoing.clear(); runtime_->periodic.reset();
+        runtime_->neutralCycles = neutralBefore ? 1 : 0;
+        if (periodic) runtime_->periodic = RuntimeData::Periodic{frame, rounded * 1000, nowNs()};
+        else runtime_->outgoing.push_back(frame);
+    }
+    periodicSending_ = periodic;
+    if (periodic) periodicIntervalUs_ = int(rounded);
+    emit stateChanged();
+    return true;
+}
+
+void Ecat2CanfdController::cancelPendingTransmission() { clearOutgoing(); }
+
+bool Ecat2CanfdController::hasPendingTransmission() const
+{
+    std::lock_guard<std::mutex> lock(runtime_->mutex);
+    return !runtime_->outgoing.empty() || runtime_->periodic.has_value();
+}
+
 void Ecat2CanfdController::clearOutgoing(int slave, int channel)
 {
     bool periodicRemoved = false;
@@ -419,7 +467,7 @@ void Ecat2CanfdController::clearOutgoing(int slave, int channel)
         auto& queue = runtime_->outgoing;
         queue.erase(std::remove_if(queue.begin(), queue.end(), matches), queue.end());
         if (runtime_->periodic && matches(runtime_->periodic->frame)) { runtime_->periodic.reset(); periodicRemoved = true; }
-        if (slave == 0) runtime_->blocked.clear();
+        if (slave == 0) { runtime_->blocked.clear(); runtime_->neutralCycles = 0; }
     }
     if (periodicRemoved || slave == 0) { periodicSending_ = false; emit stateChanged(); }
 }
@@ -434,6 +482,7 @@ void Ecat2CanfdController::prepare(const std::shared_ptr<RuntimeData>& runtime, 
 {
     std::lock_guard<std::mutex> lock(runtime->mutex);
     for (auto& image : images) std::fill(image.outputs.begin(), image.outputs.end(), 0);
+    if (runtime->neutralCycles) { --runtime->neutralCycles; return; }
     std::map<std::pair<int,int>, int> occupiedSlots;
     auto submit = [&](const canfd::Frame& frame) {
         const auto key = std::make_pair(frame.slave, frame.channel);

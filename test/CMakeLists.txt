@@ -31,6 +31,17 @@ add_executable(DynamicxCanfdTests ../Backend/Canfd/tests/CanfdTests.cpp)
 target_link_libraries(DynamicxCanfdTests PRIVATE Qt6::Test dynamicx_backend)
 configure_dc_test(DynamicxCanfdTests)
 
+add_executable(DynamicxDamiaoMitTests DamiaoMitTests.cpp)
+target_link_libraries(DynamicxDamiaoMitTests PRIVATE Qt6::Test dynamicx_backend)
+configure_dc_test(DynamicxDamiaoMitTests)
+
+# Manual motor-free hardware probe; never executed by CTest.
+add_executable(DynamicxDamiaoHardwareProbe DamiaoHardwareProbe.cpp)
+target_link_libraries(DynamicxDamiaoHardwareProbe PRIVATE dynamicx_backend)
+if(WIN32)
+    target_link_options(DynamicxDamiaoHardwareProbe PRIVATE /STACK:8388608)
+endif()
+
 add_executable(DynamicxDcRuntimeTests DcRuntimeTests.cpp)
 target_include_directories(DynamicxDcRuntimeTests PRIVATE ${PROJECT_SOURCE_DIR}/SOEM_interface/src)
 target_link_libraries(DynamicxDcRuntimeTests PRIVATE Qt6::Test soem_interface)

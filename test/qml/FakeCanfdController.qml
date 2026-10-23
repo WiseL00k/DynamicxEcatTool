@@ -13,8 +13,8 @@ QtObject {
     property int selectedSlave: 1
     property var slaves: [{position: 1, name: "ECAT2CANFD", state: 2}]
     property var channelConfigs: [
-        {slave: 1, channel: 0, enabled: true, format: 0, nominalBitrate: 1000000, dataBitrate: 5000000, options: 5, status: 0, error: 0, dirty: false},
-        {slave: 1, channel: 1, enabled: true, format: 0, nominalBitrate: 1000000, dataBitrate: 5000000, options: 5, status: 0, error: 0, dirty: false}]
+        {slave: 1, channel: 0, enabled: true, verified: true, format: 0, nominalBitrate: 1000000, dataBitrate: 5000000, options: 5, status: 0, error: 0, dirty: false},
+        {slave: 1, channel: 1, enabled: true, verified: true, format: 0, nominalBitrate: 1000000, dataBitrate: 5000000, options: 5, status: 0, error: 0, dirty: false}]
     property var diagnostics: ({wkc: 3, expectedWkc: 3})
     property var pdoSnapshot: ({wkc: 3, expectedWkc: 3})
     property ListModel frames: ListModel {}

@@ -20,14 +20,14 @@ ApplicationWindow {
 
     property int currentPageIndex: 0
     readonly property var sessionUi: sessionAdapter
-    readonly property string currentPageKey: ["test", "dc", "ecat2canfd", "debug", "params", "bus"][currentPageIndex]
+    readonly property string currentPageKey: ["test", "dc", "ecat2canfd", "params", "bus", "debug"][currentPageIndex]
     readonly property string currentPageTitle: [
         qsTr("测试与烧录"),
         qsTr("DC 同步测试"),
         qsTr("ECAT2CANFD"),
-        qsTr("设备调试"),
-        qsTr("MIT 参数"),
-        qsTr("总线配置")
+        qsTr("达妙电机MIT调试"),
+        qsTr("总线配置"),
+        qsTr("设备调试")
     ][currentPageIndex]
     readonly property bool compactWindow: width < 1120
     readonly property bool navigationCollapsed: compactWindow || appearanceSettings.navigationCollapsed
@@ -218,12 +218,13 @@ ApplicationWindow {
                 }
 
                 SideNavButton {
+                    objectName: "navigationParams"
                     Layout.fillWidth: true
                     theme: appTheme
-                    text: qsTr("设备调试")
-                    iconSource: Qt.resolvedUrl("icons/debug.svg")
+                    text: qsTr("达妙电机MIT调试")
+                    iconSource: Qt.resolvedUrl("icons/motor.svg")
                     selected: root.currentPageIndex === 3
-                    sessionOwned: sessionAdapter.sessionActive && sessionAdapter.modeKey === "debug"
+                    sessionOwned: sessionAdapter.sessionActive && sessionAdapter.modeKey === "params"
                     collapsed: root.navigationCollapsed
                     onClicked: root.currentPageIndex = 3
                 }
@@ -231,21 +232,22 @@ ApplicationWindow {
                 SideNavButton {
                     Layout.fillWidth: true
                     theme: appTheme
-                    text: qsTr("MIT 参数")
-                    iconSource: Qt.resolvedUrl("icons/motor.svg")
+                    text: qsTr("总线配置")
+                    iconSource: Qt.resolvedUrl("icons/bus.svg")
                     selected: root.currentPageIndex === 4
-                    sessionOwned: sessionAdapter.sessionActive && sessionAdapter.modeKey === "params"
+                    sessionOwned: sessionAdapter.sessionActive && sessionAdapter.modeKey === "bus"
                     collapsed: root.navigationCollapsed
                     onClicked: root.currentPageIndex = 4
                 }
 
                 SideNavButton {
+                    objectName: "navigationDebug"
                     Layout.fillWidth: true
                     theme: appTheme
-                    text: qsTr("总线配置")
-                    iconSource: Qt.resolvedUrl("icons/bus.svg")
+                    text: qsTr("设备调试")
+                    iconSource: Qt.resolvedUrl("icons/debug.svg")
                     selected: root.currentPageIndex === 5
-                    sessionOwned: sessionAdapter.sessionActive && sessionAdapter.modeKey === "bus"
+                    sessionOwned: sessionAdapter.sessionActive && sessionAdapter.modeKey === "debug"
                     collapsed: root.navigationCollapsed
                     onClicked: root.currentPageIndex = 5
                 }
@@ -368,6 +370,7 @@ ApplicationWindow {
                     Layout.fillHeight: true
 
                     StackLayout {
+                        objectName: "mainPageStack"
                         anchors.fill: parent
                         currentIndex: root.currentPageIndex
 
@@ -394,19 +397,11 @@ ApplicationWindow {
                             controller: EthercatBackend.ecat2Canfd
                         }
 
-                        DebugPage {
-                            id: debugPage
-                            theme: appTheme
-                            sessionUi: root.sessionUi
-                            onErrorRequested: function(message) {
-                                errorPopup.show(message)
-                            }
-                        }
-
                         ParamsConfigPage {
                             id: paramsPage
                             theme: appTheme
                             sessionUi: root.sessionUi
+                            controller: EthercatBackend.damiaoMit
                             onErrorRequested: function(message) {
                                 errorPopup.show(message)
                             }
@@ -414,6 +409,15 @@ ApplicationWindow {
 
                         BusConfigurationPage {
                             id: busPage
+                            theme: appTheme
+                            sessionUi: root.sessionUi
+                            onErrorRequested: function(message) {
+                                errorPopup.show(message)
+                            }
+                        }
+
+                        DebugPage {
+                            id: debugPage
                             theme: appTheme
                             sessionUi: root.sessionUi
                             onErrorRequested: function(message) {

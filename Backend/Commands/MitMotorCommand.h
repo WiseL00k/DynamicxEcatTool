@@ -8,6 +8,10 @@
 
 namespace Backend {
 
+// Shared by both the original QML builder and the motor controller. Invalid
+// numeric input produces no bytes and must never reach the transport.
+QVariantMap previewMitFrame(const QVariantMap& data);
+
 class MitMotorCommand
 {
 public:

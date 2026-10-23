@@ -22,7 +22,7 @@ QtObject {
         if (mode === "DC测试") return "dc"
         if (mode === "ECAT2CANFD") return "ecat2canfd"
         if (mode === "调试通信") return "debug"
-        if (mode === "MIT参数调试") return "params"
+        if (mode === "达妙电机MIT调试") return "params"
         if (mode === "总线配置") return "bus"
         return contextKey
     }
@@ -89,6 +89,10 @@ QtObject {
 
         function onEcat2CanfdLogAppended(line) {
             root.appendContext("ecat2canfd", line)
+        }
+
+        function onDamiaoMitLogAppended(line) {
+            root.appendContext("params", line)
         }
 
         function onSoemErrorOccurred(message) {

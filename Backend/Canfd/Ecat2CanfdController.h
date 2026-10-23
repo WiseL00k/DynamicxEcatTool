@@ -2,6 +2,7 @@
 
 #include "CanfdSession.h"
 #include "CanFrameModel.h"
+#include "Backend/Ethercat/BusSessionCoordinator.h"
 #include <QObject>
 #include <QThreadPool>
 #include <QTimer>
@@ -34,6 +35,8 @@ class Ecat2CanfdController final : public QObject
 public:
     explicit Ecat2CanfdController(BusSessionCoordinator& coordinator, QObject* parent = nullptr);
     Ecat2CanfdController(BusSessionCoordinator& coordinator, std::unique_ptr<CanfdSession> session, QObject* parent = nullptr);
+    Ecat2CanfdController(BusSessionCoordinator& coordinator, std::unique_ptr<CanfdSession> session,
+                        BusSessionCoordinator::Mode ownerMode, bool strictSingleSlave, QObject* parent = nullptr);
     ~Ecat2CanfdController() override;
 
     QString state() const { return state_; }
@@ -68,6 +71,12 @@ public:
     Q_INVOKABLE void startPeriodic(int slave, int channel, const QString& id, int dlc, const QString& data, int intervalUs = 100000);
     Q_INVOKABLE void stopPeriodic();
     Q_INVOKABLE void clearFrames();
+    // Dedicated motor clients replace all previous commands atomically. A
+    // neutral PDO cycle can separate a special command from its predecessor.
+    bool submitExclusive(int slave, int channel, const QString& id, const QString& data,
+                         bool periodic, int intervalUs, bool neutralBefore = false);
+    void cancelPendingTransmission();
+    bool hasPendingTransmission() const;
 signals:
     void stateChanged();
     void resultsChanged();
@@ -89,6 +98,8 @@ private:
     static void consume(const std::shared_ptr<RuntimeData>& runtime, const soem_interface::ApplicationCycle& cycle);
 
     BusSessionCoordinator& coordinator_;
+    const BusSessionCoordinator::Mode ownerMode_;
+    const bool strictSingleSlave_;
     std::unique_ptr<CanfdSession> session_;
     std::shared_ptr<RuntimeData> runtime_;
     std::string nicName_;
