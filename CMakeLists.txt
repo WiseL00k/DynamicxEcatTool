@@ -16,6 +16,7 @@ if(TARGET yaml-cpp AND NOT TARGET yaml-cpp::yaml-cpp)
 endif()
 
 add_subdirectory(SOEM)
+include(cmake/SoemPortSynchronization.cmake)
 add_subdirectory(SOEM_interface)
 
 set(APP_QML_FILES
@@ -23,6 +24,8 @@ set(APP_QML_FILES
     qml/adapters/LogUiAdapter.qml
     qml/adapters/SessionUiAdapter.qml
     qml/components/AppButton.qml
+    qml/components/CanfdChannelConfig.qml
+    qml/components/CanfdPdoView.qml
     qml/components/FlashProgressView.qml
     qml/components/LogDock.qml
     qml/components/NicSelector.qml
@@ -34,6 +37,7 @@ set(APP_QML_FILES
     qml/pages/BusConfigurationPage.qml
     qml/pages/DebugPage.qml
     qml/pages/DcTestPage.qml
+    qml/pages/Ecat2CanfdPage.qml
     qml/pages/ParamsConfigPage.qml
     qml/pages/TestPage.qml
     qml/panels/MITConfigPanel.qml
@@ -62,6 +66,14 @@ set(APP_QML_RESOURCES
 )
 
 set(DYNAMICX_BACKEND_SOURCES
+    Backend/Canfd/Ecat2CanfdController.cpp
+    Backend/Canfd/Ecat2CanfdController.h
+    Backend/Canfd/CanfdSession.cpp
+    Backend/Canfd/CanfdSession.h
+    Backend/Canfd/CanfdProtocol.cpp
+    Backend/Canfd/CanfdProtocol.h
+    Backend/Canfd/CanFrameModel.cpp
+    Backend/Canfd/CanFrameModel.h
     Backend/Dc/DcTestController.cpp
     Backend/Dc/DcTestController.h
     Backend/Commands/MitMotorCommand.cpp

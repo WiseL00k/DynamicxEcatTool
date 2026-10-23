@@ -36,6 +36,7 @@ public:
     virtual void waitUntil(int64_t deadlineNs, const std::atomic<bool>& stop) = 0;
     virtual void wake() = 0;
 };
+std::unique_ptr<DcClock> makeSteadyDcClock();
 
 class SOEM_INTERFACE_EXPORT DcRuntime {
 public:

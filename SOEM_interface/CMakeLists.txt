@@ -6,6 +6,13 @@ add_library(soem_interface SHARED
     include/SOEM_interface/EcatMasterBus.h
     include/SOEM_interface/EcatSlaveBase.h
     include/SOEM_interface/DcTestTypes.h
+    include/SOEM_interface/ApplicationTypes.h
+    src/SOEM_interface/ApplicationRuntime.h
+    src/SOEM_interface/ApplicationRuntime.cpp
+    src/SOEM_interface/EcatMasterBusApplication.cpp
+    src/SOEM_interface/CycleTiming.h
+    src/SOEM_interface/Sync0Support.h
+    src/SOEM_interface/Sync0Support.cpp
     src/SOEM_interface/DcRuntime.h
     src/SOEM_interface/DcRuntime.cpp
     src/SOEM_interface/EcatMasterBusDc.cpp

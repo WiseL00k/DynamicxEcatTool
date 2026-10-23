@@ -13,6 +13,7 @@
 
 #include "SOEM_interface/soem_interface_export.h"
 #include "SOEM_interface/DcTestTypes.h"
+#include "SOEM_interface/ApplicationTypes.h"
 #include <SOEM_interface/SoemUtils.h>
 
 extern "C" {
@@ -21,7 +22,12 @@ extern "C" {
 
 namespace soem_interface {
 
-namespace detail { class DcRuntime; class DcSoemWire; }
+namespace detail {
+class DcRuntime;
+class DcSoemWire;
+class ApplicationRuntime;
+class ApplicationSoemWire;
+}
 
 class EcatSlaveBase;
 using EcatSlaveBasePtr = std::shared_ptr<EcatSlaveBase>;
@@ -155,6 +161,11 @@ public:
     void stopDcTest();
     DcTestSnapshot dcTestSnapshot() const;
     void resetDcStatistics();
+    DcStartResult startApplication(const ApplicationRunOptions& options,
+                                  PrepareOutputs prepare, ConsumeInputs consume);
+    void requestApplicationStop();
+    void stopApplication();
+    DcTestSnapshot applicationSnapshot() const;
     void stop();
     void stopTest() { stop(); }
     SoemInterfaceErrorCode initMaster();
@@ -199,6 +210,10 @@ public:
     void writeRxPdo(uint16_t slave, int size, const void* buf);
     bool sdoWrite(uint16_t slave, uint16_t index, uint8_t subindex, bool completeAccess, int size, void* buf);
     bool sdoRead(uint16_t slave, uint16_t index, uint8_t subindex, bool completeAccess, int size, void* buf);
+    SdoTransferResult sdoWriteDetailed(uint16_t slave, uint16_t index, uint8_t subindex,
+                                      bool completeAccess, int size, const void* buf);
+    SdoTransferResult sdoReadDetailed(uint16_t slave, uint16_t index, uint8_t subindex,
+                                     bool completeAccess, int size, void* buf);
 
     template <typename Value>
     bool sendSdoWrite(const uint16_t slave, const uint16_t index, const uint8_t subindex, const bool completeAccess, const Value value) {
@@ -216,12 +231,17 @@ public:
 
 private:
     friend class detail::DcSoemWire;
+    friend class detail::ApplicationSoemWire;
     void initializeDcRuntime();
+    void initializeApplicationRuntime();
     std::unique_ptr<detail::DcRuntime> dcRuntime_;
+    std::unique_ptr<detail::ApplicationRuntime> applicationRuntime_;
     void cyclicTask();
     void checkTask();
     std::string getErrorString(ec_errort error);
     bool checkForSdoErrors(uint16_t slave, uint16_t index);
+    void collectSdoErrorsLocked(uint16_t slave, uint16_t index, uint8_t subindex,
+                                SdoTransferResult& result);
     bool isValidSlaveAddress(uint16_t slave) const;
     bool mapProcessDataLocked(std::string& error);
     bool readActivePdoMappingsLocked(std::vector<ActivePdoEntry>& mappings,

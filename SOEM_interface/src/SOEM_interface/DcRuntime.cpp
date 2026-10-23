@@ -1,4 +1,5 @@
 #include "DcRuntime.h"
+#include "CycleTiming.h"
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -57,8 +58,10 @@ void appendWarning(DcTestSnapshot& s, const std::string& warning) {
 }
 }
 
+std::unique_ptr<DcClock> makeSteadyDcClock() { return std::make_unique<SteadyDcClock>(); }
+
 DcRuntime::DcRuntime(std::unique_ptr<DcWire> wire, std::unique_ptr<DcClock> clock)
-    : wire_(std::move(wire)), clock_(clock ? std::move(clock) : std::make_unique<SteadyDcClock>()) {}
+    : wire_(std::move(wire)), clock_(clock ? std::move(clock) : makeSteadyDcClock()) {}
 DcRuntime::~DcRuntime() { stop(); }
 
 DcStartResult DcRuntime::start(const DcTestOptions& options) {
@@ -114,9 +117,9 @@ void DcRuntime::run(DcTestOptions options) {
     DcTestSnapshot s;
     std::vector<DcSlaveSnapshot> failureSlaves;
     bool transportAttempted = false, mapped = false, reachedOp = false;
-    int64_t period = 0, nextDeadline = 0, lastSend = 0, lastExchange = 0, lastDc = 0, badWkcSince = -1;
+    int64_t period = 0, nextDeadline = 0, lastSend = 0, lastExchange = 0, badWkcSince = -1;
     int64_t nextStatePoll = 0;
-    double integral = 0;
+    DcPhaseController phaseController;
     uint64_t resetSeen = resetGeneration_;
     const auto cancelled = [&] { return stopRequested_.load(); };
     const auto syncReset = [&] {
@@ -145,13 +148,7 @@ void DcRuntime::run(DcTestOptions options) {
         syncReset();
         const int64_t sendTime = clock_->nowNs();
         lastExchange = sendTime;
-        if (lastSend != 0) {
-            s.actualCycleNs = std::max<int64_t>(0, sendTime - lastSend);
-            if (s.minCycleNs == 0 || s.actualCycleNs < s.minCycleNs) s.minCycleNs = s.actualCycleNs;
-            s.maxCycleNs = std::max(s.maxCycleNs, s.actualCycleNs);
-            s.maxDeviationNs = std::max(s.maxDeviationNs, std::abs(s.actualCycleNs - period));
-        }
-        lastSend = sendTime;
+        recordCycleTiming(s, sendTime, lastSend, period);
         const auto received = wire_->exchange();
         ++s.cycleCount;
         s.wkc = received.wkc;
@@ -163,21 +160,7 @@ void DcRuntime::run(DcTestOptions options) {
         } else badWkcSince = -1;
         s.dcTimeNs = received.dcTimeNs;
         s.dcTimeValid = goodWkc && received.dcTimeReceived && received.dcTimeNs > 0;
-        s.phaseValid = s.dcTimeValid && received.dcTimeNs > lastDc;
-        s.correctionNs = 0;
-        if (s.phaseValid) {
-            lastDc = received.dcTimeNs;
-            // The send phase is the midpoint after SYNC0, including the requested SYNC0 shift.
-            int64_t phase = ((received.dcTimeNs % period) - period / 2 - s.shiftNs) % period;
-            if (phase > period / 2) phase -= period;
-            if (phase < -period / 2) phase += period;
-            s.phaseErrorNs = phase;
-            integral = std::clamp(integral + static_cast<double>(phase) * 0.00002,
-                                  -static_cast<double>(period) * 0.01, static_cast<double>(period) * 0.01);
-            const double correction = -(static_cast<double>(phase) * 0.01 + integral);
-            s.correctionNs = static_cast<int64_t>(std::clamp(correction,
-                -static_cast<double>(period) * 0.05, static_cast<double>(period) * 0.05));
-        } else s.phaseErrorNs = 0;
+        phaseController.update(s, period);
         if (checkOperational) {
             if (clock_->nowNs() >= nextStatePoll || newWkcMismatch) {
                 nextStatePoll = clock_->nowNs() + 100000000;
@@ -192,13 +175,8 @@ void DcRuntime::run(DcTestOptions options) {
         publishCurrent();
     };
     const auto advance = [&](bool duringCleanup) {
-        nextDeadline += period + s.correctionNs;
-        const auto now = clock_->nowNs();
-        if (nextDeadline <= now) {
-            const auto skipped = (now - nextDeadline) / period + 1;
-            s.missedCycles += static_cast<uint64_t>(skipped);
-            nextDeadline += skipped * period;
-        }
+        advanceCycleDeadline(nextDeadline, clock_->nowNs(), period,
+                             s.correctionNs, s.missedCycles);
         if (duringCleanup) {
             const std::atomic<bool> neverStop{false};
             clock_->waitUntil(nextDeadline, neverStop);

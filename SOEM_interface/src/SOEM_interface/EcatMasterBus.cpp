@@ -1,6 +1,7 @@
 #include "SOEM_interface/EcatMasterBus.h"
 #include "SOEM_interface/EcatSlaveBase.h"
 #include "DcRuntime.h"
+#include "ApplicationRuntime.h"
 
 #include <algorithm>
 #include <cassert>
@@ -43,7 +44,10 @@ std::string alStatusText(const uint16_t code)
 
 EcatMasterBus::EcatMasterBus(const std::string& ifname)
     : nic_name_(ifname), ioMap_(kIoMapCapacity, 0)
-{ initializeDcRuntime(); }
+{
+    initializeDcRuntime();
+    initializeApplicationRuntime();
+}
 
 EcatMasterBus::~EcatMasterBus()
 {
@@ -60,7 +64,7 @@ void EcatMasterBus::setNICName(const std::string& ifname)
 
 SoemInterfaceErrorCode EcatMasterBus::startTest()
 {
-    if (dcRuntime_->active()) return EcatInitFailed;
+    if (dcRuntime_->active() || applicationRuntime_->active()) return EcatInitFailed;
     if (running_) {
         return NoError;
     }
@@ -89,7 +93,7 @@ SoemInterfaceErrorCode EcatMasterBus::startTest()
 
 SoemInterfaceErrorCode EcatMasterBus::start()
 {
-    if (dcRuntime_->active()) return EcatInitFailed;
+    if (dcRuntime_->active() || applicationRuntime_->active()) return EcatInitFailed;
     if (running_) {
         return NoError;
     }
@@ -288,6 +292,7 @@ SoemInterfaceErrorCode EcatMasterBus::initMaster()
 
 SoemInterfaceErrorCode EcatMasterBus::closeMaster()
 {
+    stopApplication();
     stopDcTest();
     if (socket_open_ && operational_) {
         requestStateDetailed(EC_STATE_SAFE_OP);
@@ -400,10 +405,10 @@ BusStateResult EcatMasterBus::leaveOperationalForSafeOp()
 }
 BusStateResult EcatMasterBus::requestStateDetailed(const uint16_t requestedState)
 {
-    if (dcRuntime_->active()) {
+    if (dcRuntime_->active() || applicationRuntime_->active()) {
         BusStateResult result;
         result.requestedState = requestedState;
-        result.error = "State changes are unavailable during a DC test.";
+        result.error = "State changes are controlled by the active process-data runtime.";
         return result;
     }
     if (!isSupportedState(requestedState)) {
@@ -564,6 +569,7 @@ BusStateResult EcatMasterBus::requestStateDetailed(const uint16_t requestedState
 
 BusStateResult EcatMasterBus::stateSnapshot()
 {
+    std::lock_guard<std::mutex> mailboxLock(mailboxMutex_);
     std::lock_guard<std::recursive_mutex> contextLock(contextMutex_);
     if (!master_init_ || context_.slavecount <= 0) {
         BusStateResult result;
@@ -674,7 +680,7 @@ std::vector<ActivePdoEntry> EcatMasterBus::activePdoMappings() const
 
 bool EcatMasterBus::startProcessData()
 {
-    if (dcRuntime_->active()) return false;
+    if (dcRuntime_->active() || applicationRuntime_->active()) return false;
     std::lock_guard<std::mutex> mailboxLock(mailboxMutex_);
     std::lock_guard<std::recursive_mutex> contextLock(contextMutex_);
     if (running_) {
@@ -713,6 +719,7 @@ bool EcatMasterBus::startProcessData()
 
 void EcatMasterBus::stopProcessData()
 {
+    stopApplication();
     std::lock_guard<std::mutex> mailboxLock(mailboxMutex_);
     running_ = false;
 
@@ -763,18 +770,19 @@ void EcatMasterBus::checkTask()
 {
     while (running_) {
         {
-            std::lock_guard<std::recursive_mutex> lock(contextMutex_);
-            const bool workingCounterLow =
-                expectedWKC > 0 && wkc.load() < expectedWKC;
-            if (workingCounterLow || context_.grouplist[0].docheckstate) {
-                context_.grouplist[0].docheckstate = FALSE;
-                ecx_readstate(&context_);
-                updateStateFlagsLocked();
-
-                for (int i = 1; i <= context_.slavecount; ++i) {
-                    if (!stateReached(context_.slavelist[i].state, EC_STATE_OPERATIONAL)) {
-                        std::cerr << "Slave " << i << " not operational: "
-                                  << alStatusText(context_.slavelist[i].ALstatuscode) << '\n';
+            std::unique_lock<std::mutex> mailbox(mailboxMutex_, std::try_to_lock);
+            if (mailbox.owns_lock()) {
+                std::lock_guard<std::recursive_mutex> lock(contextMutex_);
+                const bool workingCounterLow = expectedWKC > 0 && wkc.load() < expectedWKC;
+                if (workingCounterLow || context_.grouplist[0].docheckstate) {
+                    context_.grouplist[0].docheckstate = FALSE;
+                    ecx_readstate(&context_);
+                    updateStateFlagsLocked();
+                    for (int i = 1; i <= context_.slavecount; ++i) {
+                        if (!stateReached(context_.slavelist[i].state, EC_STATE_OPERATIONAL)) {
+                            std::cerr << "Slave " << i << " not operational: "
+                                      << alStatusText(context_.slavelist[i].ALstatuscode) << '\n';
+                        }
                     }
                 }
             }
@@ -843,6 +851,7 @@ bool EcatMasterBus::writeProcessDataRange(
     const std::vector<uint8_t>& data)
 {
     std::lock_guard<std::recursive_mutex> lock(contextMutex_);
+    if (applicationRuntime_->active()) return false;
     if (!mapping_ready_ || !isValidSlaveAddress(slave)) {
         return false;
     }
@@ -901,6 +910,7 @@ void EcatMasterBus::readTxPdo(const uint16_t slave, int size, void* buf) const
 void EcatMasterBus::writeRxPdo(const uint16_t slave, int size, const void* buf)
 {
     std::lock_guard<std::recursive_mutex> lock(contextMutex_);
+    if (applicationRuntime_->active()) return;
     assert(isValidSlaveAddress(slave));
     if (!isValidSlaveAddress(slave)) {
         return;
@@ -1601,74 +1611,111 @@ bool EcatMasterBus::checkForSdoErrors(const uint16_t slave, const uint16_t index
 
 bool EcatMasterBus::sdoWrite(const uint16_t slave, const uint16_t index, const uint8_t subindex, const bool completeAccess, int size, void* buf)
 {
-    if (dcRuntime_->active()) return false;
+    const auto result = sdoWriteDetailed(slave, index, subindex, completeAccess, size, buf);
+    if (!result.error.empty()) std::cout << result.error << '\n';
+    return result.success;
+}
+
+bool EcatMasterBus::sdoRead(const uint16_t slave, const uint16_t index, const uint8_t subindex, const bool completeAccess, int size, void* buf)
+{
+    const auto result = sdoReadDetailed(slave, index, subindex, completeAccess, size, buf);
+    if (!result.error.empty()) std::cout << result.error << '\n';
+    return result.success;
+}
+
+void EcatMasterBus::collectSdoErrorsLocked(const uint16_t slave, const uint16_t index,
+                                          const uint8_t subindex, SdoTransferResult& result)
+{
+    // Called with mailboxMutex_: application sessions use direct mailboxes, so
+    // this serializes both producers and consumers of SOEM's unlocked error ring.
+    std::lock_guard<std::recursive_mutex> contextLock(contextMutex_);
+    while (ecx_iserror(&context_)) {
+        ec_errort error{};
+        if (!ecx_poperror(&context_, &error)) break;
+        if (!result.error.empty()) result.error += " ";
+        result.error += getErrorString(error);
+        if (error.Slave == slave && error.Index == index && error.SubIdx == subindex &&
+            (error.Etype == EC_ERR_TYPE_SDO_ERROR || error.Etype == EC_ERR_TYPE_SDOINFO_ERROR)) {
+            result.abortCode = static_cast<uint32_t>(error.AbortCode);
+            result.success = false;
+        }
+    }
+}
+
+SdoTransferResult EcatMasterBus::sdoWriteDetailed(const uint16_t slave, const uint16_t index,
+                                                 const uint8_t subindex, const bool completeAccess,
+                                                 const int size, const void* buf)
+{
+    SdoTransferResult result;
+    if (dcRuntime_->active()) {
+        result.error = "SDO is unavailable during the diagnostic DC test.";
+        return result;
+    }
     std::lock_guard<std::mutex> mailboxLock(mailboxMutex_);
     {
         std::lock_guard<std::recursive_mutex> contextLock(contextMutex_);
         if (!master_init_ || !isValidSlaveAddress(slave) ||
             size < 0 || (size > 0 && buf == nullptr)) {
-            return false;
+            result.error = "Invalid SDO write buffer, slave address or inactive EtherCAT session.";
+            return result;
         }
+        const auto state = baseState(context_.slavelist[slave].state);
+        if (state != EC_STATE_PRE_OP && state != EC_STATE_SAFE_OP && state != EC_STATE_OPERATIONAL) {
+            result.error = "SDO requires PRE-OP, SAFE-OP or OP.";
+            return result;
+        }
+        checkForSdoErrors(slave, index); // Drain previous requests before attribution.
     }
-
-    const int writeWkc = ecx_SDOwrite(
-        &context_, slave, index, subindex,
+    result.wkc = ecx_SDOwrite(&context_, slave, index, subindex,
         static_cast<boolean>(completeAccess), size, buf, EC_TIMEOUTRXM);
-    if (writeWkc <= 0) {
-        std::cout << "Slave " << slave << ": Working counter too low ("
-                  << writeWkc << ") for writing SDO (ID: 0x"
-                  << std::setfill('0') << std::setw(4) << std::hex << index
-                  << ", SID 0x" << std::setfill('0') << std::setw(2)
-                  << static_cast<uint16_t>(subindex) << ").";
-        checkForSdoErrors(slave, index);
-
-        std::lock_guard<std::recursive_mutex> contextLock(contextMutex_);
-        if (isValidSlaveAddress(slave)) {
-            const uint16_t alCode = context_.slavelist[slave].ALstatuscode;
-            std::cout << " AL status 0x" << std::setfill('0')
-                      << std::setw(4) << std::hex << alCode << " "
-                      << alStatusText(alCode);
-        }
-        return false;
-    }
-    return true;
+    result.success = result.wkc > 0;
+    result.actualSize = result.success ? size : 0;
+    collectSdoErrorsLocked(slave, index, subindex, result);
+    if (!result.success && result.error.empty())
+        result.error = "SDO write timed out or returned an invalid working counter (" +
+                       std::to_string(result.wkc) + ").";
+    return result;
 }
 
-bool EcatMasterBus::sdoRead(const uint16_t slave, const uint16_t index, const uint8_t subindex, const bool completeAccess, int size, void* buf)
+SdoTransferResult EcatMasterBus::sdoReadDetailed(const uint16_t slave, const uint16_t index,
+                                                const uint8_t subindex, const bool completeAccess,
+                                                int size, void* buf)
 {
-    if (dcRuntime_->active()) return false;
+    SdoTransferResult result;
+    if (dcRuntime_->active()) {
+        result.error = "SDO is unavailable during the diagnostic DC test.";
+        return result;
+    }
     std::lock_guard<std::mutex> mailboxLock(mailboxMutex_);
     {
         std::lock_guard<std::recursive_mutex> contextLock(contextMutex_);
         if (!master_init_ || !isValidSlaveAddress(slave) ||
             size <= 0 || buf == nullptr) {
-            return false;
+            result.error = "Invalid SDO read buffer, slave address or inactive EtherCAT session.";
+            return result;
         }
+        const auto state = baseState(context_.slavelist[slave].state);
+        if (state != EC_STATE_PRE_OP && state != EC_STATE_SAFE_OP && state != EC_STATE_OPERATIONAL) {
+            result.error = "SDO requires PRE-OP, SAFE-OP or OP.";
+            return result;
+        }
+        checkForSdoErrors(slave, index);
     }
 
     const int requestedSize = size;
-    const int readWkc = ecx_SDOread(
+    result.wkc = ecx_SDOread(
         &context_, slave, index, subindex,
         static_cast<boolean>(completeAccess), &size, buf, EC_TIMEOUTRXM);
-    if (readWkc <= 0) {
-        std::cout << "Slave " << slave << ": Working counter too low ("
-                  << readWkc << ") for reading SDO (ID: 0x"
-                  << std::setfill('0') << std::setw(4) << std::hex << index
-                  << ", SID 0x" << std::setfill('0') << std::setw(2)
-                  << static_cast<uint16_t>(subindex) << ").";
-        checkForSdoErrors(slave, index);
-        return false;
+    result.actualSize = result.wkc > 0 ? size : 0;
+    result.success = result.wkc > 0 && size == requestedSize;
+    collectSdoErrorsLocked(slave, index, subindex, result);
+    if (!result.success && result.error.empty()) {
+        result.error = result.wkc <= 0
+            ? "SDO read timed out or returned an invalid working counter (" + std::to_string(result.wkc) + ")."
+            : "SDO size mismatch: expected " + std::to_string(requestedSize) +
+              " bytes, received " + std::to_string(size) + ".";
     }
-    if (size != requestedSize) {
-        std::cout << "Slave " << slave << ": Size mismatch (expected "
-                  << requestedSize << " bytes, read " << size
-                  << " bytes) for reading SDO (ID: 0x"
-                  << std::setfill('0') << std::setw(4) << std::hex << index
-                  << ", SID 0x" << std::setfill('0') << std::setw(2)
-                  << static_cast<uint16_t>(subindex) << ").";
-        return false;
-    }
-    return true;
+    return result;
 }
 
 bool EcatMasterBus::applySDOConfigs(const std::vector<SDOConfig>& configs)

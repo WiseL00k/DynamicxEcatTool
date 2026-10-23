@@ -88,6 +88,8 @@ QString BusSessionCoordinator::displayName(Mode mode)
         return QStringLiteral("总线配置");
     case Mode::DcTest:
         return QStringLiteral("DC测试");
+    case Mode::Ecat2Canfd:
+        return QStringLiteral("ECAT2CANFD");
     case Mode::Flashing:
         return QStringLiteral("固件或EEPROM烧录");
     }

@@ -20,10 +20,11 @@ ApplicationWindow {
 
     property int currentPageIndex: 0
     readonly property var sessionUi: sessionAdapter
-    readonly property string currentPageKey: ["test", "dc", "debug", "params", "bus"][currentPageIndex]
+    readonly property string currentPageKey: ["test", "dc", "ecat2canfd", "debug", "params", "bus"][currentPageIndex]
     readonly property string currentPageTitle: [
         qsTr("测试与烧录"),
         qsTr("DC 同步测试"),
+        qsTr("ECAT2CANFD"),
         qsTr("设备调试"),
         qsTr("MIT 参数"),
         qsTr("总线配置")
@@ -208,10 +209,10 @@ ApplicationWindow {
                 SideNavButton {
                     Layout.fillWidth: true
                     theme: appTheme
-                    text: qsTr("设备调试")
-                    iconSource: Qt.resolvedUrl("icons/debug.svg")
+                    text: qsTr("ECAT2CANFD")
+                    iconSource: Qt.resolvedUrl("icons/bus.svg")
                     selected: root.currentPageIndex === 2
-                    sessionOwned: sessionAdapter.sessionActive && sessionAdapter.modeKey === "debug"
+                    sessionOwned: sessionAdapter.sessionActive && sessionAdapter.modeKey === "ecat2canfd"
                     collapsed: root.navigationCollapsed
                     onClicked: root.currentPageIndex = 2
                 }
@@ -219,10 +220,10 @@ ApplicationWindow {
                 SideNavButton {
                     Layout.fillWidth: true
                     theme: appTheme
-                    text: qsTr("MIT 参数")
-                    iconSource: Qt.resolvedUrl("icons/motor.svg")
+                    text: qsTr("设备调试")
+                    iconSource: Qt.resolvedUrl("icons/debug.svg")
                     selected: root.currentPageIndex === 3
-                    sessionOwned: sessionAdapter.sessionActive && sessionAdapter.modeKey === "params"
+                    sessionOwned: sessionAdapter.sessionActive && sessionAdapter.modeKey === "debug"
                     collapsed: root.navigationCollapsed
                     onClicked: root.currentPageIndex = 3
                 }
@@ -230,12 +231,23 @@ ApplicationWindow {
                 SideNavButton {
                     Layout.fillWidth: true
                     theme: appTheme
-                    text: qsTr("总线配置")
-                    iconSource: Qt.resolvedUrl("icons/bus.svg")
+                    text: qsTr("MIT 参数")
+                    iconSource: Qt.resolvedUrl("icons/motor.svg")
                     selected: root.currentPageIndex === 4
-                    sessionOwned: sessionAdapter.sessionActive && sessionAdapter.modeKey === "bus"
+                    sessionOwned: sessionAdapter.sessionActive && sessionAdapter.modeKey === "params"
                     collapsed: root.navigationCollapsed
                     onClicked: root.currentPageIndex = 4
+                }
+
+                SideNavButton {
+                    Layout.fillWidth: true
+                    theme: appTheme
+                    text: qsTr("总线配置")
+                    iconSource: Qt.resolvedUrl("icons/bus.svg")
+                    selected: root.currentPageIndex === 5
+                    sessionOwned: sessionAdapter.sessionActive && sessionAdapter.modeKey === "bus"
+                    collapsed: root.navigationCollapsed
+                    onClicked: root.currentPageIndex = 5
                 }
 
                 Item { Layout.fillHeight: true }
@@ -375,6 +387,13 @@ ApplicationWindow {
                             controller: EthercatBackend.dcTest
                         }
 
+                        Ecat2CanfdPage {
+                            id: canfdPage
+                            theme: appTheme
+                            sessionUi: root.sessionUi
+                            controller: EthercatBackend.ecat2Canfd
+                        }
+
                         DebugPage {
                             id: debugPage
                             theme: appTheme
@@ -443,6 +462,14 @@ ApplicationWindow {
 
     Connections {
         target: sessionAdapter.backend ? sessionAdapter.backend.dcTest : null
+
+        function onErrorOccurred(message) {
+            errorPopup.show(message)
+        }
+    }
+
+    Connections {
+        target: sessionAdapter.backend ? sessionAdapter.backend.ecat2Canfd : null
 
         function onErrorOccurred(message) {
             errorPopup.show(message)

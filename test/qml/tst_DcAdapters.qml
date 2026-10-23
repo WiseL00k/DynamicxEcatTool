@@ -22,6 +22,22 @@ TestCase {
         compare(session.dcConnected, true)
     }
 
+    function test_canfdSessionAndLateLogHaveOwnDestination() {
+        const backend = createTemporaryObject(backendComponent, testCase)
+        const session = createTemporaryObject(sessionComponent, testCase, { backend: backend })
+        const log = createTemporaryObject(logComponent, testCase, { backend: backend, contextKey: "debug" })
+        backend.connected = true
+        backend.sessionActive = true
+        backend.sessionMode = "ECAT2CANFD"
+        compare(session.modeKey, "ecat2canfd")
+        compare(session.canfdConnected, true)
+        backend.sessionActive = false
+        backend.ecat2CanfdLogAppended("SDO worker released")
+        compare(log.currentText, "")
+        log.contextKey = "ecat2canfd"
+        compare(log.currentText, "SDO worker released")
+    }
+
     function test_dcLogNeverLeaksIntoSelectedUnrelatedPage() {
         const backend = createTemporaryObject(backendComponent, testCase)
         const log = createTemporaryObject(logComponent, testCase, {

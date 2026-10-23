@@ -9,7 +9,7 @@ QtObject {
     property string sessionMode: ""
     property int maximumLines: 500
     property int revision: 0
-    property var buffers: ({ "test": [], "dc": [], "debug": [], "params": [], "bus": [] })
+    property var buffers: ({ "test": [], "dc": [], "ecat2canfd": [], "debug": [], "params": [], "bus": [] })
 
     readonly property string currentText: {
         const dependency = revision
@@ -20,6 +20,7 @@ QtObject {
     function keyForMode(mode) {
         if (mode === "测试" || mode === "固件或EEPROM烧录") return "test"
         if (mode === "DC测试") return "dc"
+        if (mode === "ECAT2CANFD") return "ecat2canfd"
         if (mode === "调试通信") return "debug"
         if (mode === "MIT参数调试") return "params"
         if (mode === "总线配置") return "bus"
@@ -84,6 +85,10 @@ QtObject {
 
         function onDcLogAppended(line) {
             root.appendContext("dc", line)
+        }
+
+        function onEcat2CanfdLogAppended(line) {
+            root.appendContext("ecat2canfd", line)
         }
 
         function onSoemErrorOccurred(message) {
