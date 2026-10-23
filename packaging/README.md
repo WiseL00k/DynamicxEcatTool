@@ -1,6 +1,6 @@
 # 构建安装包与 CI
 
-当前版本由 `VERSION` 维护：`0.4.0`。本目录是受 Git 管理的打包入口，旧构建目录中的 `windows-release` 保留不变。Windows 脚本集中在 `windows/`，Ubuntu AppImage/deb 脚本集中在 `linux/`，共用版本文件。
+当前版本由 `VERSION` 维护：`0.4.1`。本目录是受 Git 管理的打包入口，旧构建目录中的 `windows-release` 保留不变。Windows 脚本集中在 `windows/`，Ubuntu AppImage/deb 脚本集中在 `linux/`，共用版本文件。
 
 ## Ubuntu 20.04 / 24.04 LTS
 
@@ -8,8 +8,8 @@ Ubuntu CI 与 Windows CI 使用相同的 PR、master 推送、tag 推送和手�
 
 | 构建环境与验证目标 | AppImage | deb |
 | --- | --- | --- |
-| Ubuntu 20.04 LTS | `DynamicxEcatTool-v0.4.0-ubuntu20.04-amd64.AppImage` | `DynamicxEcatTool-v0.4.0-ubuntu20.04-amd64.deb` |
-| Ubuntu 24.04 LTS | `DynamicxEcatTool-v0.4.0-ubuntu24.04-amd64.AppImage` | `DynamicxEcatTool-v0.4.0-ubuntu24.04-amd64.deb` |
+| Ubuntu 20.04 LTS | `DynamicxEcatTool-v0.4.1-ubuntu20.04-amd64.AppImage` | `DynamicxEcatTool-v0.4.1-ubuntu20.04-amd64.deb` |
+| Ubuntu 24.04 LTS | `DynamicxEcatTool-v0.4.1-ubuntu24.04-amd64.AppImage` | `DynamicxEcatTool-v0.4.1-ubuntu24.04-amd64.deb` |
 
 Ubuntu 24.04 原生构建的程序可能依赖较新 glibc 和 libstdc++，无法直接保证在 20.04 / 22.04 运行。AppImage 不消除这类 ABI 要求，因此保留两套带系统版本后缀的产物，不将 24.04 包声明为兼容 20～24。22.04 尚未列为验证目标。
 
@@ -19,7 +19,7 @@ GitHub 已退役 Ubuntu 20.04 托管 runner；两套任务均由 `ubuntu-24.04` 
 
 从 **Actions → Ubuntu CI → 对应运行 → Artifacts** 下载带 `ubuntu20.04` 或 `ubuntu24.04` 的附件，保留 14 天。发布附件只包含两个安装包、校验文件与清单，不自动创建 GitHub Release。检查成功需同时查看 Build and Package 与 Clean Install Test；当前 master 必需检查仍为 Windows，未自动增加 Linux 合并门槛。
 
-deb 安装到 `/opt/dynamicx-ecat-tool`，提供 `dynamicx-ecat-tool` 启动命令和桌面入口；系统依赖由实际部署 ELF 的动态链接结果计算，并记录于构建清单。使用 `sudo apt install ./DynamicxEcatTool-v0.4.0-ubuntu24.04-amd64.deb` 安装对应版本，可通过 `sudo apt remove dynamicx-ecat-tool` 卸载。AppImage 加执行权限后运行；没有 FUSE 时可先执行 `./文件名.AppImage --appimage-extract`，再运行 `./squashfs-root/AppRun`。
+deb 安装到 `/opt/dynamicx-ecat-tool`，提供 `dynamicx-ecat-tool` 启动命令和桌面入口；系统依赖由实际部署 ELF 的动态链接结果计算，并记录于构建清单。使用 `sudo apt install ./DynamicxEcatTool-v0.4.1-ubuntu24.04-amd64.deb` 安装对应版本，可通过 `sudo apt remove dynamicx-ecat-tool` 卸载。AppImage 加执行权限后运行；没有 FUSE 时可先执行 `./文件名.AppImage --appimage-extract`，再运行 `./squashfs-root/AppRun`。
 
 EtherCAT 网卡通信需要 root 或相应 raw socket 权限，安装过程不授予 setuid 或系统 capabilities。普通用户可以检查界面启动。Linux 图形部署使用 X11/XWayland，中文字体建议安装 `fonts-noto-cjk`。
 
@@ -31,7 +31,7 @@ EtherCAT 网卡通信需要 root 或相应 raw socket 权限，安装过程不�
 
 向 `master` 创建、重新打开或更新 PR，推送 `master`，推送任意名称的 tag，以及手动运行 **Windows CI** 都会触发 **Windows Build and Package**。
 
-tag 必须推送到 GitHub 才会触发构建，例如 `git tag v0.4.0` 后执行 `git push origin v0.4.0`；tag 指向的提交需包含本工作流。tag 构建同样执行测试、打包并上传附件，安装包版本仍以 `packaging/VERSION` 为准，发布前应使其与 tag 版本一致。
+tag 必须推送到 GitHub 才会触发构建，例如 `git tag v0.4.1` 后执行 `git push origin v0.4.1`；tag 指向的提交需包含本工作流。tag 构建同样执行测试、打包并上传附件，安装包版本仍以 `packaging/VERSION` 为准，发布前应使其与 tag 版本一致。
 
 流程：拉取源码和锁定的 SOEM 子模块 → MSVC x64 → Qt 6.8.3 → 构建 yaml-cpp 0.9.0 → Release 编译 → CTest 和安装状态机测试 → Qt 部署 → Inno Setup 6.7.1 → 上传安装包。
 
@@ -39,9 +39,9 @@ tag 必须推送到 GitHub 才会触发构建，例如 `git tag v0.4.0` 后执�
 
 主仓库锁定的 SOEM 提交 `d2b098f` 已发布到 `WiseL00k/SOEM` 的 `codex/windows-ci-dependency` 分支，供全新 checkout 获取；没有改动子模块版本或 SOEM 的 master。该提交在其他远程分支保留前，不应删除这个依赖分支。
 
-在 PR 的 Checks 中打开对应运行，或进入仓库 **Actions → Windows CI → 对应运行 → Artifacts**，下载 `DynamicxEcatTool-v0.4.0-windows-amd64-<提交>-<运行编号>-<尝试次数>`。解压后包含：
+在 PR 的 Checks 中打开对应运行，或进入仓库 **Actions → Windows CI → 对应运行 → Artifacts**，下载 `DynamicxEcatTool-v0.4.1-windows-amd64-<提交>-<运行编号>-<尝试次数>`。解压后包含：
 
-- `DynamicxEcatTool-v0.4.0-amd64.exe`：安装器；内部程序仍叫 `DynamicxEcatTool.exe`。
+- `DynamicxEcatTool-v0.4.1-amd64.exe`：安装器；内部程序仍叫 `DynamicxEcatTool.exe`。
 - 同名 `.exe.sha256`：SHA256 校验文件。
 - `build-info.json`：源码提交（含 PR head 与测试合并提交）、工具版本、输入依赖和部署文件哈希。
 
@@ -83,7 +83,7 @@ CI 在构建阶段从官方 HTTPS 地址下载固定版本并校验 SHA256，打
   -NpcapInstallerPath 'C:/path/to/npcap-1.87.exe'
 ```
 
-输出位于指定目录的 `publish/`；其余是本次暂存文件和日志。加 `-CheckOnly` 只验证输入，不创建输出；也可用 `-Version 0.4.1` 临时验证版本。常规发布修改 `VERSION`，不手动更改多个文件。
+输出位于指定目录的 `publish/`；其余是本次暂存文件和日志。加 `-CheckOnly` 只验证输入，不创建输出；也可用 `-Version 0.4.2` 临时验证版本。常规发布修改 `VERSION`，不手动更改多个文件。
 
 打包依据 `local-runtime-Release.json` 定位输入，核对所属源码目录、PE 架构和复制哈希。Qt 部署扫描 `qml/`，不扫描历史构建目录。DXC 的 x64 `dxcompiler.dll`/`dxil.dll` 配对从 Windows SDK 补齐；VC++ 安装器需微软有效签名、x64、版本至少 14.40。输入缺失时明确失败，不清空或覆盖旧输出。
 
