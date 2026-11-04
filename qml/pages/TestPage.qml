@@ -52,7 +52,7 @@ Item {
 
     function flashStateText(state) {
         if (state === "success")
-            return "烧录成功"
+            return flashTabs.currentIndex === 0 ? "下载已确认" : "烧录成功"
         if (state === "error")
             return "烧录失败"
         if (state === "running")
@@ -373,6 +373,7 @@ Item {
                                 Layout.fillWidth: true
                                 Layout.minimumWidth: 0
                                 Layout.preferredWidth: 320
+                                successText: "下载已确认"
                                 Layout.alignment: Qt.AlignTop
                                 theme: root.theme
                                 taskName: "固件"
@@ -531,7 +532,7 @@ Item {
             if (type === "firmware") {
                 root.firmwareBusy = false
                 root.firmwareProgress = success ? 100 : 0
-                root.firmwareResult = success ? "固件烧录成功：" + msg : "固件烧录失败：" + msg
+                root.firmwareResult = msg
                 root.firmwareUiState = success ? "success" : "error"
             } else if (type === "eeprom") {
                 root.eepromBusy = false

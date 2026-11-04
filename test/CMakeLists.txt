@@ -20,6 +20,30 @@ target_include_directories(DynamicxApplicationRuntimeTests PRIVATE ${PROJECT_SOU
 target_link_libraries(DynamicxApplicationRuntimeTests PRIVATE Qt6::Test soem_interface)
 configure_dc_test(DynamicxApplicationRuntimeTests)
 
+# Exercise the real firmware workflow and FoE protocol with an in-memory slave.
+enable_language(C)
+add_executable(DynamicxFirmwareTests FirmwareTests.cpp
+    ../SOEM_interface/src/SOEM_interface/SoemUtils.cpp
+    ../SOEM_interface/src/SOEM_interface/ErrorText.cpp
+    ../SOEM_interface/src/SOEM_interface/FirmwareFlashResult.cpp
+    ../Backend/Flash/FlashService.cpp
+    ../Backend/Ethercat/EthercatErrorMapper.cpp
+    ${SOEM_FOE_SOURCE})
+target_include_directories(DynamicxFirmwareTests PRIVATE ${PROJECT_SOURCE_DIR}/SOEM_interface/include)
+target_compile_definitions(DynamicxFirmwareTests PRIVATE SOEM_INTERFACE_BUILD EC_FOE_BUSY_TIMEOUT_US=200000)
+target_compile_features(DynamicxFirmwareTests PRIVATE cxx_std_17)
+target_link_libraries(DynamicxFirmwareTests PRIVATE Qt6::Test soem)
+configure_dc_test(DynamicxFirmwareTests)
+
+# Formatting-only tests: no mock transfer and no hardware access.
+add_executable(DynamicxFirmwareMessageTests FirmwareMessageTests.cpp)
+target_link_libraries(DynamicxFirmwareMessageTests PRIVATE Qt6::Test soem_interface)
+configure_dc_test(DynamicxFirmwareMessageTests)
+
+# Explicit opt-in firmware download probe, excluded from CTest/CI.
+add_executable(DynamicxFirmwareHardwareProbe FirmwareHardwareProbe.cpp)
+target_link_libraries(DynamicxFirmwareHardwareProbe PRIVATE Qt6::Core soem_interface)
+
 # Manual hardware probe: intentionally excluded from add_test()/CI execution.
 add_executable(DynamicxCanfdHardwareProbe CanfdHardwareProbe.cpp)
 target_link_libraries(DynamicxCanfdHardwareProbe PRIVATE dynamicx_backend)

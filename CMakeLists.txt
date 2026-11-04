@@ -17,6 +17,7 @@ endif()
 
 add_subdirectory(SOEM)
 include(cmake/SoemPortSynchronization.cmake)
+include(cmake/SoemFoeDiagnostics.cmake)
 add_subdirectory(SOEM_interface)
 
 set(APP_QML_FILES

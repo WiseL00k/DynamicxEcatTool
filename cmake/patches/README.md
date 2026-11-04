@@ -2,6 +2,23 @@
 
 Base: SOEM commit `d2b098f5a1806c69898473420cc52691b2ff017d`.
 
+`soem-foe-diagnostics.patch` is applied separately by
+`SoemFoeDiagnostics.cmake` on both platforms. It places the received 32-bit
+FoE ERROR code in SOEM's existing error queue for reads and writes; the original
+write return values remain unchanged. `DynamicxFirmwareTests` runs the patched
+FoE implementation against a mailbox stub, including the filename error `-10`
+with peer code `0x8001`.
+
+The same patch fixes `ecx_FOEwrite` completion after BUSY: both the initial WRQ
+and the zero-length EOF must be retransmitted until ACK rather than returning a
+positive mailbox workcounter early. All BUSY retries preserve the original FoE
+opcode, packet number and bytes, with a fresh mailbox counter. A 1 ms delay
+leaves time for the slave's asynchronous Flash worker. Continuous BUSY on one
+unacknowledged request times out after 120 seconds (`EC_FOE_BUSY_TIMEOUT_US`);
+the caller's per-mailbox timeout still applies. The tests use a 200 ms BUSY
+limit, cover WRQ/data/EOF and verify that timeout never requests BOOT exit.
+Keep this patch when rebasing the dependency.
+
 The application PDO thread and serialized SDO worker share a port. The Windows
 and Linux patches make allocation, buffer-state publication, one packet send,
 and one receive use the same existing `rx_mutex`. The unlocked receive

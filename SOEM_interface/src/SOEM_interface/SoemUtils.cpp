@@ -1,14 +1,39 @@
 #include "SOEM_interface/SoemUtils.h"
+#include "SOEM_interface/ErrorText.h"
 
 #include <cstdio>
 #include <cstring>
 #include <fstream>
+#include <limits>
 
 extern "C" {
 #include <soem/soem.h>
 }
 
 namespace soem_interface{
+namespace {
+
+// Envelope checks only: the slave remains authoritative for CRCs, image
+// descriptors, release pairing and bootloader/layout compatibility.
+std::string ecat2CanfdEnvelopeError(const std::vector<uint8_t>& bytes)
+{
+    if (bytes.size() < 256 || std::memcmp(bytes.data(), "EC2PKG01", 8) != 0)
+        return "ECAT2CANFD 需要以 EC2PKG01 开头的完整双核升级包；当前文件不是该容器，不能使用裸 M7/M4 BIN，请选择发布目录中的 ecat2canfd.bin";
+    auto read32 = [&](size_t offset) {
+        return uint32_t(bytes[offset]) | uint32_t(bytes[offset + 1]) << 8
+             | uint32_t(bytes[offset + 2]) << 16 | uint32_t(bytes[offset + 3]) << 24;
+    };
+    if (bytes.size() > 0x60000 || read32(12) != 256 || read32(16) != bytes.size())
+        return "ECAT2CANFD 容器长度或包头长度不匹配，文件可能被截断或损坏，请重新获取完整发布包";
+    for (size_t entry : {size_t(48), size_t(64)}) {
+        const uint32_t offset = read32(entry), size = read32(entry + 4);
+        if (offset < 256 || offset > bytes.size() || size < 72 || size > bytes.size() - offset)
+            return "ECAT2CANFD 容器中的双核镜像范围无效，请重新获取完整发布包";
+    }
+    return {};
+}
+
+} // namespace
 
 std::vector<SoemUtils::AdapterInfo> SoemUtils::scanAdapters()
 {
@@ -413,18 +438,59 @@ bool FirmwareTool::init()
     }
 
     if (!ecx_init(&ctx_, ifname_.c_str())) {
-        return false;
+        return fail(FirmwareFlashError::OpenFailed, "打开网卡失败，请检查网卡名称和原始套接字权限");
     }
-
-    if (ecx_config_init(&ctx_) <= 0) {
-        ecx_close(&ctx_);
-        return false;
-    }
-
-    ecx_statecheck(&ctx_, 0, EC_STATE_PRE_OP, EC_TIMEOUTSTATE * 4);
-
     inited_ = true;
+
+    const int count = ecx_config_init(&ctx_);
+    if (count <= 0) {
+        fail(FirmwareFlashError::ScanFailed, "未能完成从站初始化", count);
+        close();
+        return false;
+    }
+
+    if (!confirmState(0, EC_STATE_PRE_OP, EC_TIMEOUTSTATE * 4)) {
+        fail(FirmwareFlashError::PreOpFailed, "初始化后未确认全部从站处于 PRE-OP");
+        close();
+        return false;
+    }
     return true;
+}
+
+bool FirmwareTool::confirmState(uint16_t slave, uint16_t wanted, int timeout)
+{
+    const auto state = ecx_statecheck(&ctx_, slave, wanted, timeout);
+    // SOEM returns only the low nibble: BOOT+ERROR otherwise looks like BOOT.
+    return state == wanted && (ctx_.slavelist[slave].state & EC_STATE_ERROR) == 0;
+}
+
+bool FirmwareTool::fail(FirmwareFlashError code, const std::string& reason, int soemReturn)
+{
+    result_.error = code;
+    result_.reason = reason;
+    result_.soemReturn = soemReturn;
+    if (inited_) {
+        ec_errort error{};
+        while (ecx_poperror(&ctx_, &error)) {
+            if (error.Slave != 0 && error.Slave != result_.slave) continue;
+            if (error.Etype == EC_ERR_TYPE_FOE_ERROR)
+                result_.foeError = static_cast<uint32_t>(error.AbortCode);
+            if (error.Etype == EC_ERR_TYPE_MBX_ERROR)
+                result_.mailboxError = error.ErrorCode;
+        }
+        if (result_.slave > 0 && result_.slave <= ctx_.slavecount) {
+            ec_alstatust state{};
+            const int wkc = ecx_FPRD(&ctx_.port, ctx_.slavelist[result_.slave].configadr,
+                                    ECT_REG_ALSTAT, sizeof(state), &state, EC_TIMEOUTRET);
+            result_.alStateValid = wkc == 1;
+            if (result_.alStateValid) {
+                result_.alState = etohs(state.alstatus);
+                result_.alStatusCode = etohs(state.alstatuscode);
+            }
+        }
+    }
+    result_.message = formatFirmwareFlashResult(result_);
+    return false;
 }
 
 void FirmwareTool::close()
@@ -444,7 +510,7 @@ bool FirmwareTool::loadFile(const std::filesystem::path& file, std::vector<uint8
 
     ifs.seekg(0, std::ios::end);
     const std::streampos end = ifs.tellg();
-    if (end < 0) {
+    if (end <= 0 || end > std::numeric_limits<int>::max()) {
         return false;
     }
     const auto size = static_cast<size_t>(end);
@@ -461,67 +527,82 @@ bool FirmwareTool::loadFile(const std::filesystem::path& file, std::vector<uint8
 
 bool FirmwareTool::configBootMailbox(uint16_t slave)
 {
-    uint32_t data = ecx_readeeprom(&ctx_, slave, ECT_SII_BOOTRXMBX, EC_TIMEOUTEEP);
-
-    ctx_.slavelist[slave].SM[0].StartAddr = LO_WORD(data);
-    ctx_.slavelist[slave].SM[0].SMlength = HI_WORD(data);
-
-    ctx_.slavelist[slave].mbx_wo = LO_WORD(data);
-    ctx_.slavelist[slave].mbx_l = HI_WORD(data);
-
-    data = ecx_readeeprom(&ctx_, slave, ECT_SII_BOOTTXMBX, EC_TIMEOUTEEP);
-
-    ctx_.slavelist[slave].SM[1].StartAddr = LO_WORD(data);
-    ctx_.slavelist[slave].SM[1].SMlength = HI_WORD(data);
-
-    ctx_.slavelist[slave].mbx_ro = LO_WORD(data);
-    ctx_.slavelist[slave].mbx_rl = HI_WORD(data);
-
-    ecx_FPWR(&ctx_.port, ctx_.slavelist[slave].configadr, ECT_REG_SM0, sizeof(ec_smt), &ctx_.slavelist[slave].SM[0], EC_TIMEOUTRET);
-    ecx_FPWR(&ctx_.port, ctx_.slavelist[slave].configadr, ECT_REG_SM1, sizeof(ec_smt), &ctx_.slavelist[slave].SM[1], EC_TIMEOUTRET);
-
+    const uint32_t rx = ecx_readeeprom(&ctx_, slave, ECT_SII_BOOTRXMBX, EC_TIMEOUTEEP);
+    const uint32_t tx = ecx_readeeprom(&ctx_, slave, ECT_SII_BOOTTXMBX, EC_TIMEOUTEEP);
+    const uint16_t rxAddress = LO_WORD(rx), rxSize = HI_WORD(rx);
+    const uint16_t txAddress = LO_WORD(tx), txSize = HI_WORD(tx);
+    if (!rxAddress || !txAddress || rxSize <= 12 || txSize <= 12
+        || rxSize > EC_MAXMBX || txSize > EC_MAXMBX
+        || uint32_t(rxAddress) + rxSize > 0x10000u || uint32_t(txAddress) + txSize > 0x10000u
+        || (rxAddress < uint32_t(txAddress) + txSize && txAddress < uint32_t(rxAddress) + rxSize)) {
+        return fail(FirmwareFlashError::InvalidBootMailbox, "EEPROM 中的 BOOT 邮箱配置无效或读取失败");
+    }
+    auto& target = ctx_.slavelist[slave];
+    target.SM[0].StartAddr = htoes(rxAddress);
+    target.SM[0].SMlength = htoes(rxSize);
+    target.SM[1].StartAddr = htoes(txAddress);
+    target.SM[1].SMlength = htoes(txSize);
+    target.mbx_wo = rxAddress; target.mbx_l = rxSize;
+    target.mbx_ro = txAddress; target.mbx_rl = txSize;
+    for (int sm = 0; sm < 2; ++sm) {
+        const int wkc = ecx_FPWR(&ctx_.port, target.configadr, sm ? ECT_REG_SM1 : ECT_REG_SM0,
+                                 sizeof(ec_smt), &target.SM[sm], EC_TIMEOUTRET);
+        if (wkc != 1)
+            return fail(FirmwareFlashError::BootMailboxWriteFailed,
+                        "写入 BOOT 邮箱 SM" + std::to_string(sm) + " 失败", wkc);
+    }
     return true;
 }
 
 bool FirmwareTool::enterBootMode(uint16_t slave)
 {
     ctx_.slavelist[slave].state = EC_STATE_INIT;
-    ecx_writestate(&ctx_, slave);
-
-    if (ecx_statecheck(&ctx_, slave, EC_STATE_INIT, EC_TIMEOUTSTATE * 4) != EC_STATE_INIT) {
-        return false;
-    }
-
-    configBootMailbox(slave);
+    const int initWkc = ecx_writestate(&ctx_, slave);
+    if (initWkc != 1 || !confirmState(slave, EC_STATE_INIT, EC_TIMEOUTSTATE * 4))
+        return fail(FirmwareFlashError::InitFailed, "进入 INIT 失败", initWkc);
+    if (!configBootMailbox(slave)) return false;
 
     ctx_.slavelist[slave].state = EC_STATE_BOOT;
-    ecx_writestate(&ctx_, slave);
-
-    return ecx_statecheck(&ctx_, slave, EC_STATE_BOOT, EC_TIMEOUTSTATE * 10) == EC_STATE_BOOT;
+    const int bootWkc = ecx_writestate(&ctx_, slave);
+    if (bootWkc != 1 || !confirmState(slave, EC_STATE_BOOT, EC_TIMEOUTSTATE * 10))
+        return fail(FirmwareFlashError::BootFailed, "进入 BOOT 失败", bootWkc);
+    return true;
 }
 
 bool FirmwareTool::leaveBootMode(uint16_t slave)
 {
     ctx_.slavelist[slave].state = EC_STATE_INIT;
-    ecx_writestate(&ctx_, slave);
-
-    return ecx_statecheck(&ctx_, slave, EC_STATE_INIT, EC_TIMEOUTSTATE * 4) == EC_STATE_INIT;
+    const int wkc = ecx_writestate(&ctx_, slave);
+    if (wkc != 1)
+        return fail(FirmwareFlashError::ActivationFailed, "固件下载完成，但发送退出 BOOT 请求失败", wkc);
+    result_.activationRequested = true;
+    // ECAT2CANFD resets both cores on BOOT -> INIT; INIT may be too brief to
+    // observe. Do not turn that expected reset into an 8-second state timeout.
+    return true;
 }
 
 bool FirmwareTool::flashFirmware(uint16_t slave, const std::filesystem::path& binFile)
 {
-    if (!inited_ && !init()) {
-        return false;
-    }
-
-    if (slave == 0 || slave > ctx_.slavecount) {
-        return false;
-    }
-
+    result_ = {};
+    result_.slave = slave;
+    if (slave == 0)
+        return fail(FirmwareFlashError::InvalidSlave, "从站位置从 1 开始");
     std::vector<uint8_t> fw;
     if (!loadFile(binFile, fw) || fw.empty()) {
-        return false;
+        return fail(FirmwareFlashError::InvalidFile, "固件文件不存在、为空、不可读或超过接口大小上限");
     }
+    const bool ecat2CanfdFile = binFile.filename() == std::filesystem::path("ecat2canfd.bin");
+    if (ecat2CanfdFile) {
+        const auto packageError = ecat2CanfdEnvelopeError(fw);
+        if (!packageError.empty()) return fail(FirmwareFlashError::InvalidPackage, packageError);
+    }
+    if (!inited_ && !init()) return false;
+    if (slave > ctx_.slavecount)
+        return fail(FirmwareFlashError::InvalidSlave, "从站位置超出扫描范围");
+    const auto& target = ctx_.slavelist[slave];
+    if (target.eep_man == 0 && target.eep_id == 0xAB125 && target.eep_rev == 3 && !ecat2CanfdFile)
+        return fail(FirmwareFlashError::InvalidPackage,
+                    "目标 ECAT2CANFD 需要配套的完整双核发布包，文件名必须为 ecat2canfd.bin");
 
     if (!enterBootMode(slave)) {
         return false;
@@ -530,9 +611,22 @@ bool FirmwareTool::flashFirmware(uint16_t slave, const std::filesystem::path& bi
     const std::string filename = binFile.filename().string();
     const int ret = ecx_FOEwrite(&ctx_, slave, const_cast<char*>(filename.c_str()), 0,
                                  static_cast<int>(fw.size()), fw.data(), EC_TIMEOUTSTATE);
-
-    leaveBootMode(slave);
-    return ret > 0;
+    if (ret <= 0) {
+        const char* reason = ret == 0 ? "FoE 未完成邮箱交互（超时、持续 BUSY、链路异常或工作计数为 0）"
+            : ret == -EC_ERR_TYPE_FOE_FILE_NOTFOUND ? "FoE 文件名被从站拒绝"
+            : ret == -EC_ERR_TYPE_FOE_PACKETNUMBER ? "FoE 应答包号不匹配"
+            : ret == -EC_ERR_TYPE_PACKET_ERROR ? "收到非预期的邮箱报文"
+            : ret == -EC_ERR_TYPE_FOE_ERROR ? "从站返回 FoE ERROR"
+            : "FoE 传输失败";
+        // BOOT -> INIT is a whole-device reset on ECAT2CANFD, including on an
+        // unsuccessful download. Leave the slave untouched on this path.
+        return fail(FirmwareFlashError::TransferFailed, reason, ret);
+    }
+    result_.soemReturn = ret;
+    result_.downloadComplete = true;
+    if (!leaveBootMode(slave)) return false;
+    result_.message = formatFirmwareFlashResult(result_);
+    return true;
 }
 
 } // namespace soem_interface

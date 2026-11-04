@@ -76,6 +76,40 @@ Ubuntu 安装包按 20.04 LTS、24.04 LTS 分别构建，提供 AppImage 和 deb
 - **运行日志查看**：实时显示后端输出日志，便于观察通信过程和错误信息。
 - **EEPROM 烧录**：可选择从站地址与 `.hex` 文件，执行 EEPROM 烧录并查看进度与结果。
 
+固件 FoE 失败时，日志、错误弹窗和任务结果保留阶段码（如 `FW010`）、SOEM 原始返回值、从站返回的 FoE 错误码，以及可回读的 AL 状态/错误码。`FirmwareTool::lastResult()` 提供对应结构化字段，关闭连接后仍可读取。
+
+报错按失败原因、错误码、从站状态和处理说明分组换行显示。弹窗支持复制完整信息；任务卡片在失败时自动展开详情，长内容可滚动查看和复制。本地文件检查失败不显示未执行的 SOEM 返回值或未读取的 AL 状态；下载完成后的激活请求失败会单独标明。
+
+| 错误信息 | 含义 |
+| --- | --- |
+| `FW001` | 本地固件文件无效，在初始化总线之前拒绝 |
+| `FW005` / `FW006` / `FW009` | 未确认 PRE-OP / INIT / BOOT，检查同时显示的 AL 码 |
+| `FW007` / `FW008` | BOOT 邮箱参数无效 / 邮箱 SM 写入失败 |
+| `FW010, SOEM=0` | 邮箱超时、持续 BUSY、链路异常或 WKC 为 0，没有从站 FoE 错误码 |
+| `FW010, SOEM=-10, FoE=0x00008001` | 从站不接受文件名；ECAT2CANFD 要求 `ecat2canfd.bin` |
+| `FW010, SOEM=-5` | 从站返回 FoE ERROR，进一步看 FoE 码；`0x8000` 为通用更新错误，`0x8002` 为访问被拒绝 |
+| `FW011` | 固件数据已获最终确认，但退出 BOOT 请求发送失败 |
+| `FW012` | ECAT2CANFD 容器格式或长度无效；裸单核 BIN 不能用于双核 FoE |
+
+ECAT2CANFD 必须使用配套双核升级包。进入 BOOT 后传输失败，上位机不再发送退出 BOOT 请求，以免触发整机复位；此时不要启动 PDO 运行。重试会重新初始化总线，可能使已有 BOOT 会话退出并复位。当前初始化仍会影响整条链路，请在离线维护状态执行。
+
+固件工程 `build/release/ecat2canfd.bin` 可能是遗留单核产物。客户升级包应取自 `build/release/release/ecat2canfd.bin`，以 `EC2PKG01` 开头并包含配套 M7/M4 镜像。上位机对名为 `ecat2canfd.bin` 的文件先检查包头和镜像长度，不合格时在打开网卡之前报 `FW012`；已识别的 ECAT2CANFD 目标也会在进入 BOOT 前检查文件名。CRC、双核发布标识及 bootloader/布局版本兼容性仍由从站校验，格式 1/2 的发布包需与已安装的 bootloader 配套。
+
+下载成功仅表示已收到 FoE 最终应答并发出退出 BOOT 请求，不代表新版本已安装或通过试运行；ECAT2CANFD 会在退出 BOOT 后自动复位，需重新连接确认版本。固件传输期间进度显示为等待，最终应答后才到 100%。
+
+SOEM 的 FoE 补丁同时修复了 BUSY 处理：写请求、普通数据包和末尾零长度包收到 BUSY 时，都重发原包并等待 ACK，避免提前报告成功。单个未确认请求持续 BUSY 超过 120 秒会失败并保留 BOOT，邮箱单次响应仍使用原有超时。实机测试时需停用同网卡上的其他 EtherCAT 主站；IgH 处于 Idle 时也会持续发帧。
+
+启用 `BUILD_TESTING` 后可构建手动探针 `DynamicxFirmwareHardwareProbe`，它调用与上位机相同的 `FirmwareTool`，输出包 SHA-256、返回码、下载/激活标志和耗时。默认仅显示帮助，显式传入 `--flash` 才会初始化总线和下载，且未加入 CTest。停用同网卡其他主站后，以管理员权限运行：
+
+```sh
+build/local-qt/test/DynamicxFirmwareHardwareProbe --flash --adapter eno1 --slave 1 \
+    --firmware /path/to/release/ecat2canfd.bin --output /tmp/dynamicx-foe.json
+```
+
+探针成功表示下载确认及退出 BOOT 请求成功；重启后需另外确认应用版本和运行状态，JSON 中的 `installationVerified` 保持 `false`。
+
+2026-11-04 已在 Linux / eno1 / 从站 1 实测格式 2 同版本重装：101,952 B 整包通过 SOEM 下载，耗时 2,357 ms，返回值 1、FoE 错误码 0。退出 BOOT 后只读 SWD 验证元数据 sequence=5、CONFIRMED/B，M7/M4 执行区分别 73,792 B / 27,896 B，与升级包逐字节一致；两核心跳递增、fault=0。升级包发布标识为 `9ecab727248b20b90982b2f6725e333a`；本次未取得抓包，跨版本切换及掉电恢复不属于这次 SOEM 实测范围。
+
 ### 2. 调试界面
 
 - **主站连接与配置文件加载**：支持刷新网卡、选择网卡、连接/断开主站，并可加载 YAML 配置文件。

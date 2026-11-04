@@ -9,6 +9,7 @@ add_library(soem_interface SHARED
     include/SOEM_interface/ApplicationTypes.h
     include/SOEM_interface/ErrorText.h
     src/SOEM_interface/ErrorText.cpp
+    src/SOEM_interface/FirmwareFlashResult.cpp
     src/SOEM_interface/ApplicationRuntime.h
     src/SOEM_interface/ApplicationRuntime.cpp
     src/SOEM_interface/EcatMasterBusApplication.cpp

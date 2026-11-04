@@ -5,12 +5,20 @@
 #include <QObject>
 #include <QQmlContext>
 #include <QQmlEngine>
+#include <QQuickWindow>
 #include <QUrl>
 #include <QtQuickTest/quicktest.h>
 
 class DcUiTestSetup final : public QObject
 {
     Q_OBJECT
+
+public:
+    Q_INVOKABLE bool captureWindow(QQuickWindow* window, const QString& name)
+    {
+        if (!window || name.contains('/') || name.contains('\\')) return false;
+        return window->grabWindow().save(QDir(captureDirectory_).filePath(name + ".png"));
+    }
 
 private slots:
     void applicationAvailable()
@@ -38,6 +46,7 @@ private slots:
 
     void qmlEngineAvailable(QQmlEngine* engine)
     {
+        engine->rootContext()->setContextProperty(QStringLiteral("UiTestCapture"), this);
         engine->rootContext()->setContextProperty(
             QStringLiteral("DcUiCaptureEnabled"),
             qEnvironmentVariableIntValue("DC_UI_CAPTURE_SCREENSHOTS") == 1);

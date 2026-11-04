@@ -16,6 +16,26 @@ std::string unknownCode(const char* description, uint32_t code, int width)
 
 } // namespace
 
+std::string foeErrorText(uint32_t code)
+{
+    switch (code) {
+    case 0x8000: return "从站通用更新错误；需结合升级包校验或从站日志定位";
+    case 0x8001: return "从站不接受此文件名；ECAT2CANFD 要求 ecat2canfd.bin";
+    case 0x8002: return "访问被拒绝；检查 BOOT 授权、双核停车和升级条件";
+    case 0x8003: return "从站存储空间不足";
+    case 0x8004: return "FoE 操作非法";
+    case 0x8005: return "FoE 包号错误";
+    case 0x8006: return "文件已存在";
+    case 0x8007: return "用户不存在";
+    case 0x8008: return "仅支持 Bootstrap 模式";
+    case 0x8009: return "从站未处于 Bootstrap 模式";
+    case 0x800A: return "FoE 密码或权限错误";
+    case 0x800B: return "从站编程失败";
+    case 0x800C: return "从站报告校验和错误";
+    default: return unknownCode("未知 FoE 错误", code, 8);
+    }
+}
+
 // Keep these translations aligned with the local SOEM tables, including their
 // existing wording. Do not infer meanings for codes absent from those tables.
 std::string alStatusText(uint16_t code)

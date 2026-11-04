@@ -13,5 +13,6 @@ SOEM_INTERFACE_EXPORT std::string alStatusText(uint16_t code);
 SOEM_INTERFACE_EXPORT std::string sdoAbortText(uint32_t code);
 SOEM_INTERFACE_EXPORT std::string soeErrorText(uint16_t code);
 SOEM_INTERFACE_EXPORT std::string mailboxErrorText(uint16_t code);
+SOEM_INTERFACE_EXPORT std::string foeErrorText(uint32_t code);
 
 } // namespace soem_interface
