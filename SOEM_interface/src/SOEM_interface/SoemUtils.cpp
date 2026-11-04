@@ -510,7 +510,7 @@ bool FirmwareTool::loadFile(const std::filesystem::path& file, std::vector<uint8
 
     ifs.seekg(0, std::ios::end);
     const std::streampos end = ifs.tellg();
-    if (end <= 0 || end > std::numeric_limits<int>::max()) {
+    if (end <= 0 || end > (std::numeric_limits<int>::max)()) {
         return false;
     }
     const auto size = static_cast<size_t>(end);

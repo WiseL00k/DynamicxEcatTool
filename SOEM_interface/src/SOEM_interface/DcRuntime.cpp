@@ -42,7 +42,12 @@ public:
         condition_.wait_until(lock, std::chrono::steady_clock::time_point(
             std::chrono::nanoseconds(deadline)), [&] { return stop.load(); });
     }
-    void wake() override { condition_.notify_all(); }
+    void wake() override {
+        // Serialize notification with the waiter's predicate check and unlock.
+        // The caller sets its atomic stop flag before entering this method.
+        std::lock_guard<std::mutex> lock(mutex_);
+        condition_.notify_all();
+    }
 };
 bool allAt(const DcTestSnapshot& s, uint16_t state) {
     return !s.slaves.empty() && std::all_of(s.slaves.begin(), s.slaves.end(),
