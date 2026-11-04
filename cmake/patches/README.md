@@ -2,6 +2,12 @@
 
 Base: SOEM commit `d2b098f5a1806c69898473420cc52691b2ff017d`.
 
+The root `.gitattributes` keeps these patches in LF format, including Windows
+checkouts. Blank context lines must retain their leading space; removing it
+made the FoE patch fail as `corrupt patch at line 13` after CRLF conversion.
+`DynamicxSoemPatchTests` performs real Git checkouts with `core.autocrlf=false`
+and `true`, applies all three patches and compares their normalized output.
+
 `soem-foe-diagnostics.patch` is applied separately by
 `SoemFoeDiagnostics.cmake` on both platforms. It places the received 32-bit
 FoE ERROR code in SOEM's existing error queue for reads and writes; the original

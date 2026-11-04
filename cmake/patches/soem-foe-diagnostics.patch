@@ -10,7 +10,7 @@
 +#ifndef EC_FOE_BUSY_TIMEOUT_US
 +#define EC_FOE_BUSY_TIMEOUT_US 120000000U
 +#endif
-
+ 
  /* use maximum size for FOE mailbox data - header and metadata */
  #define EC_MAXFOEDATA        \
 @@ -47,6 +53,18 @@
@@ -29,7 +29,7 @@
 +   error.AbortCode = (int32)code;
 +   ecx_pusherror(context, &error);
 +}
-
+ 
  /** FoE progress hook.
   *
 @@ -177,6 +195,7 @@

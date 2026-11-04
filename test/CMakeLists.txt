@@ -11,6 +11,14 @@ function(configure_dc_test target)
     set_tests_properties(${target} PROPERTIES TIMEOUT 120)
 endfunction()
 
+add_test(NAME DynamicxSoemPatchTests
+    COMMAND "${CMAKE_COMMAND}"
+        "-DSOURCE_ROOT=${CMAKE_SOURCE_DIR}"
+        "-DTEST_ROOT=${CMAKE_CURRENT_BINARY_DIR}/soem-patch-tests"
+        "-DGIT_EXECUTABLE=${GIT_EXECUTABLE}"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/SoemPatchTests.cmake")
+set_tests_properties(DynamicxSoemPatchTests PROPERTIES TIMEOUT 30)
+
 add_executable(DynamicxSoemPortTests SoemPortTests.cpp)
 target_link_libraries(DynamicxSoemPortTests PRIVATE Qt6::Test soem)
 configure_dc_test(DynamicxSoemPortTests)
