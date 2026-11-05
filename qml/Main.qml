@@ -20,13 +20,14 @@ ApplicationWindow {
 
     property int currentPageIndex: 0
     readonly property var sessionUi: sessionAdapter
-    readonly property string currentPageKey: ["test", "dc", "debug", "params", "bus"][currentPageIndex]
+    readonly property string currentPageKey: ["test", "dc", "ecat2canfd", "params", "bus", "debug"][currentPageIndex]
     readonly property string currentPageTitle: [
         qsTr("测试与烧录"),
         qsTr("DC 同步测试"),
-        qsTr("设备调试"),
-        qsTr("MIT 参数"),
-        qsTr("总线配置")
+        qsTr("ECAT2CANFD"),
+        qsTr("达妙电机MIT调试"),
+        qsTr("总线配置"),
+        qsTr("设备调试")
     ][currentPageIndex]
     readonly property bool compactWindow: width < 1120
     readonly property bool navigationCollapsed: compactWindow || appearanceSettings.navigationCollapsed
@@ -208,18 +209,19 @@ ApplicationWindow {
                 SideNavButton {
                     Layout.fillWidth: true
                     theme: appTheme
-                    text: qsTr("设备调试")
-                    iconSource: Qt.resolvedUrl("icons/debug.svg")
+                    text: qsTr("ECAT2CANFD")
+                    iconSource: Qt.resolvedUrl("icons/bus.svg")
                     selected: root.currentPageIndex === 2
-                    sessionOwned: sessionAdapter.sessionActive && sessionAdapter.modeKey === "debug"
+                    sessionOwned: sessionAdapter.sessionActive && sessionAdapter.modeKey === "ecat2canfd"
                     collapsed: root.navigationCollapsed
                     onClicked: root.currentPageIndex = 2
                 }
 
                 SideNavButton {
+                    objectName: "navigationParams"
                     Layout.fillWidth: true
                     theme: appTheme
-                    text: qsTr("MIT 参数")
+                    text: qsTr("达妙电机MIT调试")
                     iconSource: Qt.resolvedUrl("icons/motor.svg")
                     selected: root.currentPageIndex === 3
                     sessionOwned: sessionAdapter.sessionActive && sessionAdapter.modeKey === "params"
@@ -236,6 +238,18 @@ ApplicationWindow {
                     sessionOwned: sessionAdapter.sessionActive && sessionAdapter.modeKey === "bus"
                     collapsed: root.navigationCollapsed
                     onClicked: root.currentPageIndex = 4
+                }
+
+                SideNavButton {
+                    objectName: "navigationDebug"
+                    Layout.fillWidth: true
+                    theme: appTheme
+                    text: qsTr("设备调试")
+                    iconSource: Qt.resolvedUrl("icons/debug.svg")
+                    selected: root.currentPageIndex === 5
+                    sessionOwned: sessionAdapter.sessionActive && sessionAdapter.modeKey === "debug"
+                    collapsed: root.navigationCollapsed
+                    onClicked: root.currentPageIndex = 5
                 }
 
                 Item { Layout.fillHeight: true }
@@ -356,6 +370,7 @@ ApplicationWindow {
                     Layout.fillHeight: true
 
                     StackLayout {
+                        objectName: "mainPageStack"
                         anchors.fill: parent
                         currentIndex: root.currentPageIndex
 
@@ -375,19 +390,18 @@ ApplicationWindow {
                             controller: EthercatBackend.dcTest
                         }
 
-                        DebugPage {
-                            id: debugPage
+                        Ecat2CanfdPage {
+                            id: canfdPage
                             theme: appTheme
                             sessionUi: root.sessionUi
-                            onErrorRequested: function(message) {
-                                errorPopup.show(message)
-                            }
+                            controller: EthercatBackend.ecat2Canfd
                         }
 
                         ParamsConfigPage {
                             id: paramsPage
                             theme: appTheme
                             sessionUi: root.sessionUi
+                            controller: EthercatBackend.damiaoMit
                             onErrorRequested: function(message) {
                                 errorPopup.show(message)
                             }
@@ -395,6 +409,15 @@ ApplicationWindow {
 
                         BusConfigurationPage {
                             id: busPage
+                            theme: appTheme
+                            sessionUi: root.sessionUi
+                            onErrorRequested: function(message) {
+                                errorPopup.show(message)
+                            }
+                        }
+
+                        DebugPage {
+                            id: debugPage
                             theme: appTheme
                             sessionUi: root.sessionUi
                             onErrorRequested: function(message) {
@@ -443,6 +466,14 @@ ApplicationWindow {
 
     Connections {
         target: sessionAdapter.backend ? sessionAdapter.backend.dcTest : null
+
+        function onErrorOccurred(message) {
+            errorPopup.show(message)
+        }
+    }
+
+    Connections {
+        target: sessionAdapter.backend ? sessionAdapter.backend.ecat2Canfd : null
 
         function onErrorOccurred(message) {
             errorPopup.show(message)

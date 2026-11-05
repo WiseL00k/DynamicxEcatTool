@@ -1,0 +1,150 @@
+--- a/src/ec_foe.c
++++ b/src/ec_foe.c
+@@ -15,6 +15,12 @@
+ #include <string.h>
+ #include "osal.h"
+ #include "oshw.h"
++
++/* Bound continuous BUSY for one unacknowledged request; mailbox timeouts
++ * remain controlled by the caller. Tests override this compile-time limit. */
++#ifndef EC_FOE_BUSY_TIMEOUT_US
++#define EC_FOE_BUSY_TIMEOUT_US 120000000U
++#endif
+ 
+ /* use maximum size for FOE mailbox data - header and metadata */
+ #define EC_MAXFOEDATA        \
+@@ -47,6 +53,18 @@
+    };
+ } ec_FOEt;
+ OSAL_PACKED_END
++
++/* Preserve the peer's FoE ERROR payload for the application's error API. */
++static void ecx_FOEerror(ecx_contextt *context, uint16 slave, uint32 code)
++{
++   ec_errort error;
++   memset(&error, 0, sizeof(error));
++   error.Time = osal_current_time();
++   error.Slave = slave;
++   error.Etype = EC_ERR_TYPE_FOE_ERROR;
++   error.AbortCode = (int32)code;
++   ecx_pusherror(context, &error);
++}
+ 
+ /** FoE progress hook.
+  *
+@@ -177,6 +195,7 @@
+                   if (aFOEp->OpCode == ECT_FOE_ERROR)
+                   {
+                      /* FoE error */
++                     ecx_FOEerror(context, slave, etohl(aFOEp->ErrorCode));
+                      wkc = -EC_ERR_TYPE_FOE_ERROR;
+                   }
+                   else
+@@ -217,6 +236,8 @@
+    int wkc;
+    int32 packetnumber, sendpacket = 0;
+    uint16 fnsize, maxdata;
++   ec_mbxbuft lastRequest;
++   osal_timert busyTimer;
+    int segmentdata = 0;
+    ec_mbxbuft *MbxIn, *MbxOut;
+    uint8 cnt;
+@@ -252,6 +273,9 @@
+    FOEp->Password = htoel(password);
+    /* copy filename in mailbox */
+    memcpy(&FOEp->FileName[0], filename, fnsize);
++   /* Keep the exact request until its ACK, including WRQ and zero-size EOF. */
++   memcpy(lastRequest, MbxOut, sizeof(lastRequest));
++   osal_timer_start(&busyTimer, EC_FOE_BUSY_TIMEOUT_US);
+    /* send FoE request to slave */
+    wkc = ecx_mbxsend(context, slave, MbxOut, EC_TIMEOUTTXM);
+    MbxOut = NULL;
+@@ -313,6 +337,8 @@
+                         FOEp->PacketNumber = htoel(sendpacket);
+                         memcpy(&FOEp->Data[0], p, segmentdata);
+                         p = (uint8 *)p + segmentdata;
++                        memcpy(lastRequest, MbxOut, sizeof(lastRequest));
++                        osal_timer_start(&busyTimer, EC_FOE_BUSY_TIMEOUT_US);
+                         /* send FoE data to slave */
+                         wkc = ecx_mbxsend(context, slave, MbxOut, EC_TIMEOUTTXM);
+                         MbxOut = NULL;
+@@ -331,60 +357,30 @@
+                }
+                case ECT_FOE_BUSY:
+                {
+-                  /* resend if data has been send before */
+-                  /* otherwise ignore */
+-                  if (sendpacket)
+-                  {
+-                     psize += segmentdata;
+-                     p = (uint8 *)p - segmentdata;
+-                     --sendpacket;
+-                     tsize = psize;
+-                     if (tsize > maxdata)
+-                     {
+-                        tsize = maxdata;
+-                     }
+-                     if (tsize || dofinalzero)
+-                     {
+-                        worktodo = TRUE;
+-                        dofinalzero = FALSE;
+-                        segmentdata = tsize;
+-                        psize -= segmentdata;
+-                        /* if last packet was full size, add a zero size packet as final */
+-                        /* EOF is defined as packetsize < full packetsize */
+-                        if (!psize && (segmentdata == maxdata))
+-                        {
+-                           dofinalzero = TRUE;
+-                        }
+-                        MbxOut = ecx_getmbx(context);
+-                        ec_clearmbx(MbxOut);
+-                        FOEp = (ec_FOEt *)MbxOut;
+-                        FOEp->MbxHeader.length = htoes((uint16)(0x0006 + segmentdata));
+-                        FOEp->MbxHeader.address = htoes(0x0000);
+-                        FOEp->MbxHeader.priority = 0x00;
+-                        /* get new mailbox count value */
+-                        cnt = ec_nextmbxcnt(context->slavelist[slave].mbx_cnt);
+-                        context->slavelist[slave].mbx_cnt = cnt;
+-                        FOEp->MbxHeader.mbxtype = ECT_MBXT_FOE + MBX_HDR_SET_CNT(cnt); /* FoE */
+-                        FOEp->OpCode = ECT_FOE_DATA;
+-                        sendpacket++;
+-                        FOEp->PacketNumber = htoel(sendpacket);
+-                        memcpy(&FOEp->Data[0], p, segmentdata);
+-                        p = (uint8 *)p + segmentdata;
+-                        /* send FoE data to slave */
+-                        wkc = ecx_mbxsend(context, slave, MbxOut, EC_TIMEOUTTXM);
+-                        MbxOut = NULL;
+-                        if (wkc <= 0)
+-                        {
+-                           worktodo = FALSE;
+-                        }
+-                     }
+-                  }
++                  /* BUSY never acknowledges a packet. Retransmit the same
++                   * payload/number, including WRQ and a zero-length EOF. */
++                  if (osal_timer_is_expired(&busyTimer))
++                  {
++                     wkc = 0;
++                     break;
++                  }
++                  osal_usleep(1000); /* Leave time for the slave's Flash worker. */
++                  MbxOut = ecx_getmbx(context);
++                  memcpy(MbxOut, lastRequest, sizeof(lastRequest));
++                  FOEp = (ec_FOEt *)MbxOut;
++                  cnt = ec_nextmbxcnt(context->slavelist[slave].mbx_cnt);
++                  context->slavelist[slave].mbx_cnt = cnt;
++                  FOEp->MbxHeader.mbxtype = ECT_MBXT_FOE + MBX_HDR_SET_CNT(cnt);
++                  wkc = ecx_mbxsend(context, slave, MbxOut, EC_TIMEOUTTXM);
++                  MbxOut = NULL;
++                  worktodo = (wkc > 0);
+                   break;
+                }
+                case ECT_FOE_ERROR:
+                {
+                   /* FoE error */
+-                  if (aFOEp->ErrorCode == 0x8001)
++                  ecx_FOEerror(context, slave, etohl(aFOEp->ErrorCode));
++                  if (etohl(aFOEp->ErrorCode) == 0x8001)
+                   {
+                      wkc = -EC_ERR_TYPE_FOE_FILE_NOTFOUND;
+                   }

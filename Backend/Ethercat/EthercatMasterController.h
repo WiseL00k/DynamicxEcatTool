@@ -27,6 +27,8 @@ struct MasterStartResult
     QString detailMessage;
 };
 
+MasterStartResult validateMitDebugScan(const soem_interface::BusScanResult& scan);
+
 class EthercatMasterController
 {
 public:

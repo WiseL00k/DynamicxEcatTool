@@ -5,6 +5,8 @@
 #include "Backend/Ethercat/EthercatMasterController.h"
 #include "Backend/Ethercat/MitSlaveController.h"
 #include "Backend/Dc/DcTestController.h"
+#include "Backend/Canfd/Ecat2CanfdController.h"
+#include "Backend/Commands/DamiaoMitController.h"
 #include "Backend/Explorer/EthercatExplorerController.h"
 #include "Backend/Flash/FlashService.h"
 #include "Backend/Models/DeviceStatusModel.h"
@@ -29,6 +31,8 @@ class EthercatBackend : public QObject
     Q_PROPERTY(QString sessionMode READ sessionMode NOTIFY sessionChanged)
     Q_PROPERTY(EthercatExplorerController* busExplorer READ busExplorer CONSTANT)
     Q_PROPERTY(DcTestController* dcTest READ dcTest CONSTANT)
+    Q_PROPERTY(Ecat2CanfdController* ecat2Canfd READ ecat2Canfd CONSTANT)
+    Q_PROPERTY(DamiaoMitController* damiaoMit READ damiaoMit CONSTANT)
     Q_PROPERTY(DeviceStatusModel* deviceStatusList READ motorStatusList CONSTANT)
 
 public:
@@ -42,6 +46,8 @@ public:
     QString sessionMode() const;
     EthercatExplorerController* busExplorer();
     DcTestController* dcTest();
+    Ecat2CanfdController* ecat2Canfd();
+    DamiaoMitController* damiaoMit() { return &damiaoMit_; }
     DeviceStatusModel* motorStatusList()
     {
         return &deviceModel_;
@@ -75,6 +81,8 @@ signals:
     void logUpdated(const QString& line);
     void logAppend(const QString& line);
     void dcLogAppended(const QString& line);
+    void ecat2CanfdLogAppended(const QString& line);
+    void damiaoMitLogAppended(const QString& line);
     void connectedUpdated(const int connected_status);
     void motorStatusListChanged();
     void soemErrorOccurred(QString message);
@@ -106,6 +114,8 @@ private:
     EthercatMasterController masterController_;
     EthercatExplorerController busExplorer_;
     DcTestController dcTest_;
+    Ecat2CanfdController ecat2Canfd_;
+    DamiaoMitController damiaoMit_;
     EthercatMonitorController monitorController_;
     FlashService flashService_;
     MitSlaveController mitSlaveController_;

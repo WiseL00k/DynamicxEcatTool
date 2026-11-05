@@ -1,0 +1,84 @@
+--- a/oshw/win32/nicdrv.c
++++ b/oshw/win32/nicdrv.c
+@@ -201,7 +201,7 @@
+    uint8 idx;
+    uint8 cnt;
+ 
+-   EnterCriticalSection(&(port->getindex_mutex));
++   EnterCriticalSection(&(port->rx_mutex));
+ 
+    idx = port->lastidx + 1;
+    /* index can't be larger than buffer array */
+@@ -225,7 +225,7 @@
+       port->redport->rxbufstat[idx] = EC_BUF_ALLOC;
+    port->lastidx = idx;
+ 
+-   LeaveCriticalSection(&(port->getindex_mutex));
++   LeaveCriticalSection(&(port->rx_mutex));
+ 
+    return idx;
+ }
+@@ -237,9 +237,11 @@
+  */
+ void ecx_setbufstat(ecx_portt *port, uint8 idx, int bufstat)
+ {
++   EnterCriticalSection(&(port->rx_mutex));
+    port->rxbufstat[idx] = bufstat;
+    if (port->redstate != ECT_RED_NONE)
+       port->redport->rxbufstat[idx] = bufstat;
++   LeaveCriticalSection(&(port->rx_mutex));
+ }
+ 
+ /** Transmit buffer over socket (non blocking).
+@@ -261,6 +263,7 @@
+    {
+       stack = &(port->redport->stack);
+    }
++   EnterCriticalSection(&(port->rx_mutex));
+    lp = (*stack->txbuflength)[idx];
+    (*stack->rxbufstat)[idx] = EC_BUF_TX;
+    rval = pcap_sendpacket(*stack->sock, (*stack->txbuf)[idx], lp);
+@@ -269,6 +272,7 @@
+       (*stack->rxbufstat)[idx] = EC_BUF_EMPTY;
+    }
+ 
++   LeaveCriticalSection(&(port->rx_mutex));
+    return rval;
+ }
+ 
+@@ -299,11 +303,13 @@
+       /* rewrite MAC source address 1 to secondary */
+       ehp->sa1 = htons(secMAC[1]);
+       /* transmit over secondary socket */
++      EnterCriticalSection(&(port->rx_mutex));
+       port->redport->rxbufstat[idx] = EC_BUF_TX;
+       if (pcap_sendpacket(port->redport->sockhandle, (u_char const *)&(port->txbuf2), port->txbuflength2) == PCAP_ERROR)
+       {
+          port->redport->rxbufstat[idx] = EC_BUF_EMPTY;
+       }
++      LeaveCriticalSection(&(port->rx_mutex));
+       LeaveCriticalSection(&(port->tx_mutex));
+    }
+ 
+@@ -385,20 +391,9 @@
+    }
+    rval = EC_NOFRAME;
+    rxbuf = &(*stack->rxbuf)[idx];
+-   /* check if requested index is already in buffer ? */
+-   if ((idx < EC_MAXBUF) && ((*stack->rxbufstat)[idx] == EC_BUF_RCVD))
+-   {
+-      l = (*rxbuf)[0] + ((uint16)((*rxbuf)[1] & 0x0f) << 8);
+-      /* return WKC */
+-      rval = ((*rxbuf)[l] + ((uint16)(*rxbuf)[l + 1] << 8));
+-      /* mark as completed */
+-      (*stack->rxbufstat)[idx] = EC_BUF_COMPLETE;
+-   }
+-   else
+    {
+       EnterCriticalSection(&(port->rx_mutex));
+-      /* check again if requested index is already in buffer ?
+-       * other task might have reveived it befor we grabbed mutex */
++      /* Check and publish RX state under the same lock as allocation/send. */
+       if ((idx < EC_MAXBUF) && ((*stack->rxbufstat)[idx] == EC_BUF_RCVD))
+       {
+          l = (*rxbuf)[0] + ((uint16)((*rxbuf)[1] & 0x0f) << 8);

@@ -14,7 +14,7 @@ QString signatureMismatchReason(const QVector<ActivePdoEntry>& expected,
                                 const QVector<ActivePdoEntry>& actual)
 {
     if (expected.size() != actual.size()) {
-        return QStringLiteral("Active PDO entry count is %1, ESI declares %2")
+        return QStringLiteral("当前活动 PDO 有 %1 个条目，ESI 声明了 %2 个")
             .arg(actual.size())
             .arg(expected.size());
     }
@@ -27,7 +27,7 @@ QString signatureMismatchReason(const QVector<ActivePdoEntry>& expected,
             && esiEntry.bitLength == activeEntry.bitLength) {
             continue;
         }
-        return QStringLiteral("Active PDO entry %1 does not match ESI (%2 %3:%4/%5 bits)")
+        return QStringLiteral("当前活动 PDO 条目 %1 与 ESI 不匹配（ESI：%2 %3:%4，%5 位）")
             .arg(i)
             .arg(pdoDirectionText(esiEntry.direction))
             .arg(hexValue(esiEntry.index, 4))
@@ -66,7 +66,7 @@ EsiRepositoryIndexResult EsiRepository::indexDirectory(const QString& directoryP
                                 directory_,
                                 0,
                                 0,
-                                QStringLiteral("ESI directory does not exist")});
+                                QStringLiteral("ESI 目录不存在或路径不是文件夹")});
         result.diagnostics = diagnostics_;
         return result;
     }
@@ -147,14 +147,14 @@ EsiMatchResult EsiRepository::match(const OnlineSlaveIdentity& slave) const
     }
     if (exactCandidates.size() > 1) {
         EsiMatchResult result;
-        result.reason = QStringLiteral("Multiple ESI devices have the same Vendor ID, Product Code and Revision");
+        result.reason = QStringLiteral("多个 ESI 设备具有相同的厂商 ID（Vendor ID）、产品代码（Product Code）和修订号（Revision）");
         return result;
     }
 
     const QString normalizedOnlineName = normalizedDeviceName(slave.name);
     if (normalizedOnlineName.isEmpty()) {
         EsiMatchResult result;
-        result.reason = QStringLiteral("No exact ESI identity match and the online slave name is empty");
+        result.reason = QStringLiteral("未找到身份完全匹配的 ESI，且在线从站名称为空");
         return result;
     }
 
@@ -172,8 +172,8 @@ EsiMatchResult EsiRepository::match(const OnlineSlaveIdentity& slave) const
 
     EsiMatchResult result;
     result.reason = nameCandidates.isEmpty()
-        ? QStringLiteral("No ESI device matches the slave identity or normalized name")
-        : QStringLiteral("The normalized slave name matches multiple ESI devices");
+        ? QStringLiteral("未找到与从站身份或规范化名称匹配的 ESI 设备")
+        : QStringLiteral("规范化后的从站名称匹配了多个 ESI 设备");
     return result;
 }
 
@@ -204,15 +204,15 @@ EsiMatchResult EsiRepository::resultForCandidate(const EsiDevice& device,
     }
 
     if (kind == EsiMatchKind::UniqueNormalizedName && !slave.activeMappingKnown) {
-        result.reason = QStringLiteral("Name fallback requires a known active PDO mapping");
+        result.reason = QStringLiteral("按名称匹配需要先确认当前活动 PDO 映射");
         return result;
     }
 
     result.mappingCompatible = !slave.activeMappingKnown || result.mappingCompatible;
     result.trusted = true;
     result.reason = kind == EsiMatchKind::ExactIdentity
-        ? QStringLiteral("Matched exact ESI identity")
-        : QStringLiteral("Matched unique normalized name and active PDO mapping");
+        ? QStringLiteral("已按完整设备身份匹配 ESI")
+        : QStringLiteral("已按唯一的规范化名称和当前活动 PDO 映射匹配 ESI");
     return result;
 }
 

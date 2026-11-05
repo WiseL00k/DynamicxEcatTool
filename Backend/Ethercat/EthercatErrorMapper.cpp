@@ -31,7 +31,7 @@ QString toUserMessage(soem_interface::error::SoemInterfaceErrorCode code)
         return QStringLiteral("无效Bin文件");
     }
 
-    return QStringLiteral("未知错误");
+    return QStringLiteral("未知错误（代码 %1）").arg(static_cast<int>(code));
 }
 
 } // namespace Backend

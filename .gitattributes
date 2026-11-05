@@ -1,0 +1,2 @@
+# Patch context prefixes are significant, including the space on blank lines.
+cmake/patches/*.patch text eol=lf whitespace=-blank-at-eol

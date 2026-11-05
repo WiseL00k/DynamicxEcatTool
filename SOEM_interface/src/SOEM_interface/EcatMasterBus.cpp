@@ -1,6 +1,8 @@
 #include "SOEM_interface/EcatMasterBus.h"
 #include "SOEM_interface/EcatSlaveBase.h"
+#include "SOEM_interface/ErrorText.h"
 #include "DcRuntime.h"
+#include "ApplicationRuntime.h"
 
 #include <algorithm>
 #include <cassert>
@@ -33,17 +35,14 @@ bool stateReached(const uint16_t actual, const uint16_t requested)
     return baseState(actual) == requested && (actual & EC_STATE_ERROR) == 0;
 }
 
-std::string alStatusText(const uint16_t code)
-{
-    const char* text = ec_ALstatuscode2string(code);
-    return text != nullptr ? std::string(text) : std::string();
-}
-
 } // namespace
 
 EcatMasterBus::EcatMasterBus(const std::string& ifname)
     : nic_name_(ifname), ioMap_(kIoMapCapacity, 0)
-{ initializeDcRuntime(); }
+{
+    initializeDcRuntime();
+    initializeApplicationRuntime();
+}
 
 EcatMasterBus::~EcatMasterBus()
 {
@@ -60,7 +59,7 @@ void EcatMasterBus::setNICName(const std::string& ifname)
 
 SoemInterfaceErrorCode EcatMasterBus::startTest()
 {
-    if (dcRuntime_->active()) return EcatInitFailed;
+    if (dcRuntime_->active() || applicationRuntime_->active()) return EcatInitFailed;
     if (running_) {
         return NoError;
     }
@@ -89,7 +88,7 @@ SoemInterfaceErrorCode EcatMasterBus::startTest()
 
 SoemInterfaceErrorCode EcatMasterBus::start()
 {
-    if (dcRuntime_->active()) return EcatInitFailed;
+    if (dcRuntime_->active() || applicationRuntime_->active()) return EcatInitFailed;
     if (running_) {
         return NoError;
     }
@@ -160,14 +159,14 @@ BusScanResult EcatMasterBus::scanForSlaves()
 
         if (nic_name_.empty()) {
             result.errorCode = InvalidNicName;
-            result.error = "The network adapter name is empty.";
+            result.error = "网卡名称为空。";
             return result;
         }
 
         context_.manualstatechange = 1;
         if (ecx_init(&context_, nic_name_.c_str()) <= 0) {
             result.errorCode = EcatInitFailed;
-            result.error = "SOEM could not open the selected network adapter.";
+            result.error = "SOEM 无法打开所选网卡。";
             return result;
         }
         socket_open_ = true;
@@ -176,7 +175,7 @@ BusScanResult EcatMasterBus::scanForSlaves()
         const int discovered = ecx_config_init(&context_);
         if (discovered <= 0) {
             result.errorCode = NoSlaveFound;
-            result.error = "No EtherCAT slaves were found.";
+            result.error = "未发现 EtherCAT 从站。";
             contextLock.unlock();
             mailboxLock.unlock();
             closeMaster();
@@ -190,7 +189,7 @@ BusScanResult EcatMasterBus::scanForSlaves()
         if (!preOpResult.success) {
             result.errorCode = EcatInitFailed;
             result.error = preOpResult.error.empty()
-                ? "Not all slaves reached PRE-OP after discovery."
+                ? "扫描后，部分从站未进入 PRE-OP。"
                 : preOpResult.error;
             contextLock.unlock();
             mailboxLock.unlock();
@@ -288,6 +287,7 @@ SoemInterfaceErrorCode EcatMasterBus::initMaster()
 
 SoemInterfaceErrorCode EcatMasterBus::closeMaster()
 {
+    stopApplication();
     stopDcTest();
     if (socket_open_ && operational_) {
         requestStateDetailed(EC_STATE_SAFE_OP);
@@ -363,13 +363,13 @@ BusStateResult EcatMasterBus::leaveOperationalForSafeOp()
         std::lock_guard<std::recursive_mutex> contextLock(contextMutex_);
         if (!master_init_) {
             result.requestedState = EC_STATE_SAFE_OP;
-            result.error = "The EtherCAT bus was closed during the state request.";
+            result.error = "请求状态切换期间，EtherCAT 总线已关闭。";
         } else {
             context_.slavelist[0].state = EC_STATE_SAFE_OP;
             stateWriteWkc = ecx_writestate(&context_, 0);
             if (stateWriteWkc <= 0) {
                 result = currentStateResultLocked(
-                    EC_STATE_SAFE_OP, "SOEM could not write the SAFE-OP state request.");
+                    EC_STATE_SAFE_OP, "SOEM 无法写入 SAFE-OP 状态请求。");
             }
         }
     }
@@ -400,23 +400,23 @@ BusStateResult EcatMasterBus::leaveOperationalForSafeOp()
 }
 BusStateResult EcatMasterBus::requestStateDetailed(const uint16_t requestedState)
 {
-    if (dcRuntime_->active()) {
+    if (dcRuntime_->active() || applicationRuntime_->active()) {
         BusStateResult result;
         result.requestedState = requestedState;
-        result.error = "State changes are unavailable during a DC test.";
+        result.error = "状态切换由正在运行的过程数据任务控制。";
         return result;
     }
     if (!isSupportedState(requestedState)) {
         BusStateResult result;
         result.requestedState = requestedState;
-        result.error = "Unsupported EtherCAT state request.";
+        result.error = "不支持请求的 EtherCAT 状态。";
         return result;
     }
 
     if (!master_init_) {
         BusStateResult result;
         result.requestedState = requestedState;
-        result.error = "The EtherCAT bus has not been scanned.";
+        result.error = "尚未扫描 EtherCAT 总线。";
         return result;
     }
 
@@ -440,7 +440,7 @@ BusStateResult EcatMasterBus::requestStateDetailed(const uint16_t requestedState
 
         if (!master_init_) {
             result.requestedState = requestedState;
-            result.error = "The EtherCAT bus was closed during the state request.";
+            result.error = "请求状态切换期间，EtherCAT 总线已关闭。";
             return result;
         }
 
@@ -448,7 +448,7 @@ BusStateResult EcatMasterBus::requestStateDetailed(const uint16_t requestedState
         if (current == EC_STATE_INIT && requestedState != EC_STATE_INIT) {
             return currentStateResultLocked(
                 requestedState,
-                "The bus entered INIT. Reset and rescan before requesting a higher state.");
+                "总线已进入 INIT；请先复位并重新扫描，再请求更高状态。");
         }
         if (requestedState == EC_STATE_INIT) {
             result = writeStateLocked(EC_STATE_INIT);
@@ -506,8 +506,8 @@ BusStateResult EcatMasterBus::requestStateDetailed(const uint16_t requestedState
                 receiveWkc >= expectedWKC && receiveWkc >= 0;
             if (!validWkc) {
                 std::ostringstream message;
-                message << "Initial process-data exchange failed (WKC "
-                        << receiveWkc << ", expected " << expectedWKC << ").";
+                message << "首次过程数据交换失败（WKC "
+                        << receiveWkc << "，预期 " << expectedWKC << "）。";
                 disableCyclicMailboxesLocked();
                 return currentStateResultLocked(
                     requestedState, message.str());
@@ -522,7 +522,7 @@ BusStateResult EcatMasterBus::requestStateDetailed(const uint16_t requestedState
     if (!startProcessData()) {
         std::lock_guard<std::recursive_mutex> contextLock(contextMutex_);
         return currentStateResultLocked(
-            requestedState, "The process-data thread could not be started.");
+            requestedState, "无法启动过程数据线程。");
     }
 
     std::unique_lock<std::mutex> mailboxLock(mailboxMutex_);
@@ -553,8 +553,8 @@ BusStateResult EcatMasterBus::requestStateDetailed(const uint16_t requestedState
         result = currentStateResultLocked(
             requestedState,
             stateWriteWkc <= 0
-                ? "SOEM could not write the OP state request."
-                : "Not all slaves reached OP before the timeout.");
+                ? "SOEM 无法写入 OP 状态请求。"
+                : "部分从站未在超时前进入 OP。");
         writeStateLocked(EC_STATE_SAFE_OP);
     }
     mailboxLock.unlock();
@@ -564,10 +564,11 @@ BusStateResult EcatMasterBus::requestStateDetailed(const uint16_t requestedState
 
 BusStateResult EcatMasterBus::stateSnapshot()
 {
+    std::lock_guard<std::mutex> mailboxLock(mailboxMutex_);
     std::lock_guard<std::recursive_mutex> contextLock(contextMutex_);
     if (!master_init_ || context_.slavecount <= 0) {
         BusStateResult result;
-        result.error = "The EtherCAT bus has not been scanned.";
+        result.error = "尚未扫描 EtherCAT 总线。";
         return result;
     }
     ecx_readstate(&context_);
@@ -674,7 +675,7 @@ std::vector<ActivePdoEntry> EcatMasterBus::activePdoMappings() const
 
 bool EcatMasterBus::startProcessData()
 {
-    if (dcRuntime_->active()) return false;
+    if (dcRuntime_->active() || applicationRuntime_->active()) return false;
     std::lock_guard<std::mutex> mailboxLock(mailboxMutex_);
     std::lock_guard<std::recursive_mutex> contextLock(contextMutex_);
     if (running_) {
@@ -713,6 +714,7 @@ bool EcatMasterBus::startProcessData()
 
 void EcatMasterBus::stopProcessData()
 {
+    stopApplication();
     std::lock_guard<std::mutex> mailboxLock(mailboxMutex_);
     running_ = false;
 
@@ -763,18 +765,19 @@ void EcatMasterBus::checkTask()
 {
     while (running_) {
         {
-            std::lock_guard<std::recursive_mutex> lock(contextMutex_);
-            const bool workingCounterLow =
-                expectedWKC > 0 && wkc.load() < expectedWKC;
-            if (workingCounterLow || context_.grouplist[0].docheckstate) {
-                context_.grouplist[0].docheckstate = FALSE;
-                ecx_readstate(&context_);
-                updateStateFlagsLocked();
-
-                for (int i = 1; i <= context_.slavecount; ++i) {
-                    if (!stateReached(context_.slavelist[i].state, EC_STATE_OPERATIONAL)) {
-                        std::cerr << "Slave " << i << " not operational: "
-                                  << alStatusText(context_.slavelist[i].ALstatuscode) << '\n';
+            std::unique_lock<std::mutex> mailbox(mailboxMutex_, std::try_to_lock);
+            if (mailbox.owns_lock()) {
+                std::lock_guard<std::recursive_mutex> lock(contextMutex_);
+                const bool workingCounterLow = expectedWKC > 0 && wkc.load() < expectedWKC;
+                if (workingCounterLow || context_.grouplist[0].docheckstate) {
+                    context_.grouplist[0].docheckstate = FALSE;
+                    ecx_readstate(&context_);
+                    updateStateFlagsLocked();
+                    for (int i = 1; i <= context_.slavecount; ++i) {
+                        if (!stateReached(context_.slavelist[i].state, EC_STATE_OPERATIONAL)) {
+                            std::cerr << "Slave " << i << " not operational: "
+                                      << alStatusText(context_.slavelist[i].ALstatuscode) << '\n';
+                        }
                     }
                 }
             }
@@ -843,6 +846,7 @@ bool EcatMasterBus::writeProcessDataRange(
     const std::vector<uint8_t>& data)
 {
     std::lock_guard<std::recursive_mutex> lock(contextMutex_);
+    if (applicationRuntime_->active()) return false;
     if (!mapping_ready_ || !isValidSlaveAddress(slave)) {
         return false;
     }
@@ -901,6 +905,7 @@ void EcatMasterBus::readTxPdo(const uint16_t slave, int size, void* buf) const
 void EcatMasterBus::writeRxPdo(const uint16_t slave, int size, const void* buf)
 {
     std::lock_guard<std::recursive_mutex> lock(contextMutex_);
+    if (applicationRuntime_->active()) return;
     assert(isValidSlaveAddress(slave));
     if (!isValidSlaveAddress(slave)) {
         return;
@@ -947,11 +952,11 @@ bool EcatMasterBus::mapProcessDataLocked(std::string& error)
 {
     error.clear();
     if (!master_init_ || context_.slavecount <= 0) {
-        error = "The EtherCAT bus is not initialized.";
+        error = "EtherCAT 总线尚未初始化。";
         return false;
     }
     if (ioMap_.size() < kIoMapCapacity || ioMap_.empty()) {
-        error = "The process image buffer is not available.";
+        error = "过程映像缓冲区不可用。";
         return false;
     }
 
@@ -959,7 +964,7 @@ bool EcatMasterBus::mapProcessDataLocked(std::string& error)
     std::fill(ioMap_.begin(), ioMap_.end(), 0);
     const int mappedSize = ecx_config_map_group(&context_, ioMap_.data(), 0);
     if (mappedSize < 0 || static_cast<size_t>(mappedSize) > ioMap_.size()) {
-        error = "SOEM returned an invalid process image size.";
+        error = "SOEM 返回的过程映像大小无效。";
         mapping_ready_ = false;
         return false;
     }
@@ -988,8 +993,8 @@ bool EcatMasterBus::mapProcessDataLocked(std::string& error)
         if (!pointerWithinMap(item.outputs, outputBytes) ||
             !pointerWithinMap(item.inputs, inputBytes)) {
             std::ostringstream message;
-            message << "Slave " << slave
-                    << " has a process image pointer outside the allocated IOmap.";
+            message << "从站 " << slave
+                    << " 的过程映像指针超出已分配的 IOmap 范围。";
             error = message.str();
             mapping_ready_ = false;
             return false;
@@ -1412,7 +1417,7 @@ BusStateResult EcatMasterBus::currentStateResultLocked(
             if (failures.tellp() > 0) {
                 failures << "; ";
             }
-            failures << "slave " << slave << " state 0x"
+            failures << "从站 " << slave << "，状态 0x"
                      << std::hex << item.state << " AL 0x"
                      << item.ALstatuscode;
             result.success = false;
@@ -1420,7 +1425,7 @@ BusStateResult EcatMasterBus::currentStateResultLocked(
     }
 
     if (result.error.empty() && !result.success) {
-        result.error = "State transition incomplete: " + failures.str();
+        result.error = "状态切换未完成：" + failures.str();
     }
     return result;
 }
@@ -1429,7 +1434,7 @@ BusStateResult EcatMasterBus::writeStateLocked(const uint16_t requestedState)
 {
     if (!socket_open_ || context_.slavecount <= 0) {
         return currentStateResultLocked(
-            requestedState, "The EtherCAT master is not open.");
+            requestedState, "EtherCAT 主站尚未打开。");
     }
 
     context_.slavelist[0].state = requestedState;
@@ -1440,7 +1445,7 @@ BusStateResult EcatMasterBus::writeStateLocked(const uint16_t requestedState)
 
     if (writeWkc <= 0) {
         return currentStateResultLocked(
-            requestedState, "SOEM could not write the requested bus state.");
+            requestedState, "SOEM 无法写入请求的总线状态。");
     }
     return currentStateResultLocked(requestedState);
 }
@@ -1486,13 +1491,13 @@ OnlineOdResult EcatMasterBus::readOnlineObjectDictionary(const uint16_t slave)
     {
         std::lock_guard<std::recursive_mutex> contextLock(contextMutex_);
         if (!master_init_ || !isValidSlaveAddress(slave)) {
-            result.error = "Invalid slave address or inactive EtherCAT bus.";
+            result.error = "从站地址无效，或 EtherCAT 总线未连接。";
             return result;
         }
         const ec_slavet& item = context_.slavelist[slave];
         if ((item.mbx_proto & ECT_MBXPROT_COE) == 0 ||
             (item.CoEdetails & ECT_COEDET_SDOINFO) == 0) {
-            result.error = "The slave does not advertise CoE SDO Info support.";
+            result.error = "从站未声明支持 CoE SDO Info。";
             return result;
         }
     }
@@ -1500,7 +1505,7 @@ OnlineOdResult EcatMasterBus::readOnlineObjectDictionary(const uint16_t slave)
     ec_ODlistt odList{};
     if (ecx_readODlist(&context_, slave, &odList) <= 0) {
         checkForSdoErrors(slave, 0);
-        result.error = "The slave did not return an online object dictionary.";
+        result.error = "从站未返回在线对象字典。";
         return result;
     }
 
@@ -1545,38 +1550,39 @@ OnlineOdResult EcatMasterBus::readOnlineObjectDictionary(const uint16_t slave)
 std::string EcatMasterBus::getErrorString(ec_errort error)
 {
     std::stringstream stream;
-    stream << "Time: " << (static_cast<double>(error.Time.tv_sec) + (static_cast<double>(error.Time.tv_nsec) / 1000000000.0));
+    stream << "时间：" << (static_cast<double>(error.Time.tv_sec) + (static_cast<double>(error.Time.tv_nsec) / 1000000000.0));
 
     switch (error.Etype) {
     case EC_ERR_TYPE_SDO_ERROR:
-        stream << " SDO slave: " << error.Slave << " index: 0x" << std::setfill('0') << std::setw(4) << std::hex << error.Index << "."
-               << std::setfill('0') << std::setw(2) << std::hex << static_cast<uint16_t>(error.SubIdx) << " error: 0x" << std::setfill('0')
-               << std::setw(8) << std::hex << static_cast<unsigned>(error.AbortCode) << " " << ec_sdoerror2string(error.AbortCode);
+        stream << " SDO 从站：" << error.Slave << "，索引：0x" << std::setfill('0') << std::setw(4) << std::hex << error.Index << "."
+               << std::setfill('0') << std::setw(2) << std::hex << static_cast<uint16_t>(error.SubIdx) << "，中止码：0x" << std::setfill('0')
+               << std::setw(8) << std::hex << static_cast<unsigned>(error.AbortCode) << " " << sdoAbortText(error.AbortCode);
         break;
     case EC_ERR_TYPE_EMERGENCY:
-        stream << " EMERGENCY slave: " << error.Slave << " error: 0x" << std::setfill('0') << std::setw(4) << std::hex << error.ErrorCode;
+        stream << " EMERGENCY 紧急错误，从站：" << error.Slave << "，错误码：0x" << std::setfill('0') << std::setw(4) << std::hex << error.ErrorCode;
         break;
     case EC_ERR_TYPE_PACKET_ERROR:
-        stream << " PACKET slave: " << error.Slave << " index: 0x" << std::setfill('0') << std::setw(4) << std::hex << error.Index << "."
-               << std::setfill('0') << std::setw(2) << std::hex << static_cast<uint16_t>(error.SubIdx) << " error: 0x" << std::setfill('0')
+        stream << " 数据包错误，从站：" << error.Slave << "，索引：0x" << std::setfill('0') << std::setw(4) << std::hex << error.Index << "."
+               << std::setfill('0') << std::setw(2) << std::hex << static_cast<uint16_t>(error.SubIdx) << "，错误码：0x" << std::setfill('0')
                << std::setw(8) << std::hex << error.ErrorCode;
         break;
     case EC_ERR_TYPE_SDOINFO_ERROR:
-        stream << " SDO slave: " << error.Slave << " index: 0x" << std::setfill('0') << std::setw(4) << std::hex << error.Index << "."
-               << std::setfill('0') << std::setw(2) << std::hex << static_cast<uint16_t>(error.SubIdx) << " error: 0x" << std::setfill('0')
-               << std::setw(8) << std::hex << static_cast<unsigned>(error.AbortCode) << " " << ec_sdoerror2string(error.AbortCode);
+        stream << " SDO Info 从站：" << error.Slave << "，索引：0x" << std::setfill('0') << std::setw(4) << std::hex << error.Index << "."
+               << std::setfill('0') << std::setw(2) << std::hex << static_cast<uint16_t>(error.SubIdx) << "，中止码：0x" << std::setfill('0')
+               << std::setw(8) << std::hex << static_cast<unsigned>(error.AbortCode) << " " << sdoAbortText(error.AbortCode);
         break;
     case EC_ERR_TYPE_SOE_ERROR:
-        stream << " SoE slave: " << error.Slave << " index: 0x" << std::setfill('0') << std::setw(4) << std::hex << error.Index
-               << " error: 0x" << std::setfill('0') << std::setw(8) << std::hex << static_cast<unsigned>(error.AbortCode) << " "
-               << ec_soeerror2string(error.ErrorCode);
+        stream << " SoE 从站：" << error.Slave << "，IDN：0x" << std::setfill('0') << std::setw(4) << std::hex << error.Index
+               << "，错误码：0x" << std::setfill('0') << std::setw(4) << std::hex << error.ErrorCode << " "
+               << soeErrorText(error.ErrorCode);
         break;
     case EC_ERR_TYPE_MBX_ERROR:
-        stream << " MBX slave: " << error.Slave << " error: 0x" << std::setfill('0') << std::setw(8) << std::hex << error.ErrorCode << " "
-               << ec_mbxerror2string(error.ErrorCode);
+        stream << " MBX 邮箱错误，从站：" << error.Slave << "，错误码：0x" << std::setfill('0') << std::setw(8) << std::hex << error.ErrorCode << " "
+               << mailboxErrorText(error.ErrorCode);
         break;
     default:
-        stream << " MBX slave: " << error.Slave << " error: 0x" << std::setfill('0') << std::setw(8) << std::hex
+        stream << " 未知类型错误（类型 " << error.Etype << "），从站：" << error.Slave
+               << "，原始错误码：0x" << std::setfill('0') << std::setw(8) << std::hex
                << static_cast<unsigned>(error.AbortCode);
         break;
     }
@@ -1601,74 +1607,111 @@ bool EcatMasterBus::checkForSdoErrors(const uint16_t slave, const uint16_t index
 
 bool EcatMasterBus::sdoWrite(const uint16_t slave, const uint16_t index, const uint8_t subindex, const bool completeAccess, int size, void* buf)
 {
-    if (dcRuntime_->active()) return false;
+    const auto result = sdoWriteDetailed(slave, index, subindex, completeAccess, size, buf);
+    if (!result.error.empty()) std::cout << result.error << '\n';
+    return result.success;
+}
+
+bool EcatMasterBus::sdoRead(const uint16_t slave, const uint16_t index, const uint8_t subindex, const bool completeAccess, int size, void* buf)
+{
+    const auto result = sdoReadDetailed(slave, index, subindex, completeAccess, size, buf);
+    if (!result.error.empty()) std::cout << result.error << '\n';
+    return result.success;
+}
+
+void EcatMasterBus::collectSdoErrorsLocked(const uint16_t slave, const uint16_t index,
+                                          const uint8_t subindex, SdoTransferResult& result)
+{
+    // Called with mailboxMutex_: application sessions use direct mailboxes, so
+    // this serializes both producers and consumers of SOEM's unlocked error ring.
+    std::lock_guard<std::recursive_mutex> contextLock(contextMutex_);
+    while (ecx_iserror(&context_)) {
+        ec_errort error{};
+        if (!ecx_poperror(&context_, &error)) break;
+        if (!result.error.empty()) result.error += " ";
+        result.error += getErrorString(error);
+        if (error.Slave == slave && error.Index == index && error.SubIdx == subindex &&
+            (error.Etype == EC_ERR_TYPE_SDO_ERROR || error.Etype == EC_ERR_TYPE_SDOINFO_ERROR)) {
+            result.abortCode = static_cast<uint32_t>(error.AbortCode);
+            result.success = false;
+        }
+    }
+}
+
+SdoTransferResult EcatMasterBus::sdoWriteDetailed(const uint16_t slave, const uint16_t index,
+                                                 const uint8_t subindex, const bool completeAccess,
+                                                 const int size, const void* buf)
+{
+    SdoTransferResult result;
+    if (dcRuntime_->active()) {
+        result.error = "DC 诊断测试期间无法使用 SDO。";
+        return result;
+    }
     std::lock_guard<std::mutex> mailboxLock(mailboxMutex_);
     {
         std::lock_guard<std::recursive_mutex> contextLock(contextMutex_);
         if (!master_init_ || !isValidSlaveAddress(slave) ||
             size < 0 || (size > 0 && buf == nullptr)) {
-            return false;
+            result.error = "SDO 写入缓冲区或从站地址无效，或 EtherCAT 会话未连接。";
+            return result;
         }
+        const auto state = baseState(context_.slavelist[slave].state);
+        if (state != EC_STATE_PRE_OP && state != EC_STATE_SAFE_OP && state != EC_STATE_OPERATIONAL) {
+            result.error = "SDO 通信要求从站处于 PRE-OP、SAFE-OP 或 OP。";
+            return result;
+        }
+        checkForSdoErrors(slave, index); // Drain previous requests before attribution.
     }
-
-    const int writeWkc = ecx_SDOwrite(
-        &context_, slave, index, subindex,
+    result.wkc = ecx_SDOwrite(&context_, slave, index, subindex,
         static_cast<boolean>(completeAccess), size, buf, EC_TIMEOUTRXM);
-    if (writeWkc <= 0) {
-        std::cout << "Slave " << slave << ": Working counter too low ("
-                  << writeWkc << ") for writing SDO (ID: 0x"
-                  << std::setfill('0') << std::setw(4) << std::hex << index
-                  << ", SID 0x" << std::setfill('0') << std::setw(2)
-                  << static_cast<uint16_t>(subindex) << ").";
-        checkForSdoErrors(slave, index);
-
-        std::lock_guard<std::recursive_mutex> contextLock(contextMutex_);
-        if (isValidSlaveAddress(slave)) {
-            const uint16_t alCode = context_.slavelist[slave].ALstatuscode;
-            std::cout << " AL status 0x" << std::setfill('0')
-                      << std::setw(4) << std::hex << alCode << " "
-                      << alStatusText(alCode);
-        }
-        return false;
-    }
-    return true;
+    result.success = result.wkc > 0;
+    result.actualSize = result.success ? size : 0;
+    collectSdoErrorsLocked(slave, index, subindex, result);
+    if (!result.success && result.error.empty())
+        result.error = "SDO 写入超时或返回的工作计数器 WKC 无效（" +
+                       std::to_string(result.wkc) + "）。";
+    return result;
 }
 
-bool EcatMasterBus::sdoRead(const uint16_t slave, const uint16_t index, const uint8_t subindex, const bool completeAccess, int size, void* buf)
+SdoTransferResult EcatMasterBus::sdoReadDetailed(const uint16_t slave, const uint16_t index,
+                                                const uint8_t subindex, const bool completeAccess,
+                                                int size, void* buf)
 {
-    if (dcRuntime_->active()) return false;
+    SdoTransferResult result;
+    if (dcRuntime_->active()) {
+        result.error = "DC 诊断测试期间无法使用 SDO。";
+        return result;
+    }
     std::lock_guard<std::mutex> mailboxLock(mailboxMutex_);
     {
         std::lock_guard<std::recursive_mutex> contextLock(contextMutex_);
         if (!master_init_ || !isValidSlaveAddress(slave) ||
             size <= 0 || buf == nullptr) {
-            return false;
+            result.error = "SDO 读取缓冲区或从站地址无效，或 EtherCAT 会话未连接。";
+            return result;
         }
+        const auto state = baseState(context_.slavelist[slave].state);
+        if (state != EC_STATE_PRE_OP && state != EC_STATE_SAFE_OP && state != EC_STATE_OPERATIONAL) {
+            result.error = "SDO 通信要求从站处于 PRE-OP、SAFE-OP 或 OP。";
+            return result;
+        }
+        checkForSdoErrors(slave, index);
     }
 
     const int requestedSize = size;
-    const int readWkc = ecx_SDOread(
+    result.wkc = ecx_SDOread(
         &context_, slave, index, subindex,
         static_cast<boolean>(completeAccess), &size, buf, EC_TIMEOUTRXM);
-    if (readWkc <= 0) {
-        std::cout << "Slave " << slave << ": Working counter too low ("
-                  << readWkc << ") for reading SDO (ID: 0x"
-                  << std::setfill('0') << std::setw(4) << std::hex << index
-                  << ", SID 0x" << std::setfill('0') << std::setw(2)
-                  << static_cast<uint16_t>(subindex) << ").";
-        checkForSdoErrors(slave, index);
-        return false;
+    result.actualSize = result.wkc > 0 ? size : 0;
+    result.success = result.wkc > 0 && size == requestedSize;
+    collectSdoErrorsLocked(slave, index, subindex, result);
+    if (!result.success && result.error.empty()) {
+        result.error = result.wkc <= 0
+            ? "SDO 读取超时或返回的工作计数器 WKC 无效（" + std::to_string(result.wkc) + "）。"
+            : "SDO 数据长度不匹配：预期 " + std::to_string(requestedSize) +
+              " 字节，实际收到 " + std::to_string(size) + " 字节。";
     }
-    if (size != requestedSize) {
-        std::cout << "Slave " << slave << ": Size mismatch (expected "
-                  << requestedSize << " bytes, read " << size
-                  << " bytes) for reading SDO (ID: 0x"
-                  << std::setfill('0') << std::setw(4) << std::hex << index
-                  << ", SID 0x" << std::setfill('0') << std::setw(2)
-                  << static_cast<uint16_t>(subindex) << ").";
-        return false;
-    }
-    return true;
+    return result;
 }
 
 bool EcatMasterBus::applySDOConfigs(const std::vector<SDOConfig>& configs)

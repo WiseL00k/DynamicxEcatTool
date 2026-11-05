@@ -9,6 +9,14 @@ Dialog {
     property string text: ""
     property var theme
 
+    function copyMessage() {
+        const start = messageLabel.selectionStart
+        const end = messageLabel.selectionEnd
+        messageLabel.selectAll()
+        messageLabel.copy()
+        messageLabel.select(start, end)
+    }
+
     function show(message) {
         text = message
         open()
@@ -18,7 +26,7 @@ Dialog {
     modal: true
     focus: true
     padding: 20
-    width: Math.min(460, parent ? Math.max(320, parent.width - 48) : 460)
+    width: Math.min(620, parent ? Math.max(0, parent.width - 48) : 620)
     height: Math.min(parent ? Math.max(220, parent.height - 48) : 420,
                      Math.max(210, dialogContent.implicitHeight + topPadding + bottomPadding))
     x: parent ? (parent.width - width) / 2 : 0
@@ -69,19 +77,24 @@ Dialog {
             id: messageScroll
             Layout.fillWidth: true
             Layout.minimumHeight: 44
-            Layout.preferredHeight: Math.min(240, Math.max(44, messageLabel.contentHeight + 8))
-            Layout.fillHeight: messageLabel.contentHeight > 240
+            Layout.preferredHeight: Math.min(420, Math.max(44, messageLabel.contentHeight + 8))
+            Layout.fillHeight: true
             clip: true
             contentWidth: availableWidth
             ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+            ScrollBar.vertical.policy: messageLabel.contentHeight > messageScroll.availableHeight + 1
+                                       ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded
 
             TextArea {
                 id: messageLabel
+                objectName: "errorMessageText"
                 width: messageScroll.availableWidth
                 text: dialog.text
                 readOnly: true
+                textFormat: TextEdit.PlainText
                 wrapMode: TextArea.Wrap
                 font.pixelSize: dialog.theme.fontBody
+                font.family: dialog.theme.fontFamily
                 color: dialog.theme.textSecondary
                 selectByMouse: true
                 padding: 0
@@ -97,6 +110,15 @@ Dialog {
 
         RowLayout {
             Layout.fillWidth: true
+
+            AppButton {
+                objectName: "copyErrorMessageButton"
+                theme: dialog.theme
+                text: qsTr("复制完整信息")
+                variant: "ghost"
+                actionEnabled: dialog.text.length > 0
+                onClicked: dialog.copyMessage()
+            }
 
             Item { Layout.fillWidth: true }
 

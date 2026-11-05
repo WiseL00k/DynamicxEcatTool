@@ -1,0 +1,87 @@
+--- a/oshw/linux/nicdrv.c
++++ b/oshw/linux/nicdrv.c
+@@ -225,7 +225,7 @@
+    uint8 idx;
+    uint8 cnt;
+ 
+-   pthread_mutex_lock(&(port->getindex_mutex));
++   pthread_mutex_lock(&(port->rx_mutex));
+ 
+    idx = port->lastidx + 1;
+    /* index can't be larger than buffer array */
+@@ -249,7 +249,7 @@
+       port->redport->rxbufstat[idx] = EC_BUF_ALLOC;
+    port->lastidx = idx;
+ 
+-   pthread_mutex_unlock(&(port->getindex_mutex));
++   pthread_mutex_unlock(&(port->rx_mutex));
+ 
+    return idx;
+ }
+@@ -261,9 +261,11 @@
+  */
+ void ecx_setbufstat(ecx_portt *port, uint8 idx, int bufstat)
+ {
++   pthread_mutex_lock(&(port->rx_mutex));
+    port->rxbufstat[idx] = bufstat;
+    if (port->redstate != ECT_RED_NONE)
+       port->redport->rxbufstat[idx] = bufstat;
++   pthread_mutex_unlock(&(port->rx_mutex));
+ }
+ 
+ /** Transmit buffer over socket (non blocking).
+@@ -285,14 +287,16 @@
+    {
+       stack = &(port->redport->stack);
+    }
++   pthread_mutex_lock(&(port->rx_mutex));
+    lp = (*stack->txbuflength)[idx];
+    (*stack->rxbufstat)[idx] = EC_BUF_TX;
+-   rval = send(*stack->sock, (*stack->txbuf)[idx], lp, 0);
++   rval = send(*stack->sock, (*stack->txbuf)[idx], lp, MSG_DONTWAIT);
+    if (rval == -1)
+    {
+       (*stack->rxbufstat)[idx] = EC_BUF_EMPTY;
+    }
+ 
++   pthread_mutex_unlock(&(port->rx_mutex));
+    return rval;
+ }
+ 
+@@ -323,11 +327,13 @@
+       /* rewrite MAC source address 1 to secondary */
+       ehp->sa1 = htons(secMAC[1]);
+       /* transmit over secondary socket */
++      pthread_mutex_lock(&(port->rx_mutex));
+       port->redport->rxbufstat[idx] = EC_BUF_TX;
+-      if (send(port->redport->sockhandle, &(port->txbuf2), port->txbuflength2, 0) == -1)
++      if (send(port->redport->sockhandle, &(port->txbuf2), port->txbuflength2, MSG_DONTWAIT) == -1)
+       {
+          port->redport->rxbufstat[idx] = EC_BUF_EMPTY;
+       }
++      pthread_mutex_unlock(&(port->rx_mutex));
+       pthread_mutex_unlock(&(port->tx_mutex));
+    }
+ 
+@@ -395,20 +401,9 @@
+    }
+    rval = EC_NOFRAME;
+    rxbuf = &(*stack->rxbuf)[idx];
+-   /* check if requested index is already in buffer ? */
+-   if ((idx < EC_MAXBUF) && ((*stack->rxbufstat)[idx] == EC_BUF_RCVD))
+-   {
+-      l = (*rxbuf)[0] + ((uint16)((*rxbuf)[1] & 0x0f) << 8);
+-      /* return WKC */
+-      rval = ((*rxbuf)[l] + ((uint16)(*rxbuf)[l + 1] << 8));
+-      /* mark as completed */
+-      (*stack->rxbufstat)[idx] = EC_BUF_COMPLETE;
+-   }
+-   else
+    {
+       pthread_mutex_lock(&(port->rx_mutex));
+-      /* check again if requested index is already in buffer ?
+-       * other task might have reveived it befor we grabbed mutex */
++      /* Check and publish RX state under the same lock as allocation/send. */
+       if ((idx < EC_MAXBUF) && ((*stack->rxbufstat)[idx] == EC_BUF_RCVD))
+       {
+          l = (*rxbuf)[0] + ((uint16)((*rxbuf)[1] & 0x0f) << 8);

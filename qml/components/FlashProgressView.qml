@@ -13,6 +13,22 @@ Control {
     property bool busy: false
     property string state: "idle"
     property string message: ""
+    property string successText: qsTr("烧录成功")
+    property bool detailsExpanded: false
+    readonly property bool hasDetails: displayMessage.indexOf("\n") >= 0
+
+    onStateChanged: detailsExpanded = state === "error"
+    onMessageChanged: {
+        if (state === "error") detailsExpanded = true
+    }
+
+    function copyMessage() {
+        const start = messageDetails.selectionStart
+        const end = messageDetails.selectionEnd
+        messageDetails.selectAll()
+        messageDetails.copy()
+        messageDetails.select(start, end)
+    }
 
     readonly property int clampedProgress: Math.max(0, Math.min(100, progress))
     readonly property bool indeterminate: busy && clampedProgress === 0
@@ -45,7 +61,7 @@ Control {
     }
     readonly property string stateText: {
         if (state === "success")
-            return qsTr("烧录成功")
+            return root.successText
         if (state === "error")
             return qsTr("烧录失败")
         if (state === "running")
@@ -192,6 +208,7 @@ Control {
 
         Text {
             id: messageLabel
+            visible: !root.hasDetails || !root.detailsExpanded
             Layout.fillWidth: true
             text: root.displayMessage
             textFormat: Text.PlainText
@@ -208,6 +225,60 @@ Control {
             ToolTip.delay: 500
             ToolTip.timeout: 8000
             ToolTip.text: messageLabel.text
+        }
+
+        ScrollView {
+            id: detailsScroll
+            visible: root.hasDetails && root.detailsExpanded
+            Layout.fillWidth: true
+            Layout.preferredHeight: Math.min(280, Math.max(80, messageDetails.contentHeight + 8))
+            clip: true
+            contentWidth: availableWidth
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+            ScrollBar.vertical.policy: messageDetails.contentHeight > detailsScroll.availableHeight + 1
+                                       ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded
+
+            TextArea {
+                id: messageDetails
+                objectName: "flashMessageDetails"
+                width: detailsScroll.availableWidth
+                text: root.displayMessage
+                textFormat: TextEdit.PlainText
+                readOnly: true
+                selectByMouse: true
+                wrapMode: TextEdit.Wrap
+                font.family: root.theme.fontFamily
+                font.pixelSize: root.theme.fontBodySmall
+                color: root.theme.textSecondary
+                padding: 0
+                background: null
+            }
+        }
+
+        RowLayout {
+            visible: root.hasDetails
+            Layout.fillWidth: true
+            spacing: root.theme.space8
+
+            AppButton {
+                objectName: "flashDetailsToggle"
+                theme: root.theme
+                text: root.detailsExpanded ? qsTr("收起详情") : qsTr("查看详情")
+                variant: "ghost"
+                implicitHeight: root.theme.controlHeightSmall
+                onClicked: root.detailsExpanded = !root.detailsExpanded
+            }
+
+            Item { Layout.fillWidth: true }
+
+            AppButton {
+                objectName: "flashCopyResult"
+                theme: root.theme
+                text: qsTr("复制结果")
+                variant: "ghost"
+                implicitHeight: root.theme.controlHeightSmall
+                onClicked: root.copyMessage()
+            }
         }
     }
 }

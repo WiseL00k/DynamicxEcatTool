@@ -1,8 +1,10 @@
 #include <QCoreApplication>
 #include <QGuiApplication>
 #include <QIcon>
+#include <QLibraryInfo>
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
+#include <QTranslator>
 
 #include "App/ApplicationBootstrap.h"
 #include "Backend/Commands/MitMotorCommand.h"
@@ -13,6 +15,15 @@ int main(int argc, char *argv[])
     QQuickStyle::setStyle("Fusion");
 
     QGuiApplication app(argc, argv);
+    QTranslator qtTranslator;
+    const QString applicationTranslations = QCoreApplication::applicationDirPath()
+        + QStringLiteral("/translations");
+    const QString qtTranslations = QLibraryInfo::path(QLibraryInfo::TranslationsPath);
+    if (qtTranslator.load(QStringLiteral("qt_zh_CN"), applicationTranslations)
+        || qtTranslator.load(QStringLiteral("qt_zh_CN"), qtTranslations)
+        || qtTranslator.load(QStringLiteral("qtbase_zh_CN"), qtTranslations)) {
+        app.installTranslator(&qtTranslator);
+    }
     const QString applicationFontFamily = App::applyApplicationFont(app);
     app.setWindowIcon(QIcon(QStringLiteral(":/icons/dynamicx_ecat_tool_logo.ico")));
 

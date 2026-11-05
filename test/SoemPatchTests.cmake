@@ -1,0 +1,75 @@
+cmake_minimum_required(VERSION 3.28)
+
+foreach(required IN ITEMS SOURCE_ROOT TEST_ROOT GIT_EXECUTABLE)
+    if(NOT DEFINED ${required} OR "${${required}}" STREQUAL "")
+        message(FATAL_ERROR "Missing ${required}")
+    endif()
+endforeach()
+
+function(run_git directory)
+    execute_process(COMMAND "${GIT_EXECUTABLE}" ${ARGN}
+        WORKING_DIRECTORY "${directory}"
+        RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE error)
+    if(NOT result EQUAL 0)
+        message(FATAL_ERROR "Git ${ARGN} failed:\n${output}${error}")
+    endif()
+endfunction()
+
+set(sources oshw/linux/nicdrv.c oshw/win32/nicdrv.c src/ec_foe.c)
+set(patches soem-linux-port-lock.patch soem-win32-port-lock.patch soem-foe-diagnostics.patch)
+
+# Use Git's actual checkout conversion rather than manually rewriting newlines.
+foreach(autocrlf IN ITEMS false true)
+    set(sandbox "${TEST_ROOT}/${autocrlf}")
+    set(repository "${sandbox}/repository")
+    set(checkout "${sandbox}/checkout")
+    file(REMOVE_RECURSE "${sandbox}")
+    file(MAKE_DIRECTORY "${repository}" "${checkout}")
+    set(inputs SOEM/.gitattributes)
+    if(EXISTS "${SOURCE_ROOT}/.gitattributes")
+        list(APPEND inputs .gitattributes)
+    endif()
+    foreach(source IN LISTS sources)
+        list(APPEND inputs "SOEM/${source}")
+    endforeach()
+    foreach(patch IN LISTS patches)
+        list(APPEND inputs "cmake/patches/${patch}")
+    endforeach()
+    foreach(input IN LISTS inputs)
+        configure_file("${SOURCE_ROOT}/${input}" "${repository}/${input}" COPYONLY)
+    endforeach()
+    run_git("${repository}" init --quiet)
+    run_git("${repository}" -c core.autocrlf=false -c core.safecrlf=false add -- .)
+    # SOEM marks C sources as text. With autocrlf=false, core.eol defaults
+    # to the platform's native ending, so explicitly select LF for that case.
+    # autocrlf=true overrides core.eol and still produces a real CRLF checkout.
+    run_git("${repository}" -c "core.autocrlf=${autocrlf}" -c core.eol=lf
+        checkout-index --all --force "--prefix=${checkout}/")
+    run_git("${checkout}" init --quiet)
+    run_git("${checkout}" config core.autocrlf "${autocrlf}")
+
+    set(digests)
+    foreach(source patch IN ZIP_LISTS sources patches)
+        # Read bytes: CMake's text-mode file(READ) normalizes CRLF to LF.
+        file(READ "${checkout}/SOEM/${source}" checked_out_source HEX)
+        string(FIND "${checked_out_source}" "0d0a" crlf_position)
+        if(autocrlf STREQUAL "false" AND NOT crlf_position EQUAL -1)
+            message(FATAL_ERROR "Expected LF checkout for ${source} with core.autocrlf=false")
+        elseif(autocrlf STREQUAL "true" AND crlf_position EQUAL -1)
+            message(FATAL_ERROR "Expected CRLF checkout for ${source} with core.autocrlf=true")
+        endif()
+        configure_file("${checkout}/SOEM/${source}" "${checkout}/overlay/${source}" COPYONLY)
+        run_git("${checkout}" apply --unsafe-paths --directory=overlay
+            "${checkout}/cmake/patches/${patch}")
+        file(READ "${checkout}/overlay/${source}" patched_source)
+        string(REPLACE "\r\n" "\n" patched_source "${patched_source}")
+        string(SHA256 digest "${patched_source}")
+        list(APPEND digests "${digest}")
+    endforeach()
+    if(autocrlf STREQUAL "false")
+        set(expected_digests "${digests}")
+    elseif(NOT "${digests}" STREQUAL "${expected_digests}")
+        message(FATAL_ERROR "core.autocrlf changed the patched SOEM sources")
+    endif()
+    message(STATUS "All SOEM patches apply identically with core.autocrlf=${autocrlf}")
+endforeach()
