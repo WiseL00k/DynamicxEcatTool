@@ -40,13 +40,24 @@ foreach(autocrlf IN ITEMS false true)
     endforeach()
     run_git("${repository}" init --quiet)
     run_git("${repository}" -c core.autocrlf=false -c core.safecrlf=false add -- .)
-    run_git("${repository}" -c "core.autocrlf=${autocrlf}"
+    # SOEM marks C sources as text. With autocrlf=false, core.eol defaults
+    # to the platform's native ending, so explicitly select LF for that case.
+    # autocrlf=true overrides core.eol and still produces a real CRLF checkout.
+    run_git("${repository}" -c "core.autocrlf=${autocrlf}" -c core.eol=lf
         checkout-index --all --force "--prefix=${checkout}/")
     run_git("${checkout}" init --quiet)
     run_git("${checkout}" config core.autocrlf "${autocrlf}")
 
     set(digests)
     foreach(source patch IN ZIP_LISTS sources patches)
+        # Read bytes: CMake's text-mode file(READ) normalizes CRLF to LF.
+        file(READ "${checkout}/SOEM/${source}" checked_out_source HEX)
+        string(FIND "${checked_out_source}" "0d0a" crlf_position)
+        if(autocrlf STREQUAL "false" AND NOT crlf_position EQUAL -1)
+            message(FATAL_ERROR "Expected LF checkout for ${source} with core.autocrlf=false")
+        elseif(autocrlf STREQUAL "true" AND crlf_position EQUAL -1)
+            message(FATAL_ERROR "Expected CRLF checkout for ${source} with core.autocrlf=true")
+        endif()
         configure_file("${checkout}/SOEM/${source}" "${checkout}/overlay/${source}" COPYONLY)
         run_git("${checkout}" apply --unsafe-paths --directory=overlay
             "${checkout}/cmake/patches/${patch}")

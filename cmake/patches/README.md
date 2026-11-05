@@ -7,6 +7,10 @@ checkouts. Blank context lines must retain their leading space; removing it
 made the FoE patch fail as `corrupt patch at line 13` after CRLF conversion.
 `DynamicxSoemPatchTests` performs real Git checkouts with `core.autocrlf=false`
 and `true`, applies all three patches and compares their normalized output.
+The test explicitly sets `core.eol=lf`: SOEM marks C sources as text, so
+`core.autocrlf=false` alone still uses native CRLF endings on Windows.
+`core.autocrlf=true` overrides this setting and checks out CRLF as intended.
+Byte-level assertions verify both checkout formats before applying patches.
 
 `soem-foe-diagnostics.patch` is applied separately by
 `SoemFoeDiagnostics.cmake` on both platforms. It places the received 32-bit
