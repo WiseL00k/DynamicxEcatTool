@@ -2,6 +2,7 @@
 #define SOEMUTILS_H
 
 #include <filesystem>
+#include <cstdint>
 #include <functional>
 #include <string>
 #include <utility>
@@ -93,6 +94,30 @@ private:
     std::string ifname_, fname_;
 };
 
+enum class FirmwareFlashError {
+    None = 0, InvalidFile = 1, InvalidSlave = 2, OpenFailed = 3,
+    ScanFailed = 4, PreOpFailed = 5, InitFailed = 6,
+    InvalidBootMailbox = 7, BootMailboxWriteFailed = 8,
+    BootFailed = 9, TransferFailed = 10, ActivationFailed = 11,
+    InvalidPackage = 12
+};
+
+struct FirmwareFlashResult {
+    FirmwareFlashError error{FirmwareFlashError::None};
+    uint16_t slave{0};
+    int soemReturn{0};
+    uint32_t foeError{0};
+    uint16_t mailboxError{0};
+    uint16_t alState{0}, alStatusCode{0};
+    bool alStateValid{false};
+    bool downloadComplete{false}, activationRequested{false};
+    std::string reason;
+    std::string message;
+};
+
+// Pure presentation helper: does not access the NIC or the slave.
+SOEM_INTERFACE_EXPORT std::string formatFirmwareFlashResult(const FirmwareFlashResult& result);
+
 class SOEM_INTERFACE_EXPORT FirmwareTool
 {
 public:
@@ -104,17 +129,23 @@ public:
     bool init();
     void close();
     bool flashFirmware(uint16_t slave, const std::filesystem::path& binFile);
+    // Remains available after close(); SOEM's raw return and peer FoE code are
+    // separate fields. Success confirms download/request, not installed version.
+    const FirmwareFlashResult& lastResult() const { return result_; }
 
 private:
     bool loadFile(const std::filesystem::path& file, std::vector<uint8_t>& buffer);
     bool enterBootMode(uint16_t slave);
     bool leaveBootMode(uint16_t slave);
     bool configBootMailbox(uint16_t slave);
+    bool fail(FirmwareFlashError code, const std::string& reason, int soemReturn = 0);
+    bool confirmState(uint16_t slave, uint16_t wanted, int timeout);
 
 private:
     ecx_contextt ctx_{};
     std::string ifname_;
     bool inited_{false};
+    FirmwareFlashResult result_;
 };
 }
 #endif // SOEMUTILS_H

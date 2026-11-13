@@ -206,7 +206,8 @@ Item {
                                 text: qsTr("周期 (μs)")
                                 color: root.theme.textSecondary
                             }
-                            SpinBox {
+                            AppSpinBox {
+                                theme: root.theme
                                 id: cycleInput
                                 objectName: "dcCycleInput"
                                 Layout.fillWidth: true
@@ -222,7 +223,8 @@ Item {
                                 text: qsTr("相移 (μs)")
                                 color: root.theme.textSecondary
                             }
-                            SpinBox {
+                            AppSpinBox {
+                                theme: root.theme
                                 id: shiftInput
                                 objectName: "dcShiftInput"
                                 Layout.fillWidth: true

@@ -222,7 +222,7 @@ PdoDecodeResult PdoValueCodec::decode(const QByteArray& processImage,
 {
     PdoDecodeResult result;
     if (!rangeIsValid(processImage, bitOffset, bitLength)) {
-        result.error = QStringLiteral("PDO field is outside the process image");
+        result.error = QStringLiteral("PDO 字段超出过程映像范围");
         return result;
     }
 
@@ -236,7 +236,7 @@ PdoDecodeResult PdoValueCodec::decode(const QByteArray& processImage,
 
     if (isSignedIntegerType(dataType) || isUnsignedIntegerType(dataType)) {
         if (bitLength > 64) {
-            result.error = QStringLiteral("Integer PDO fields wider than 64 bits are not supported");
+            result.error = QStringLiteral("不支持超过 64 位的整数 PDO 字段");
             return result;
         }
         const quint64 raw = readBits(processImage, bitOffset, bitLength);
@@ -264,7 +264,7 @@ PdoDecodeResult PdoValueCodec::decode(const QByteArray& processImage,
         if (type == QStringLiteral("REAL") || type == QStringLiteral("REAL32")
             || type == QStringLiteral("FLOAT32")) {
             if (bitLength != 32) {
-                result.error = QStringLiteral("REAL requires a 32-bit PDO field");
+                result.error = QStringLiteral("REAL 类型要求 PDO 字段长度为 32 位");
                 return result;
             }
             const quint32 raw = static_cast<quint32>(readBits(processImage, bitOffset, bitLength));
@@ -276,7 +276,7 @@ PdoDecodeResult PdoValueCodec::decode(const QByteArray& processImage,
             return result;
         }
         if (bitLength != 64) {
-            result.error = QStringLiteral("LREAL requires a 64-bit PDO field");
+            result.error = QStringLiteral("LREAL 类型要求 PDO 字段长度为 64 位");
             return result;
         }
         const quint64 raw = readBits(processImage, bitOffset, bitLength);
@@ -290,7 +290,7 @@ PdoDecodeResult PdoValueCodec::decode(const QByteArray& processImage,
 
     if (isStringType(dataType)) {
         if (bitLength % 8 != 0) {
-            result.error = QStringLiteral("String fields must be byte-aligned in length");
+            result.error = QStringLiteral("字符串字段长度必须为整数字节（8 位的倍数）");
             return result;
         }
         QByteArray raw = readRawBits(processImage, bitOffset, bitLength);
@@ -319,7 +319,7 @@ PdoEncodeResult PdoValueCodec::encode(const QVariant& value,
 {
     PdoEncodeResult result;
     if (!processImage || !rangeIsValid(*processImage, bitOffset, bitLength)) {
-        result.error = QStringLiteral("PDO field is outside the process image");
+        result.error = QStringLiteral("PDO 字段超出过程映像范围");
         return result;
     }
 
@@ -327,7 +327,7 @@ PdoEncodeResult PdoValueCodec::encode(const QVariant& value,
     if (isBooleanType(dataType)) {
         bool parsed = false;
         if (!parseBoolean(value, &parsed)) {
-            result.error = QStringLiteral("Expected a boolean value");
+            result.error = QStringLiteral("请输入布尔值（true/false、1/0、on/off 或 yes/no）");
             return result;
         }
         QByteArray raw((bitLength + 7) / 8, '\0');
@@ -335,16 +335,16 @@ PdoEncodeResult PdoValueCodec::encode(const QVariant& value,
         writeRawBits(updated, bitOffset, bitLength, raw);
     } else if (isSignedIntegerType(dataType)) {
         if (bitLength > 64) {
-            result.error = QStringLiteral("Integer PDO fields wider than 64 bits are not supported");
+            result.error = QStringLiteral("不支持超过 64 位的整数 PDO 字段");
             return result;
         }
         qint64 parsed = 0;
         if (!parseSigned(value, &parsed)) {
-            result.error = QStringLiteral("Expected a signed integer value");
+            result.error = QStringLiteral("请输入有效的有符号整数");
             return result;
         }
         if (!signedValueFits(parsed, bitLength)) {
-            result.error = QStringLiteral("Signed value is outside the %1-bit range").arg(bitLength);
+            result.error = QStringLiteral("有符号整数超出 %1 位可表示的范围").arg(bitLength);
             return result;
         }
         quint64 raw = 0;
@@ -352,16 +352,16 @@ PdoEncodeResult PdoValueCodec::encode(const QVariant& value,
         writeBits(updated, bitOffset, bitLength, raw);
     } else if (isUnsignedIntegerType(dataType)) {
         if (bitLength > 64) {
-            result.error = QStringLiteral("Integer PDO fields wider than 64 bits are not supported");
+            result.error = QStringLiteral("不支持超过 64 位的整数 PDO 字段");
             return result;
         }
         quint64 parsed = 0;
         if (!parseUnsigned(value, &parsed)) {
-            result.error = QStringLiteral("Expected an unsigned integer value");
+            result.error = QStringLiteral("请输入有效的无符号整数");
             return result;
         }
         if (!unsignedValueFits(parsed, bitLength)) {
-            result.error = QStringLiteral("Unsigned value is outside the %1-bit range").arg(bitLength);
+            result.error = QStringLiteral("无符号整数超出 %1 位可表示的范围").arg(bitLength);
             return result;
         }
         writeBits(updated, bitOffset, bitLength, parsed);
@@ -369,19 +369,19 @@ PdoEncodeResult PdoValueCodec::encode(const QVariant& value,
         bool ok = false;
         const double parsed = QLocale::c().toDouble(value.toString().trimmed(), &ok);
         if (!ok || !std::isfinite(parsed)) {
-            result.error = QStringLiteral("Expected a finite floating-point value");
+            result.error = QStringLiteral("请输入有限的浮点数（不接受 NaN 或无穷大）");
             return result;
         }
         const QString type = normalizedType(dataType);
         if (type == QStringLiteral("REAL") || type == QStringLiteral("REAL32")
             || type == QStringLiteral("FLOAT32")) {
             if (bitLength != 32) {
-                result.error = QStringLiteral("REAL requires a 32-bit PDO field");
+                result.error = QStringLiteral("REAL 类型要求 PDO 字段长度为 32 位");
                 return result;
             }
             const float narrowed = static_cast<float>(parsed);
             if (!std::isfinite(narrowed)) {
-                result.error = QStringLiteral("Value is outside the REAL range");
+                result.error = QStringLiteral("数值超出 REAL 类型可表示的范围");
                 return result;
             }
             quint32 raw = 0;
@@ -389,7 +389,7 @@ PdoEncodeResult PdoValueCodec::encode(const QVariant& value,
             writeBits(updated, bitOffset, bitLength, raw);
         } else {
             if (bitLength != 64) {
-                result.error = QStringLiteral("LREAL requires a 64-bit PDO field");
+                result.error = QStringLiteral("LREAL 类型要求 PDO 字段长度为 64 位");
                 return result;
             }
             quint64 raw = 0;
@@ -398,18 +398,18 @@ PdoEncodeResult PdoValueCodec::encode(const QVariant& value,
         }
     } else if (isStringType(dataType)) {
         if (bitLength % 8 != 0) {
-            result.error = QStringLiteral("String fields must be byte-aligned in length");
+            result.error = QStringLiteral("字符串字段长度必须为整数字节（8 位的倍数）");
             return result;
         }
         const QString text = value.toString();
         const QByteArray rawText = text.toLatin1();
         if (QString::fromLatin1(rawText) != text) {
-            result.error = QStringLiteral("VISIBLE_STRING accepts Latin-1 characters only");
+            result.error = QStringLiteral("VISIBLE_STRING 仅支持 Latin-1 字符");
             return result;
         }
         const qsizetype fieldBytes = bitLength / 8;
         if (rawText.size() > fieldBytes) {
-            result.error = QStringLiteral("String value exceeds the %1-byte field").arg(fieldBytes);
+            result.error = QStringLiteral("字符串长度超出字段允许的 %1 字节").arg(fieldBytes);
             return result;
         }
         QByteArray raw(fieldBytes, '\0');
@@ -420,17 +420,17 @@ PdoEncodeResult PdoValueCodec::encode(const QVariant& value,
         const QByteArray raw = parseRaw(value, &ok);
         const qsizetype expectedBytes = (bitLength + 7) / 8;
         if (!ok) {
-            result.error = QStringLiteral("Expected an even-length hexadecimal byte string");
+            result.error = QStringLiteral("请输入由偶数个十六进制数字组成的字节串");
             return result;
         }
         if (raw.size() != expectedBytes) {
-            result.error = QStringLiteral("Raw value requires exactly %1 bytes").arg(expectedBytes);
+            result.error = QStringLiteral("原始数据必须恰好为 %1 字节").arg(expectedBytes);
             return result;
         }
         if (bitLength % 8 != 0) {
             const quint8 unusedMask = static_cast<quint8>(0xffU << (bitLength % 8));
             if ((static_cast<quint8>(raw.back()) & unusedMask) != 0) {
-                result.error = QStringLiteral("Raw value sets bits outside the field width");
+                result.error = QStringLiteral("原始数据在字段位宽之外设置了非零位");
                 return result;
             }
         }

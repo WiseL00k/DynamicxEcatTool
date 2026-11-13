@@ -19,6 +19,7 @@ public:
         MitDebug,
         Explorer,
         DcTest,
+        Ecat2Canfd,
         Flashing
     };
     Q_ENUM(Mode)

@@ -10,6 +10,7 @@
 #include <QUrl>
 #include <algorithm>
 #include <cstdlib>
+#include <exception>
 #include <memory>
 
 namespace Backend {
@@ -118,7 +119,7 @@ bool FlashService::flashEEprom(const std::string& nicName, int slaveId, const QS
         progress->store(100);
         emit self->flashProgress(QStringLiteral("eeprom"), 100);
         emit self->logUpdated(QStringLiteral("烧录完成，用时 %1 ms").arg(elapsedMs));
-        emit self->flashFinished(QStringLiteral("eeprom"), true, QStringLiteral("OK (%1 ms)").arg(elapsedMs));
+        emit self->flashFinished(QStringLiteral("eeprom"), true, QStringLiteral("成功（%1 ms）").arg(elapsedMs));
     });
 
     return true;
@@ -131,7 +132,7 @@ bool FlashService::flashFirmware(const std::string& nicName, int slaveId, const 
         return false;
     }
 
-    if (slaveId <= 0) {
+    if (slaveId <= 0 || slaveId > 65535) {
         emit errorOccurred(QStringLiteral("从站地址错误"));
         return false;
     }
@@ -146,69 +147,48 @@ bool FlashService::flashFirmware(const std::string& nicName, int slaveId, const 
         return false;
     }
 
-    const std::string binFilePath = toLocalPath(filePath).toStdString();
-    auto progress = std::make_shared<std::atomic<int>>(0);
-    auto finished = std::make_shared<std::atomic<bool>>(false);
+    const QString localPath = toLocalPath(filePath);
+#ifdef _WIN32
+    const std::filesystem::path binFilePath(localPath.toStdWString());
+#else
+    const std::filesystem::path binFilePath(localPath.toStdString());
+#endif
     auto timer = std::make_shared<QElapsedTimer>();
     const QPointer<FlashService> self(this);
     timer->start();
 
-    QThreadPool::globalInstance()->start([self, progress, finished]() {
-        while (!finished->load()) {
-            int percent = progress->load();
-            if (percent < 99) {
-                const int delta = std::max(1, int((99 - percent) * (0.03 + (std::rand() % 5) * 0.01)));
-                percent += delta;
-                progress->store(percent);
-                emitProgress(self, QStringLiteral("firmware"), percent);
-            }
-            QThread::msleep(50);
-        }
-    });
-
+    // No byte-level progress is available here. Keep the UI indeterminate until
+    // the final FoE ACK instead of fabricating progress or emitting 100% on error.
+    emit flashProgress(QStringLiteral("firmware"), 0);
     QThreadPool::globalInstance()->start([=]() {
         bool ok = false;
-        soem_interface::FirmwareTool tool(nicName);
-
+        QString message;
         try {
+            auto tool = std::make_unique<soem_interface::FirmwareTool>(nicName);
             if (self) {
                 emit self->logUpdated(QStringLiteral("开始固件烧录..."));
             }
-
-            if (tool.init()) {
-                ok = tool.flashFirmware(static_cast<uint16_t>(slaveId), binFilePath);
-            }
-
-            if (self) {
-                if (ok) {
-                    emit self->logUpdated(QStringLiteral("固件烧录成功"));
-                } else {
-                    emit self->errorOccurred(QStringLiteral("固件烧录失败, 请检查固件文件名或网卡名是否正确!或重新烧录EEProm文件!"));
-                }
-            }
-
-            tool.close();
+            // File validation must happen before init() writes to the bus.
+            ok = tool->flashFirmware(static_cast<uint16_t>(slaveId), binFilePath);
+            message = QString::fromStdString(tool->lastResult().message);
+        } catch (const std::exception& error) {
+            message = QStringLiteral("固件烧录异常 [FW_EXCEPTION]\n从站：%1\n\n失败原因\n%2")
+                .arg(slaveId).arg(QString::fromUtf8(error.what()));
         } catch (...) {
-            if (self) {
-                emit self->errorOccurred(QStringLiteral("固件烧录异常"));
-            }
+            message = QStringLiteral("固件烧录异常 [FW_EXCEPTION]\n从站：%1\n\n失败原因\n发生未知异常")
+                .arg(slaveId);
         }
-
-        progress->store(100);
-        finished->store(true);
-
         if (!self) {
             return;
         }
-
         self->endFlash();
-        emit self->flashProgress(QStringLiteral("firmware"), 100);
         const qint64 elapsedMs = timer->elapsed();
-        emit self->logUpdated(QStringLiteral("烧录结束，耗时 %1 ms").arg(elapsedMs));
+        message += QStringLiteral("\n\n耗时：%1 ms").arg(elapsedMs);
+        if (ok) emit self->flashProgress(QStringLiteral("firmware"), 100);
+        else emit self->errorOccurred(message);
+        emit self->logUpdated(message);
         emit self->flashFinished(
-            QStringLiteral("firmware"),
-            ok,
-            ok ? QStringLiteral("OK (%1 ms)").arg(elapsedMs) : QStringLiteral("FAIL (%1 ms)").arg(elapsedMs));
+            QStringLiteral("firmware"), ok, message);
     });
 
     return true;

@@ -34,12 +34,12 @@ rm_ecat_slave::mit::MitEcatSlave* mitSlave(soem_interface::EcatMasterBus* master
 bool validateCanTarget(int canBus, int canId, QString& errorMessage)
 {
     if (!isValidCanBus(canBus)) {
-        errorMessage = QStringLiteral("CAN Bus参数错误");
+        errorMessage = QStringLiteral("CAN 通道参数错误");
         return false;
     }
 
     if (canId < 1 || canId > static_cast<int>(rm_ecat_slave::mit::motorNumEachBus)) {
-        errorMessage = QStringLiteral("CAN ID参数错误");
+        errorMessage = QStringLiteral("CAN ID 参数错误");
         return false;
     }
 

@@ -61,10 +61,13 @@ jobs:
       - name: Configure and compile Release
         run: |
           . ./packaging/windows/common.ps1
+          New-Item -ItemType Directory -Path 'build/ci-windows' -Force | Out-Null
           Invoke-Checked cmake @('-S', '.', '-B', 'build/ci-windows', '-G', 'Ninja',
             '-DCMAKE_BUILD_TYPE=Release', '-DBUILD_TESTING=ON',
-            "-DCMAKE_PREFIX_PATH=$env:QT_ROOT_DIR;$env:YAML_ROOT")
-          Invoke-Checked cmake @('--build', 'build/ci-windows', '--parallel', '4')
+            "-DCMAKE_PREFIX_PATH=$env:QT_ROOT_DIR;$env:YAML_ROOT") *>&1 |
+            Tee-Object -FilePath 'build/ci-windows/configure.log'
+          Invoke-Checked cmake @('--build', 'build/ci-windows', '--parallel', '4') *>&1 |
+            Tee-Object -FilePath 'build/ci-windows/build.log'
 
       - name: Test without capture driver or hardware
         run: |
@@ -97,6 +100,7 @@ jobs:
         with:
           name: windows-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
+            build/ci-windows/*.log
             build/ci-windows/Testing/Temporary/*.log
             build/ci-windows/ctest-results.xml
             build/ci-windows/CMakeFiles/CMakeConfigureLog.yaml
