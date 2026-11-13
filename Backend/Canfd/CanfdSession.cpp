@@ -111,16 +111,21 @@ bool readChannel(CanfdSession& session, int slave, int channel, canfd::ChannelCo
 
 std::unique_ptr<CanfdSession> makeCanfdSession() { return std::make_unique<MasterCanfdSession>(); }
 
-bool verifyCanfdIdentity(CanfdSession& session, int slave, QString& error)
+bool verifyCanfdIdentity(CanfdSession& session, int slave, QString& error, quint32* revision)
 {
-    const quint32 expected[]{0, 0, 0xAB125, 3};
+    if (revision) *revision = 0;
+    const quint32 expected[]{0, canfd::VendorId, canfd::ProductCode};
     for (quint8 sub = 1; sub <= 3; ++sub) {
         quint32 actual = 0;
         if (!readValue(session, slave, 0x1018, sub, 4, actual, error)) return false;
-        if (actual != expected[sub]) {
-            error = QStringLiteral("从站 %1 在线身份 0x1018:%2 不匹配 ECAT2CANFD").arg(slave).arg(sub);
+        if (sub == 3 ? !canfd::supportedRevision(actual) : actual != expected[sub]) {
+            const auto wanted = sub == 3 ? QStringLiteral("0x00000003 / 0x00000004")
+                                        : QStringLiteral("0x%1").arg(canfd::hex(expected[sub], 8));
+            error = QStringLiteral("从站 %1 在线身份 0x1018:%2 不匹配 ECAT2CANFD（实际 0x%3，支持 %4）")
+                .arg(slave).arg(sub).arg(canfd::hex(actual, 8)).arg(wanted);
             return false;
         }
+        if (sub == 3 && revision) *revision = actual;
     }
     return true;
 }

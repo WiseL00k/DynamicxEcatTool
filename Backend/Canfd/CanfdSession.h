@@ -31,7 +31,7 @@ struct CanfdConfigResult {
 };
 
 std::unique_ptr<CanfdSession> makeCanfdSession();
-bool verifyCanfdIdentity(CanfdSession& session, int slave, QString& error);
+bool verifyCanfdIdentity(CanfdSession& session, int slave, QString& error, quint32* revision = nullptr);
 CanfdConfigResult readCanfdConfiguration(CanfdSession& session, const std::vector<int>& slaves,
                                         const std::atomic<bool>& cancel);
 CanfdConfigResult applyCanfdConfiguration(CanfdSession& session,

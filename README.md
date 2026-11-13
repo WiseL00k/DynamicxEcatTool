@@ -140,9 +140,9 @@ build/local-qt/test/DynamicxFirmwareHardwareProbe --flash --adapter eno1 --slave
 
 ### ECAT2CANFD
 
-入口位于“DC 测试”下方，共用顶部网卡选择。先在“配置”中设置预期从站数量（默认 1），连接后保持 PRE-OP，并核对在线身份和完整 PDO 映射。支持的固件身份为 Vendor `0`、Product `0xAB125`、Revision `3`，每个从站双向 PDO 均为 185 字节。
+入口位于“DC 测试”下方，共用顶部网卡选择。先在“配置”中设置预期从站数量（默认 1），连接后保持 PRE-OP，并核对在线身份和完整 PDO 映射。支持的固件身份为 Vendor `0`、Product `0xAB125`、Revision `3` / `4`，每个从站双向 PDO 均为 185 字节。升级固件后 ESC EEPROM 可能仍报告 Revision `3`，而在线 SDO `0x1018:03` 为 `4`；两者都需属于上述支持版本，运行行为以在线版本为准，完整 PDO 映射仍逐项校验。
 
-配置页分别编辑每个从站的 CAN0/CAN1：启用、Classic / FD / FD+BRS、仲裁速率、数据速率及三项 options。通过独立串行工作线程逐项写入 `0x2000` / `0x2001` 的子索引 1–5，再写 Apply（6），等待状态（7）并读取错误（8）和实际配置。PRE-OP 和 OP 均可配置；OP 应用前停止目标通道提交，确认空输出周期后写 SDO，完成后发送保持停止。PDO 线程不会等待整个 SDO 事务。草稿只保留在本次界面会话中，回读不会覆盖未应用的编辑。
+配置页分别编辑每个从站的 CAN0/CAN1：启用、Classic / FD / FD+BRS、仲裁速率、数据速率及三项 options。通过独立串行工作线程逐项写入 `0x2000` / `0x2001` 的子索引 1–5，再写 Apply（6），等待状态（7）并读取错误（8）和实际配置。Revision `4` 必须先停止运行、返回 PRE-OP 后再应用配置；主站在写入任何字段前检查在线版本和运行状态，OP 期间仍可回读。Revision `3` 保留 OP 配置支持：应用前停止目标通道提交，确认空输出周期后写 SDO，完成后发送保持停止。PDO 线程不会等待整个 SDO 事务。草稿只保留在本次界面会话中，回读不会覆盖未应用的编辑。
 
 默认关闭 DC，总线周期为 2000 μs、偏移为 0。可选周期 250–100000 μs，偏移绝对值小于周期；100 ms 上限为该固件独立 200 ms 输出看门狗留出余量。连接、应用配置后“启动运行”进入 OP，“停止运行”返回 PRE-OP 并保留 SDO 连接，“断开”释放网卡。运行期间锁定总线周期/DC 参数。
 
@@ -154,7 +154,7 @@ build/local-qt/test/DynamicxFirmwareHardwareProbe --flash --adapter eno1 --slave
 
 CMake 配置时启用 `-DBUILD_TESTING=ON`，构建后运行 `ctest --test-dir <build> --output-on-failure`。测试包含原 DC 回归、CAN 协议/配置/发送状态机、PDO/SDO 共享端口同步，以及四档 DPI 下的 QML 布局。Windows 运行应使用本次构建的 `soem_interface.dll`、匹配的 `yaml-cpp.dll`、Qt DLL/QML 插件及系统 Npcap，部署方法见 [打包说明](packaging/README.md)。
 
-`DynamicxCanfdHardwareProbe` 不加入 CTest；无参数仅列出网卡。显式传入 `--adapter <Npcap名称> --exercise-config --output <结果.json>` 才连接一个从站，回读并重应用原 CAN 配置，检查普通/DC OP 中的并行 SDO 和停止后回读。探针仅提交全零应用 PDO，不生成用户 CAN 帧；固件状态切换自身的安全输出行为仍由固件决定。CAN 线侧收发和多从站硬件行为需要相应外设实测。
+`DynamicxCanfdHardwareProbe` 不加入 CTest；无参数仅列出网卡。显式传入 `--adapter <网卡名称> --exercise-config --output <结果.json>` 才连接一个从站，记录 EEPROM/在线身份，回读并重应用原 CAN 配置，检查普通/DC OP 中的并行 SDO 和停止后回读。Revision `4` 在 PRE-OP 重应用配置，在 OP 验证 Apply 按协议返回 `0x08000022`；Revision `3` 保留 OP 重应用测试。加 `--identity-only` 仅验证身份和映射，不进入 OP、不写 CAN 配置。探针仅提交全零应用 PDO，不生成用户 CAN 帧；固件状态切换自身的安全输出行为仍由固件决定。CAN 线侧收发和多从站硬件行为需要相应外设实测。
   
 ## AppImage 无法挂载时
 

@@ -244,7 +244,7 @@ Pane {
                                 AppSpinBox { theme: root.theme; from: -root.cycleUs + 1; to: root.cycleUs - 1; value: root.shiftUs; editable: true; enabled: root.dcEnabled && !root.running && !root.busy; onValueModified: root.shiftUs = value }
                             }
                         }
-                        Label { Layout.fillWidth: true; text: qsTr("连接后停留在 PRE-OP；CAN 配置支持 PRE-OP 与 OP。运行前请完成配置回读。"); color: root.theme.textMuted; wrapMode: Text.Wrap }
+                        Label { Layout.fillWidth: true; text: qsTr("连接后停留在 PRE-OP；运行前请完成 CAN 配置。新版固件须先停止运行再应用配置，OP 期间可读取配置。"); color: root.theme.textMuted; wrapMode: Text.Wrap }
                     }
                 }
                 RowLayout {

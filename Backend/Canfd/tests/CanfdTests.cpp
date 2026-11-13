@@ -41,6 +41,9 @@ class FakeSession final : public CanfdSession {
 public:
     struct Write { quint16 index; quint8 sub; std::vector<quint8> bytes; };
     BusScanResult scan{scanFixture()};
+    quint32 identity[4]{4, 0, 0xAB125, 3};
+    int identitySize{4};
+    bool failIdentity{false};
     std::vector<Write> writes;
     quint32 values[2][9]{{8,1,0,1000000,5000000,5,0,0,0},{8,1,0,1000000,5000000,5,0,0,0}};
     int failWriteSub{-1};
@@ -71,8 +74,9 @@ public:
     SdoTransferResult readSdo(int, quint16 index, quint8 sub, int size, void* data) override {
         SdoTransferResult r; r.actualSize = size; r.wkc = 1;
         if (index == 0x1018) {
-            quint32 identity[]{4,0,0xAB125,3};
-            const auto bytes = canfd::writeLe(identity[sub], size); std::memcpy(data, bytes.data(), size); r.success = true; return r;
+            if (failIdentity) { r.abortCode = 0x06020000; r.error = "missing identity"; return r; }
+            const auto bytes = canfd::writeLe(identity[sub], size); std::memcpy(data, bytes.data(), size);
+            r.actualSize = identitySize; r.success = true; return r;
         }
         if (sub == failReadSub) { r.abortCode = 0x06020000; r.error = "missing object"; return r; }
         const auto bytes = canfd::writeLe(values[index - 0x2000][sub], size);
@@ -136,6 +140,81 @@ private slots:
         QVERIFY(!canfd::validateScan(scan, 1, error));
         scan = scanFixture(); scan.slaves[0].productCode++;
         QVERIFY(!canfd::validateScan(scan, 1, error));
+    }
+
+    void supportedIdentityRevisions_data()
+    {
+        QTest::addColumn<quint32>("eepromRevision");
+        QTest::addColumn<quint32>("onlineRevision");
+        QTest::newRow("legacy") << quint32(3) << quint32(3);
+        QTest::newRow("upgraded-firmware-old-eeprom") << quint32(3) << quint32(4);
+        QTest::newRow("current") << quint32(4) << quint32(4);
+    }
+
+    void supportedIdentityRevisions()
+    {
+        QFETCH(quint32, eepromRevision);
+        QFETCH(quint32, onlineRevision);
+        FakeSession session;
+        session.scan.slaves[0].revision = eepromRevision;
+        session.identity[3] = onlineRevision;
+        QString error;
+        quint32 verifiedRevision = 0;
+        QVERIFY2(canfd::validateScan(session.scan, 1, error), qPrintable(error));
+        QVERIFY2(verifyCanfdIdentity(session, 1, error, &verifiedRevision), qPrintable(error));
+        QCOMPARE(verifiedRevision, onlineRevision);
+        session.scan.activePdos[4].bitOffset += 8;
+        QVERIFY(!canfd::validateScan(session.scan, 1, error));
+    }
+
+    void invalidIdentitiesAreRejected()
+    {
+        for (const quint32 revision : {0u, 2u, 5u, 0xffffffffu}) {
+            FakeSession session; QString error;
+            session.identity[3] = revision;
+            QVERIFY(!verifyCanfdIdentity(session, 1, error));
+            QVERIFY(error.contains("0x1018:3"));
+            QVERIFY(error.contains(canfd::hex(revision, 8)));
+            session.scan.slaves[0].revision = revision;
+            QVERIFY(!canfd::validateScan(session.scan, 1, error));
+        }
+        for (quint8 sub : {1, 2}) {
+            FakeSession session; QString error;
+            ++session.identity[sub];
+            QVERIFY(!verifyCanfdIdentity(session, 1, error));
+            QVERIFY(error.contains(QString("0x1018:%1").arg(sub)));
+        }
+        FakeSession session; QString error;
+        session.identitySize = 3;
+        QVERIFY(!verifyCanfdIdentity(session, 1, error));
+        session.identitySize = 4; session.failIdentity = true;
+        QVERIFY(!verifyCanfdIdentity(session, 1, error));
+    }
+
+    void revision4ConnectionAndConfiguration()
+    {
+        BusSessionCoordinator coordinator;
+        auto fake = std::make_unique<FakeSession>(); auto* session = fake.get();
+        // Firmware upgrades leave the ESC EEPROM at revision 3.
+        session->identity[3] = 4;
+        Ecat2CanfdController controller(coordinator, std::move(fake));
+        controller.setNicName("fake"); controller.connectBus(1);
+        QTRY_VERIFY(controller.connected() && !controller.busy());
+        QVERIFY2(controller.canStart(), qPrintable(controller.errorText()));
+        QCOMPARE(controller.channelConfigs().size(), 2);
+        QCOMPARE(controller.slaves()[0].toMap().value("revision").toUInt(), quint32(4));
+        controller.start(2000, false, 0); QTRY_VERIFY(controller.running());
+        controller.applyConfiguration(1, {configMap()});
+        QVERIFY(!controller.busy());
+        QVERIFY(session->writes.empty());
+        QVERIFY(controller.errorText().contains("停止"));
+        controller.stop(); QTRY_COMPARE(controller.state(), QString("preop"));
+        controller.applyConfiguration(1, {configMap()});
+        QTRY_VERIFY(!controller.busy());
+        QVERIFY2(controller.errorText().isEmpty(), qPrintable(controller.errorText()));
+        QCOMPARE(session->writes.size(), size_t(6));
+        QVERIFY(controller.canStart());
+        controller.disconnectBus(); QTRY_VERIFY(!controller.active());
     }
 
     void configurationRequiresApplyAndReadback()

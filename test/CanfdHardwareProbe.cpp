@@ -79,6 +79,7 @@ int main(int argc, char** argv) {
     parser.addHelpOption();
     parser.addOption({"adapter", "Exact Npcap adapter name", "name"});
     parser.addOption({"exercise-config", "Reapply the original CAN settings in PRE-OP and OP"});
+    parser.addOption({"identity-only", "Verify the scan and online identity without entering OP"});
     parser.addOption({"output", "Write JSON evidence", "path"});
     parser.process(app);
     if (!parser.isSet("adapter")) {
@@ -101,20 +102,39 @@ int main(int argc, char** argv) {
         const auto scan = session->connectBus(parser.value("adapter").toStdString());
         report["slaveCount"] = scan.slaveCount;
         report["expectedWkc"] = scan.expectedWorkingCounter;
+        QJsonArray identities;
+        for (const auto& slave : scan.slaves) {
+            QJsonObject identity{{"position", slave.position},
+                {"eepromVendor", double(slave.vendorId)}, {"eepromProduct", double(slave.productCode)},
+                {"eepromRevision", double(slave.revision)}};
+            QJsonArray online;
+            for (quint8 sub = 1; sub <= 3; ++sub) {
+                std::array<quint8, 4> bytes{};
+                const auto transfer = session->readSdo(slave.position, 0x1018, sub, 4, bytes.data());
+                online.append(QJsonObject{{"subindex", sub}, {"success", transfer.success},
+                    {"wkc", transfer.wkc}, {"actualSize", transfer.actualSize},
+                    {"value", double(Backend::canfd::readLe(bytes.data(), 4))},
+                    {"error", QString::fromStdString(transfer.error)}});
+            }
+            identity["online"] = online;
+            identities.append(identity);
+        }
+        report["identities"] = identities;
         QString error;
+        quint32 onlineRevision = 0;
         if (!Backend::canfd::validateScan(scan, 1, error)) fail(error);
         if (success) {
-            report["identityVerified"] = Backend::verifyCanfdIdentity(*session, 1, error);
+            report["identityVerified"] = Backend::verifyCanfdIdentity(*session, 1, error, &onlineRevision);
             if (!report["identityVerified"].toBool()) fail(error);
         }
         Backend::CanfdConfigResult original;
-        if (success) {
+        if (success && !parser.isSet("identity-only")) {
             original = Backend::readCanfdConfiguration(*session, {1}, cancelled);
             report["preOpRead"] = original.success;
             report["originalConfigs"] = configsJson(original);
             if (!original.success) fail(original.error);
         }
-        if (success && parser.isSet("exercise-config")) {
+        if (success && !parser.isSet("identity-only") && parser.isSet("exercise-config")) {
             const auto applied = Backend::applyCanfdConfiguration(*session, original.configs, cancelled);
             const bool matched = sameSettings(original, applied);
             report["preOpApply"] = applied.success;
@@ -122,7 +142,7 @@ int main(int argc, char** argv) {
             report["preOpAppliedConfigs"] = configsJson(applied);
             if (!applied.success || !matched) fail(applied.error.isEmpty() ? "PRE-OP configuration readback mismatch" : applied.error);
         }
-        if (success) for (bool dc : {false, true}) {
+        if (success && !parser.isSet("identity-only")) for (bool dc : {false, true}) {
             QTextStream(stdout) << "Testing " << (dc ? "DC OP" : "SM2 OP") << '\n';
             auto counters = std::make_shared<Counters>();
             QJsonObject run{{"dc", dc}};
@@ -159,7 +179,16 @@ int main(int argc, char** argv) {
                     run["opRead"] = read.success;
                     run["opReadMatchesOriginal"] = sameSettings(original, read);
                     if (!sameSettings(original, read)) runFail(read.error.isEmpty() ? "OP configuration readback mismatch" : read.error);
-                    if (parser.isSet("exercise-config")) {
+                    if (parser.isSet("exercise-config") && onlineRevision == 4) {
+                        // Revision 4 deliberately rejects Apply while OP. Do not stage new fields first.
+                        bool rejected = true;
+                        for (quint16 index : {0x2000, 0x2001}) {
+                            const auto transfer = session->writeSdo(1, index, 6, Backend::canfd::writeLe(1, 1));
+                            rejected = rejected && !transfer.success && transfer.abortCode == 0x08000022;
+                        }
+                        run["opApplyRejected"] = rejected;
+                        if (!rejected) runFail("Revision 4 must reject OP Apply with 0x08000022");
+                    } else if (parser.isSet("exercise-config")) {
                         operationStart = Clock::now();
                         const auto applied = Backend::applyCanfdConfiguration(*session, original.configs, cancelled);
                         run["opApplyMs"] = elapsedMs(operationStart);
@@ -191,7 +220,7 @@ int main(int argc, char** argv) {
                         maxWkc = transfers == 1 ? transfer.wkc : std::max(maxWkc, transfer.wkc);
                         minSize = transfers == 1 ? transfer.actualSize : std::min(minSize, transfer.actualSize);
                         maxSize = transfers == 1 ? transfer.actualSize : std::max(maxSize, transfer.actualSize);
-                        if (transfer.success && transfer.actualSize == 4 && Backend::canfd::readLe(bytes.data(), 4) == 3) ++successful;
+                        if (transfer.success && transfer.actualSize == 4 && Backend::canfd::readLe(bytes.data(), 4) == onlineRevision) ++successful;
                         else {
                             transferErrors.append(QJsonObject{{"wkc", transfer.wkc}, {"actualSize", transfer.actualSize},
                                 {"abortCode", Backend::canfd::hex(transfer.abortCode, 8)},

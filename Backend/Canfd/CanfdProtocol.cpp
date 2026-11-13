@@ -124,7 +124,7 @@ bool validateScan(const soem_interface::BusScanResult& scan, int expectedCount, 
         return false;
     }
     for (const auto& slave : scan.slaves) {
-        if (slave.vendorId != 0 || slave.productCode != 0xAB125 || slave.revision != 3
+        if (slave.vendorId != VendorId || slave.productCode != ProductCode || !supportedRevision(slave.revision)
             || slave.outputBits != ImageBytes * 8 || slave.inputBits != ImageBytes * 8) {
             error = QStringLiteral("从站 %1 的身份或 PDO 长度与 ECAT2CANFD 协议不匹配").arg(slave.position);
             return false;

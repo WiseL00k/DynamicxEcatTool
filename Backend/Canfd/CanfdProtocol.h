@@ -14,6 +14,12 @@ constexpr int ImageBytes = 185;
 constexpr int ChannelCount = 2;
 constexpr int SlotsPerChannel = 9;
 constexpr quint16 ValidMask = 0x0800;
+constexpr quint32 VendorId = 0;
+constexpr quint32 ProductCode = 0xAB125;
+
+// Revision 4 retains the 185-byte PDO/configuration layout of revision 3.
+// Its new realtime diagnostics and PRE-OP-only Apply do not change that layout.
+constexpr bool supportedRevision(quint32 revision) { return revision == 3 || revision == 4; }
 
 struct Frame {
     int slave{0};

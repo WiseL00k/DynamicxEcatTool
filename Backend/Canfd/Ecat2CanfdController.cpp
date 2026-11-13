@@ -137,13 +137,15 @@ void Ecat2CanfdController::connectBus(int expectedCount)
     workers_.start([this, self, generation, expectedCount, nic = nicName_] {
         soem_interface::BusScanResult scan;
         CanfdConfigResult configuration;
+        std::map<int, quint32> onlineRevisions;
         QString error;
         bool valid = false;
         try {
             scan = session_->connectBus(nic);
             valid = canfd::validateScan(scan, expectedCount, error);
             if (valid) for (const auto& slave : scan.slaves) {
-                if (cancel_.load() || !verifyCanfdIdentity(*session_, slave.position, error)) { valid = false; break; }
+                if (cancel_.load() || !verifyCanfdIdentity(*session_, slave.position, error,
+                                                         &onlineRevisions[slave.position])) { valid = false; break; }
             }
             if (valid) {
                 std::vector<int> positions;
@@ -157,12 +159,14 @@ void Ecat2CanfdController::connectBus(int expectedCount)
             error = exceptionMessage(); scan.success = false;
             try { session_->disconnectBus(); } catch (...) {}
         }
-        if (self) QMetaObject::invokeMethod(self, [self, generation, scan = std::move(scan), configuration = std::move(configuration), valid, error] {
+        if (self) QMetaObject::invokeMethod(self, [self, generation, scan = std::move(scan), configuration = std::move(configuration), onlineRevisions, valid, error] {
             if (!self || generation != self->generation_) return;
             if (!scan.success) { self->finishDisconnect(generation, error); return; }
             self->connected_ = true; self->protocolValid_ = valid;
             for (const auto& slave : scan.slaves) {
+                const auto revision = onlineRevisions.find(slave.position);
                 self->slaves_.append(QVariantMap{{"position", slave.position}, {"name", QString::fromStdString(slave.name)},
+                    {"revision", revision != onlineRevisions.end() ? revision->second : 0u},
                     {"state", slave.state}, {"stateText", stateName(slave.state)}, {"alStatusCode", slave.alStatusCode},
                     {"alStatusText", QString::fromStdString(slave.alStatusText)}});
             }
@@ -313,6 +317,11 @@ void Ecat2CanfdController::applyConfiguration(int slave, const QVariantList& con
     if (!connected_ || busy_ || !protocolValid_ || configurations.empty()) { fail(QStringLiteral("当前状态无法应用 CAN 配置")); return; }
     const auto found = std::find_if(slaves_.begin(), slaves_.end(), [slave](const QVariant& item) { return item.toMap().value("position").toInt() == slave; });
     if (found == slaves_.end()) { fail(QStringLiteral("选择的从站不存在")); return; }
+    // Use the online identity: an upgraded board can retain a revision 3 EEPROM.
+    if (running() && found->toMap().value("revision").toUInt() == 4) {
+        fail(QStringLiteral("此固件须先停止运行、返回 PRE-OP 后再应用 CAN 配置；OP 期间可读取配置"));
+        return;
+    }
     std::vector<canfd::ChannelConfig> requested;
     std::set<int> channels;
     for (const auto& item : configurations) {
